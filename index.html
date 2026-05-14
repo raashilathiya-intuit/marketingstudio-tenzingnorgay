@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketing Studio — Dashboard Builds</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+      background: #fafaf9;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 96px 32px 64px;
+    }
+    .eyebrow {
+      font-size: 13px;
+      font-weight: 500;
+      color: #888;
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 12px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: #666;
+      margin: 0 0 48px;
+      line-height: 1.5;
+    }
+    .builds {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .build {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      background: #fff;
+      border: 1px solid #ececea;
+      border-radius: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+    .build:hover {
+      border-color: #1a1a1a;
+      transform: translateY(-1px);
+    }
+    .build-text { display: flex; flex-direction: column; gap: 4px; }
+    .build-label { font-size: 15px; font-weight: 600; }
+    .build-desc { font-size: 13px; color: #777; }
+    .build-arrow {
+      font-size: 18px;
+      color: #aaa;
+      transition: transform 0.15s ease, color 0.15s ease;
+    }
+    .build:hover .build-arrow { transform: translateX(2px); color: #1a1a1a; }
+    footer {
+      margin-top: 56px;
+      font-size: 12px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="eyebrow">INTUIT · MARKETING STUDIO</div>
+    <h1>Dashboard Builds</h1>
+    <p class="subtitle">
+      Three dashboard explorations for review. Click any build to open the prototype in a new view.
+    </p>
+
+    <div class="builds">
+      <a class="build" href="R1D1_Opt1.html">
+        <div class="build-text">
+          <span class="build-label">R1-D1 (Option 1)</span>
+        </div>
+        <span class="build-arrow">→</span>
+      </a>
+
+      <a class="build" href="R1d1_Opt2.html">
+        <div class="build-text">
+          <span class="build-label">R1-D1 (Option 2)</span>
+        </div>
+        <span class="build-arrow">→</span>
+      </a>
+
+      <a class="build" href="R2D2.html">
+        <div class="build-text">
+          <span class="build-label">R2-D2</span>
+        </div>
+        <span class="build-arrow">→</span>
+      </a>
+    </div>
+
+    <footer>Last updated May 2026</footer>
+  </div>
+</body>
+</html>
