@@ -38,6 +38,37 @@
       margin: 0 0 48px;
       line-height: 1.5;
     }
+
+    /* ── Date sections ── */
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .section-date {
+      font-size: 13px;
+      font-weight: 600;
+      color: #888;
+      letter-spacing: 0.02em;
+    }
+    .new-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      background: #1a1a1a;
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ── Build cards ── */
     .builds {
       display: flex;
       flex-direction: column;
@@ -68,6 +99,7 @@
       transition: transform 0.15s ease, color 0.15s ease;
     }
     .build:hover .build-arrow { transform: translateX(2px); color: #1a1a1a; }
+
     footer {
       margin-top: 56px;
       font-size: 12px;
@@ -80,33 +112,63 @@
     <div class="eyebrow">INTUIT · MARKETING STUDIO</div>
     <h1>Dashboard Builds</h1>
     <p class="subtitle">
-      Three dashboard explorations for review. Click any build to open the prototype in a new view.
+      Dashboard explorations grouped by session. Click any build to open the prototype.
     </p>
 
-    <div class="builds">
-      <a class="build" href="R1D1_Opt1.html">
-        <div class="build-text">
-          <span class="build-label">R1-D1 (Option 1)</span>
-        </div>
-        <span class="build-arrow">→</span>
-      </a>
+    <div class="sections">
 
-      <a class="build" href="R1d1_Opt2.html">
-        <div class="build-text">
-          <span class="build-label">R1-D1 (Option 2)</span>
+      <!-- 27 May -->
+      <div>
+        <div class="section-header">
+          <span class="section-date">27 MAY</span>
+          <span class="new-badge">New</span>
         </div>
-        <span class="build-arrow">→</span>
-      </a>
+        <div class="builds">
+          <a class="build" href="R1D1_May26.html">
+            <div class="build-text">
+              <span class="build-label">R1-D1</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+          <a class="build" href="R2D2_Target_May26.html">
+            <div class="build-text">
+              <span class="build-label">R2-D2 (Target)</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+        </div>
+      </div>
 
-      <a class="build" href="R2D2.html">
-        <div class="build-text">
-          <span class="build-label">R2-D2</span>
+      <!-- 15 May -->
+      <div>
+        <div class="section-header">
+          <span class="section-date">15 MAY</span>
         </div>
-        <span class="build-arrow">→</span>
-      </a>
+        <div class="builds">
+          <a class="build" href="R1D1_Opt1.html">
+            <div class="build-text">
+              <span class="build-label">R1-D1 (Option 1)</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+          <a class="build" href="R1d1_Opt2.html">
+            <div class="build-text">
+              <span class="build-label">R1-D1 (Option 2)</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+          <a class="build" href="R2D2.html">
+            <div class="build-text">
+              <span class="build-label">R2-D2</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+        </div>
+      </div>
+
     </div>
 
-    <footer>Last updated May 2026</footer>
+    <footer>Last updated 26 May 2026</footer>
   </div>
 </body>
 </html>
