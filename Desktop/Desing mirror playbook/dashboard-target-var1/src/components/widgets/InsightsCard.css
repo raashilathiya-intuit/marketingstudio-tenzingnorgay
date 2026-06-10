@@ -1,0 +1,369 @@
+/* ─── Insights card body ──────────────────────────────────────────────────── */
+
+.insights-card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Callout row ─────────────────────────────────────────────────────────── */
+
+.insights-row {
+  border-top: 1px solid var(--line-soft);
+  transition: max-height 0.2s ease, opacity 0.2s ease, padding 0.2s ease;
+  overflow: hidden;
+}
+
+.insights-row:first-child {
+  border-top: none;
+}
+
+.insights-row--collapsing {
+  max-height: 0 !important;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* ─── Main row (always visible) ───────────────────────────────────────────── */
+
+.insights-row-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 0 2px;
+  min-height: 56px;
+  position: relative;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+
+.insights-row-main:hover {
+  background: var(--surface-2);
+}
+
+/* ─── Type column (~12%) ──────────────────────────────────────────────────── */
+
+.insights-row-type {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 110px;
+  min-width: 0;
+}
+
+.insights-row-type-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.insights-row--alert       .insights-row-type { color: var(--pill-peach-ink, #b45309); }
+.insights-row--observation .insights-row-type { color: var(--pill-lavender-ink, #5b4fcf); }
+.insights-row--opportunity .insights-row-type { color: var(--pill-mint-ink, #1a7a4a); }
+
+/* ─── Copy (~58%) ─────────────────────────────────────────────────────────── */
+
+.insights-row-copy {
+  flex: 1;
+  font-size: var(--text-sm, 12px);
+  color: var(--ink-2);
+  line-height: 1.45;
+  min-width: 0;
+}
+
+/* ─── Source chip ─────────────────────────────────────────────────────────── */
+
+.insights-row-source {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ─── Action link ─────────────────────────────────────────────────────────── */
+
+.insights-row-action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--link, var(--primary));
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.12s;
+}
+
+.insights-row-action:hover {
+  opacity: 0.75;
+}
+
+/* ─── Expander chevron ────────────────────────────────────────────────────── */
+
+.insights-row-expander {
+  flex: 0 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+
+.insights-row-expander svg {
+  transition: transform 200ms var(--ease-standard, ease);
+}
+
+.insights-row-expander--open svg {
+  transform: rotate(180deg);
+}
+
+/* ─── Dismiss × ───────────────────────────────────────────────────────────── */
+
+.insights-row-dismiss {
+  flex: 0 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  color: var(--ink-4);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.insights-row:hover .insights-row-dismiss {
+  opacity: 1;
+}
+
+.insights-row-dismiss:hover {
+  background: var(--line-soft);
+  color: var(--ink-1);
+}
+
+/* ─── "Why this signal?" detail block ────────────────────────────────────── */
+
+.insights-why {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 220ms ease;
+}
+
+.insights-why--open {
+  max-height: 200px;
+}
+
+.insights-why--cluster.insights-why--open {
+  max-height: 400px;
+}
+
+.insights-why-inner {
+  padding: 14px 16px 16px;
+  background: var(--surface-2);
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.insights-why-eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pill-lavender-ink, #5b4fcf);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.insights-why-body {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.insights-why-link {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--link);
+  text-decoration: none;
+  transition: opacity 0.12s;
+  align-self: flex-start;
+}
+
+.insights-why-link:hover {
+  opacity: 0.75;
+}
+
+/* ─── Footer overflow link ────────────────────────────────────────────────── */
+
+.insights-footer {
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.insights-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--link, var(--primary));
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.insights-footer-link:hover {
+  opacity: 0.75;
+}
+
+/* ─── All-dismissed empty state ───────────────────────────────────────────── */
+
+.insights-empty {
+  padding: 16px 0 12px;
+  font-size: var(--text-sm, 12px);
+  color: var(--ink-4);
+  text-align: center;
+}
+
+/* ─── Cluster row — main row alignment ──────────────────────────────────────── */
+
+.insights-cluster-main {
+  align-items: flex-start;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  min-height: 56px;
+}
+
+/* ─── Cluster "+N" badge on the type label ───────────────────────────────────── */
+
+.insights-cluster-count {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.7;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ─── Cluster body ────────────────────────────────────────────────────────────── */
+
+.insights-cluster-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.insights-cluster-headline {
+  flex: none;
+}
+
+/* ─── Signal pills (expanded) ────────────────────────────────────────────────── */
+
+.insights-signal-pills {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.insights-signal-pills--open {
+  display: flex;
+}
+
+.insights-signal-pill {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.insights-signal-pill--alert       { background: var(--pill-peach-bg,     #fef3e2); color: var(--pill-peach-ink,     #b45309); }
+.insights-signal-pill--observation { background: var(--pill-lavender-bg,  #f0eeff); color: var(--pill-lavender-ink,  #5b4fcf); }
+.insights-signal-pill--opportunity { background: var(--pill-mint-bg,      #edfbf4); color: var(--pill-mint-ink,      #1a7a4a); }
+
+.insights-signal-pill svg {
+  flex-shrink: 0;
+  position: relative;
+  top: 1px;
+}
+
+.insights-signal-pill-label {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.insights-signal-pill-text {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Loading shimmer row ──────────────────────────────────────────────────── */
+
+@keyframes insights-shimmer {
+  0%   { opacity: 0.35; }
+  50%  { opacity: 0.7; }
+  100% { opacity: 0.35; }
+}
+
+.insights-loading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 0 0 2px;
+  min-height: 48px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.insights-loading-row:first-child {
+  border-top: none;
+}
+
+.insights-loading-sparkle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  animation: insights-shimmer 1.4s ease-in-out infinite;
+}
+
+.insights-loading-text {
+  height: 10px;
+  width: 220px;
+  max-width: 60%;
+  border-radius: 100px;
+  background: var(--line-soft, #e8e8ee);
+  animation: insights-shimmer 1.4s ease-in-out infinite;
+  animation-delay: 0.15s;
+}

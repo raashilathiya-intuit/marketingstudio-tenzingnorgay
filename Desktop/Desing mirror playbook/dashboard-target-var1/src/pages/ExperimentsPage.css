@@ -1,0 +1,368 @@
+/* ─── Toolbar ────────────────────────────────────────────────────────────────── */
+
+.exp-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 48px;
+  margin-bottom: 16px;
+}
+
+.exp-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ─── Search ─────────────────────────────────────────────────────────────────── */
+
+.exp-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-input, 8px);
+  padding: 0 10px;
+  height: 36px;
+  width: 280px;
+  transition: border-color 0.12s;
+}
+
+.exp-search:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26, 37, 64, 0.08);
+}
+
+.exp-search-icon {
+  flex-shrink: 0;
+  color: var(--ink-4);
+}
+
+.exp-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-1);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  line-height: 1;
+}
+
+.exp-search-input::placeholder {
+  color: var(--ink-4);
+}
+
+.exp-search-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  color: var(--ink-4);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.12s, color 0.12s;
+  padding: 0;
+}
+
+.exp-search-clear:hover {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+
+/* ─── Filter button ──────────────────────────────────────────────────────────── */
+
+.exp-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--r-input, 8px);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+
+.exp-filter-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-4);
+}
+
+/* ─── Create CTA ─────────────────────────────────────────────────────────────── */
+
+.exp-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--r-input, 8px);
+  border: none;
+  background: #4338CA;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+
+.exp-create-btn:hover {
+  background: #3730A3;
+}
+
+/* ─── Table wrapper ──────────────────────────────────────────────────────────── */
+
+.exp-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.exp-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+/* ─── Table ──────────────────────────────────────────────────────────────────── */
+
+.exp-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Column widths */
+.exp-table th:nth-child(1)  { width: 76px; }
+.exp-table th:nth-child(2)  { width: 180px; }
+.exp-table th:nth-child(3)  { width: 114px; }
+.exp-table th:nth-child(4)  { width: 130px; }
+.exp-table th:nth-child(5)  { width: 106px; }
+.exp-table th:nth-child(6)  { width: 116px; }
+.exp-table th:nth-child(7)  { width: 116px; }
+.exp-table th:nth-child(8)  { width: 116px; }
+.exp-table th:nth-child(9)  { width: 90px; }
+.exp-table th:nth-child(10) { width: 64px; }
+
+/* ─── Header ─────────────────────────────────────────────────────────────────── */
+
+.exp-th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-3);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.exp-th--sortable {
+  cursor: pointer;
+}
+
+.exp-th--sortable:hover {
+  background: #eeeef4;
+  color: var(--ink-2);
+}
+
+.exp-th--active {
+  color: var(--ink-1);
+}
+
+.exp-th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.exp-sort-icon {
+  color: var(--ink-4);
+  flex-shrink: 0;
+}
+
+.exp-sort-icon--active {
+  color: var(--primary);
+}
+
+/* ─── Rows ───────────────────────────────────────────────────────────────────── */
+
+.exp-row {
+  border-bottom: 1px solid var(--line-soft);
+  transition: background 0.1s;
+}
+
+.exp-row:last-child {
+  border-bottom: none;
+}
+
+.exp-row:hover {
+  background: var(--surface-2);
+}
+
+.exp-td {
+  padding: 16px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--ink-2);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exp-td--id { color: var(--ink-2); }
+.exp-td--date { color: var(--ink-2); }
+.exp-td--results { color: var(--ink-4); text-align: center; }
+
+.exp-name-link,
+.exp-id-link {
+  color: var(--link, #3b6ef5);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 400;
+  transition: opacity 0.12s;
+}
+
+.exp-name-link:hover,
+.exp-id-link:hover {
+  opacity: 0.75;
+}
+
+/* ─── Key pill ───────────────────────────────────────────────────────────────── */
+
+.exp-key-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  white-space: nowrap;
+}
+
+/* ─── Status badge ───────────────────────────────────────────────────────────── */
+
+.exp-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.exp-status--draft {
+  background: #fff3e8;
+  color: #b45309;
+}
+
+.exp-status--running {
+  background: #dcfce7;
+  color: #166534;
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────────────── */
+
+.exp-empty-cell {
+  padding: 40px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink-3);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+}
+
+/* ─── Pagination ─────────────────────────────────────────────────────────────── */
+
+.exp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0 4px;
+  gap: 12px;
+}
+
+.exp-pagination-info {
+  font-size: 14px;
+  color: var(--ink-3);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+}
+
+.exp-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.exp-page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  font-size: 14px;
+  color: var(--ink-4);
+}
+
+.exp-page-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 400;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.exp-page-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.exp-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.exp-page-num--active {
+  background: transparent;
+  color: #4338CA;
+  font-weight: 600;
+}
+
+.exp-page-num--active:hover {
+  background: var(--surface-2) !important;
+}

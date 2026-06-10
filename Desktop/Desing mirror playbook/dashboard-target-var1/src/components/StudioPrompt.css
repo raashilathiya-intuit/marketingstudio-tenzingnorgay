@@ -1,0 +1,226 @@
+/* ─── Prompt label (embedded / Home only) ─────────────────────────────────── */
+
+.studio-prompt-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  line-height: 1.3;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+/* ─── Outer wrapper ───────────────────────────────────────────────────────── */
+
+.studio-prompt-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  pointer-events: auto;
+}
+
+/* Floating variant — fixed bottom-center on Analytics */
+/* Note: left calc instead of transform avoids creating a GPU compositing group,
+   which would block backdrop-filter from seeing page content below */
+.studio-prompt-wrap--floating {
+  position: fixed;
+  bottom: 24px;
+  left: calc(50% - 280px);
+  z-index: 100;
+  width: 560px;
+}
+
+/* Embedded variant — centered block on Home */
+.studio-prompt-wrap:not(.studio-prompt-wrap--floating) {
+  align-items: center;
+  width: 100%;
+  margin: 32px 0 0;
+}
+
+/* ─── Gradient-border shell ───────────────────────────────────────────────── */
+
+/* Outer wrapper — position context for the ::before gradient ring */
+.studio-prompt-border {
+  position: relative;
+  padding: 1.5px;
+  background: var(--surface, #fff);
+}
+
+/* Conic gradient + mask: only the 1.5px padding strip renders as the border */
+.studio-prompt-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--ai-angle), #a78bfa, #60a5fa, #5eead4, #a78bfa);
+  animation: rotateConic 8s linear infinite;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Floating: 16px outer radius + drop shadow */
+.studio-prompt-wrap--floating .studio-prompt-border {
+  border-radius: 16px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 6px 16px rgba(0, 0, 0, 0.09),
+    0 16px 40px rgba(0, 0, 0, 0.07);
+}
+
+/* Embedded: pillowy radius + layered soft shadow */
+.studio-prompt-wrap:not(.studio-prompt-wrap--floating) .studio-prompt-border {
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.04), 0 4px 16px rgba(24, 24, 27, 0.06);
+  width: 100%;
+}
+
+/* ─── Inner card ──────────────────────────────────────────────────────────── */
+
+.studio-prompt-card {
+  background: var(--surface, #fff);
+  padding: 10px 12px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Floating: 15px inner radius */
+.studio-prompt-wrap--floating .studio-prompt-card {
+  border-radius: 15px;
+}
+
+/* Embedded: 15px inner radius (16px outer - 1.5px border), generous padding, min-height */
+.studio-prompt-wrap:not(.studio-prompt-wrap--floating) .studio-prompt-card {
+  border-radius: 15px;
+  padding: 20px 22px;
+  min-height: 108px;
+}
+
+/* ─── Suggestion chips (Home only) ───────────────────────────────────────── */
+
+.studio-prompt-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* bleed to card edges by cancelling card padding; 4px top adds to card's 8px gap = 12px total */
+  margin: 4px -22px -20px;
+  padding: 8px 22px;
+  background: #f1f1f3;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 15px 15px;
+}
+
+.studio-prompt-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.studio-prompt-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  color: var(--ink-1);
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.studio-prompt-chip:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-4);
+}
+
+/* ─── Textarea ────────────────────────────────────────────────────────────── */
+
+.studio-prompt-input {
+  width: 100%;
+  min-height: 28px;
+  max-height: 120px;
+  resize: none;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  font-weight: 500;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  color: var(--ink-1);
+  line-height: 1.5;
+  overflow-y: auto;
+}
+
+.studio-prompt-wrap--floating .studio-prompt-input {
+  max-height: 72px;
+}
+
+.studio-prompt-input::placeholder {
+  color: var(--ink-4);
+}
+
+/* ─── Footer row ──────────────────────────────────────────────────────────── */
+
+.studio-prompt-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ─── Attach "+" button ───────────────────────────────────────────────────── */
+
+.studio-prompt-attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  flex-shrink: 0;
+}
+
+.studio-prompt-attach:hover {
+  background: var(--surface-2);
+  color: var(--ink-1);
+}
+
+/* ─── Send button — filled square, nav color ─────────────────────────────── */
+
+.studio-prompt-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--chart-purple, #6B5BD6);
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: white;
+  transition: background 0.12s;
+}
+
+.studio-prompt-send:hover:not(:disabled) {
+  background: #5a4bc0;
+}
+
+.studio-prompt-send--disabled,
+.studio-prompt-send:disabled {
+  background: #c4c4c8;
+  color: var(--ink-3);
+  cursor: not-allowed;
+}

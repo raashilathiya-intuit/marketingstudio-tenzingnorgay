@@ -1,0 +1,53 @@
+.pastel-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.pastel-pill--mint {
+  background: var(--pill-mint-bg);
+  color: var(--pill-mint-ink);
+}
+
+.pastel-pill--pink {
+  background: var(--pill-pink-bg);
+  color: var(--pill-pink-ink);
+}
+
+.pastel-pill--teal {
+  background: var(--pill-teal-bg);
+  color: var(--pill-teal-ink);
+}
+
+.pastel-pill--lavender {
+  background: var(--pill-lavender-bg);
+  color: var(--pill-lavender-ink);
+}
+
+.pastel-pill--peach {
+  background: var(--pill-peach-bg);
+  color: var(--pill-peach-ink);
+}
+
+.pastel-pill--active {
+  background: var(--active-bg);
+  color: #1a7a3a;
+}
+
+/* Active/live status pill — bright green */
+.pastel-pill--live {
+  background: var(--active);
+  color: white;
+  font-weight: 600;
+}
+
+/* Size variants */
+.pastel-pill--sm {
+  font-size: var(--text-xs);
+  padding: 3px 8px;
+}

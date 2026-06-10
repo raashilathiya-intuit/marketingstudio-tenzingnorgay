@@ -1,0 +1,417 @@
+/* ─── Backdrop ───────────────────────────────────────────────────────────── */
+
+.lib-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  z-index: 300;
+  animation: backdropIn var(--duration-base) var(--ease-standard);
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Drawer ─────────────────────────────────────────────────────────────── */
+
+.lib-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 760px;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  animation: drawerIn var(--duration-slow) var(--ease-standard);
+  overflow: hidden;
+}
+
+@keyframes drawerIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+
+.lib-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 20px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.lib-title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink-1);
+}
+
+.lib-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+
+.lib-close-btn:hover {
+  background: var(--line-soft);
+  color: var(--ink-1);
+}
+
+/* ─── Search ─────────────────────────────────────────────────────────────── */
+
+.lib-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 16px 24px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-input);
+  padding: 9px 12px;
+  background: var(--canvas);
+  flex-shrink: 0;
+}
+
+.lib-search-wrap:focus-within {
+  border-color: var(--link);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.lib-search {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: var(--text-md);
+  color: var(--ink-1);
+  min-width: 0;
+}
+
+.lib-search::placeholder {
+  color: var(--ink-4);
+}
+
+.lib-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: var(--ink-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+
+.lib-search-clear:hover {
+  background: var(--line);
+}
+
+/* ─── Category chips ─────────────────────────────────────────────────────── */
+
+.lib-categories {
+  display: flex;
+  gap: 6px;
+  padding: 12px 24px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.lib-cat-pill {
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+  white-space: nowrap;
+}
+
+.lib-cat-pill:hover {
+  border-color: var(--ink-4);
+  color: var(--ink-1);
+}
+
+.lib-cat-pill--active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-dark-1);
+}
+
+/* ─── Gallery scroll area ────────────────────────────────────────────────── */
+
+.lib-gallery {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 24px 24px;
+}
+
+/* ─── Category section ───────────────────────────────────────────────────── */
+
+.lib-section {
+  margin-bottom: 28px;
+}
+
+.lib-section-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.lib-section:first-child .lib-section-header {
+  border-top: none;
+  padding-top: 8px;
+}
+
+/* ─── 3-column tile grid ─────────────────────────────────────────────────── */
+
+.lib-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* ─── Widget tile ────────────────────────────────────────────────────────── */
+
+.wgt-tile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.wgt-info-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.wgt-info-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-2);
+  flex-shrink: 0;
+  transition: color 0.12s;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: default;
+}
+
+.wgt-info-btn:hover {
+  color: var(--ink-1);
+}
+
+.wgt-info-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  transform: translateX(-50%);
+  width: 220px;
+  background: var(--ink-1);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.55;
+  padding: 8px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  white-space: normal;
+  z-index: 400;
+}
+
+.wgt-info-wrap:hover .wgt-info-tooltip {
+  opacity: 1;
+}
+
+.wgt-tile {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  position: relative;
+  overflow: visible;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: default;
+}
+
+.wgt-tile:hover:not(.wgt-tile--added) {
+  border-color: var(--primary);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.09);
+}
+
+.wgt-tile--added {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* ─── Mini preview area ──────────────────────────────────────────────────── */
+
+.wgt-tile-preview {
+  height: 82px;
+  background: var(--canvas);
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  overflow: hidden;
+  flex-shrink: 0;
+  padding: 2px 6px 0;
+  display: flex;
+  align-items: center;
+}
+
+.wgt-tile-preview svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ─── Tile body ──────────────────────────────────────────────────────────── */
+
+.wgt-tile-body {
+  padding: 10px 12px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.wgt-tile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+  line-height: 1.3;
+}
+
+.wgt-tile-variant {
+  font-size: 11px;
+  color: var(--ink-4);
+  font-weight: 400;
+  margin-top: 1px;
+}
+
+.wgt-tile-desc {
+  font-size: 11px;
+  color: var(--ink-2);
+  line-height: 1.45;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ─── Hover add button ───────────────────────────────────────────────────── */
+
+.wgt-tile-add-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--link);
+  background: var(--surface);
+  border: 1px solid var(--link);
+  border-radius: var(--r-input);
+  padding: 4px 10px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+  white-space: nowrap;
+}
+
+.wgt-tile:hover .wgt-tile-add-btn {
+  opacity: 1;
+}
+
+.wgt-tile-add-btn:hover {
+  background: var(--link);
+  color: white;
+}
+
+/* ─── Added badge ────────────────────────────────────────────────────────── */
+
+.wgt-tile-added-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  z-index: 1;
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────────── */
+
+.lib-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
+
+.lib-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.lib-request-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--link);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}

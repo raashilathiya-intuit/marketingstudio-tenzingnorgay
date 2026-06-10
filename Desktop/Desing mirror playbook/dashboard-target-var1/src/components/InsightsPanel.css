@@ -1,0 +1,80 @@
+/* ─── Gradient border wrapper ─────────────────────────────────────────────── */
+
+.insights-panel-border {
+  position: relative;
+  padding: 1.5px;
+  border-radius: calc(var(--r-card, 12px) + 1.5px);
+  margin-bottom: 20px;
+}
+
+.insights-panel-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(from var(--ai-angle), #a78bfa, #60a5fa, #5eead4, #a78bfa);
+  animation: rotateConic 8s linear infinite;
+  pointer-events: none;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* ─── Inner card ──────────────────────────────────────────────────────────── */
+
+.insights-panel {
+  background: var(--surface, #fff);
+  border-radius: var(--r-card, 12px);
+  padding: 0 16px 4px;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────────── */
+
+.insights-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 8px;
+  border-bottom: 1px solid var(--line-soft, #e8e8ee);
+  margin-bottom: 0;
+}
+
+.insights-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-sm, 12px);
+  font-weight: 600;
+  color: var(--ink-1);
+  letter-spacing: 0.01em;
+}
+
+/* ─── Sparkle icon animation ─────────────────────────────────────────────── */
+
+@keyframes sparklePulse {
+  0%   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  40%  { transform: scale(1.18) rotate(12deg); opacity: 0.85; }
+  100% { transform: scale(1) rotate(0deg);   opacity: 1; }
+}
+
+.insights-panel-sparkle {
+  color: #7c3aed;
+  animation: sparklePulse 4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Signal count badge ─────────────────────────────────────────────────── */
+
+.insights-panel-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-3);
+  background: var(--canvas, var(--surface-2, #f4f4f8));
+  border: 1px solid var(--line, #d4d4e0);
+  padding: 2px 8px;
+  border-radius: 100px;
+  white-space: nowrap;
+}

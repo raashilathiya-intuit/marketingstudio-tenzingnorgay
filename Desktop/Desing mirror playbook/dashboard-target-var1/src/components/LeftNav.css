@@ -1,0 +1,472 @@
+/* ─── Left nav rail ────────────────────────────────────────────────────────── */
+
+.leftnav {
+  flex-shrink: 0;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  padding-top: 0;
+  background: var(--canvas);
+  transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  /* No overflow: hidden — needed to allow CSS tooltips to escape */
+}
+
+/* ─── Logo header ─────────────────────────────────────────────────────────── */
+
+.leftnav-logo {
+  flex-shrink: 0;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 14px;
+  overflow: hidden;
+}
+
+.leftnav-logo--collapsed {
+  justify-content: center;
+  padding: 0;
+}
+
+/* Collapsed logo acts as an expand button */
+.leftnav-logo--btn {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: background 0.12s;
+}
+
+.leftnav-logo--btn:hover {
+  background: rgba(24, 24, 27, 0.06);
+  border-radius: 8px;
+}
+
+/* Tooltip for collapsed logo button */
+.leftnav--collapsed .leftnav-logo--btn[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: fixed;
+  left: 64px;
+  top: var(--tooltip-top, 26px);
+  transform: translateY(-50%);
+  background: #1a2540;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0s;
+  z-index: 200;
+}
+
+.leftnav--collapsed .leftnav-logo--btn[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* ─── Logo header ────────────────────────────────────────────────────────── */
+
+.leftnav-header {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* Expanded: logo fills remaining space, collapse btn on right */
+.leftnav-header > svg {
+  flex: 1;
+  min-width: 0;
+}
+
+.leftnav-collapse-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: #71717a;
+  transition: color 0.12s, background 0.12s;
+}
+
+.leftnav-collapse-btn:hover {
+  color: #18181b;
+  background: rgba(24, 24, 27, 0.06);
+}
+
+/* Collapsed: brand mark centered, full-width clickable */
+.leftnav--collapsed .leftnav-header {
+  padding: 0 16px;
+  justify-content: center;
+}
+
+.leftnav-brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+  border-radius: 6px;
+  padding: 4px;
+  transition: background 0.12s;
+}
+
+.leftnav-brand-mark:hover {
+  background: rgba(24, 24, 27, 0.06);
+}
+
+/* ─── Rail content swap animation ───────────────────────────────────────── */
+
+.leftnav-rail-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Each direct child staggers in from the left.
+   opacity:0 here replaces fill-mode:both so no transform lingers after
+   animation ends — keeps position:fixed tooltips on ::after working. */
+.leftnav-rail-content > * {
+  opacity: 0;
+  animation: leftnav-item-in 0.18s cubic-bezier(0.25, 0, 0.1, 1) forwards;
+}
+
+.leftnav-rail-content > *:nth-child(1)  { animation-delay:   0ms; }
+.leftnav-rail-content > *:nth-child(2)  { animation-delay:  25ms; }
+.leftnav-rail-content > *:nth-child(3)  { animation-delay:  50ms; }
+.leftnav-rail-content > *:nth-child(4)  { animation-delay:  75ms; }
+.leftnav-rail-content > *:nth-child(5)  { animation-delay: 100ms; }
+.leftnav-rail-content > *:nth-child(6)  { animation-delay: 120ms; }
+.leftnav-rail-content > *:nth-child(7)  { animation-delay: 140ms; }
+.leftnav-rail-content > *:nth-child(8)  { animation-delay: 155ms; }
+.leftnav-rail-content > *:nth-child(9)  { animation-delay: 170ms; }
+.leftnav-rail-content > *:nth-child(10) { animation-delay: 182ms; }
+.leftnav-rail-content > *:nth-child(11) { animation-delay: 192ms; }
+.leftnav-rail-content > *:nth-child(12) { animation-delay: 200ms; }
+
+@keyframes leftnav-item-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Section divider ────────────────────────────────────────────────────── */
+
+.leftnav-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 8px 12px;
+  flex-shrink: 0;
+}
+
+/* ─── Group label ────────────────────────────────────────────────────────── */
+
+.leftnav-group-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #71717a;
+  padding: 0 12px;
+  margin-top: 12px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* ─── Nav item ───────────────────────────────────────────────────────────── */
+
+.leftnav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--ink-3);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  /* overflow removed from item — label handles text clipping */
+  transition: color 0.12s, background 0.12s;
+}
+
+.leftnav-item:hover {
+  color: #18181b;
+  background: rgba(24, 24, 27, 0.05);
+}
+
+/* Active item — light grey pill, no left band */
+.leftnav-item--active {
+  background: rgba(0, 0, 0, 0.05);
+  color: #18181b;
+}
+
+.leftnav-item--active:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+/* Active icon: purple accent */
+.leftnav-item--active .leftnav-item-icon {
+  color: var(--pill-lavender-ink);
+}
+
+.leftnav-item-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.leftnav-item-label {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  line-height: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Smooth collapse animation */
+  max-width: 160px;
+  opacity: 1;
+  transition: max-width 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s;
+}
+
+/* ─── Flex spacer ────────────────────────────────────────────────────────── */
+
+.leftnav-spacer {
+  flex: 1;
+}
+
+/* ─── Collapsed state ────────────────────────────────────────────────────── */
+
+.leftnav--collapsed {
+  width: 48px;
+}
+
+.leftnav--collapsed .leftnav-item {
+  gap: 0;
+  padding: 0 16px;
+}
+
+/* Remove full-width hover/active backgrounds — centered chip handles it */
+.leftnav--collapsed .leftnav-item:hover {
+  background: transparent;
+}
+
+.leftnav--collapsed .leftnav-item--active,
+.leftnav--collapsed .leftnav-item--active:hover {
+  background: transparent;
+}
+
+/* Centered 48×40 hover chip via ::before — fills full nav width for 16px gaps each side */
+.leftnav--collapsed .leftnav-item:hover::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(24, 24, 27, 0.05);
+}
+
+/* Active state: centered chip */
+.leftnav--collapsed .leftnav-item--active::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 40px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.leftnav--collapsed .leftnav-item--active:hover::before {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+/* Shrink label text during collapse */
+.leftnav--collapsed .leftnav-item-label {
+  max-width: 0;
+  opacity: 0;
+}
+
+/* ─── Instant CSS tooltip (collapsed state only) ─────────────────────────── */
+
+.leftnav--collapsed .leftnav-item[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: fixed;
+  left: 64px;    /* just past the collapsed rail */
+  top: var(--tooltip-top, 50%);
+  transform: translateY(-50%);
+  background: #1a2540;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0s;   /* zero delay — show instantly */
+  z-index: 200;
+}
+
+.leftnav--collapsed .leftnav-item[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* ─── Campaigns rail ─────────────────────────────────────────────────────── */
+
+/* Back link (expanded) — plain text link */
+.campaigns-rail-back {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  margin: 2px 0 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  user-select: none;
+  white-space: nowrap;
+  transition: color 0.12s;
+}
+
+.campaigns-rail-back:hover {
+  color: var(--ink-1);
+}
+
+/* Back link collapsed state — centered icon, same size as nav items, no border */
+.campaigns-rail-back--collapsed {
+  justify-content: center;
+  padding: 0 16px;
+  gap: 0;
+  height: 40px;
+  margin: 0;
+  font-size: 0; /* hide text */
+  border: none;
+  background: transparent;
+}
+
+/* Tooltip for collapsed back link */
+.leftnav--collapsed .campaigns-rail-back[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: fixed;
+  left: 64px;
+  top: var(--tooltip-top, 50%);
+  transform: translateY(-50%);
+  background: #1a2540;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0s;
+  z-index: 200;
+}
+
+.leftnav--collapsed .campaigns-rail-back[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* Section header */
+.campaigns-rail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 400;
+  color: #18181b;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* Divider between Campaigns title and sub-nav items */
+.campaigns-rail-divider {
+  height: 1px;
+  background: rgba(24, 24, 27, 0.08);
+  margin: 0 12px 8px;
+}
+
+/* Configuration group label */
+.campaigns-rail-config-label {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  letter-spacing: 0.08em;
+}
+
+/* Collapsed: thin divider instead of config label */
+.campaigns-rail-config-divider {
+  height: 1px;
+  background: rgba(24, 24, 27, 0.1);
+  margin: 8px 12px;
+}
+
+/* ─── Avatar row ────────────────────────────────────────────────────────── */
+
+.leftnav-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px 12px;
+  flex-shrink: 0;
+}
+
+.leftnav-avatar-row--collapsed {
+  justify-content: center;
+  padding: 8px 0 12px;
+}
+
+.leftnav-avatar-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3492ef 0%, #8456f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.leftnav-avatar-initials {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.leftnav-avatar-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

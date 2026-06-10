@@ -1,0 +1,158 @@
+/* ─── Internal content header strip ───────────────────────────────────────── */
+
+.content-header {
+  flex-shrink: 0;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 0 16px;
+  border-bottom: 1px solid #DCDCE1;
+  background: var(--surface);
+}
+
+/* ─── Left: toggle + page label ───────────────────────────────────────────── */
+
+.content-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.content-header-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #71717a;
+  flex-shrink: 0;
+  transition: color 0.12s, background 0.12s;
+}
+
+.content-header-toggle:hover {
+  color: #18181b;
+  background: rgba(24, 24, 27, 0.06);
+}
+
+.content-header-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: color 0.12s, background 0.12s;
+}
+
+.content-header-back:hover {
+  color: var(--ink-1);
+  background: rgba(24, 24, 27, 0.06);
+}
+
+.content-header-label {
+  font-size: 15px;
+  font-weight: 500;
+  font-family: 'AvenirNext_forINTUIT:Medium', 'Avenir Next', Avenir, sans-serif;
+  color: var(--ink-1);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* ─── Right: bell + avatar ─────────────────────────────────────────────────── */
+
+.content-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.content-header-icon-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  transition: color 0.12s, background 0.12s;
+}
+
+.content-header-icon-btn:hover {
+  color: var(--ink-1);
+  background: rgba(24, 24, 27, 0.06);
+}
+
+.content-header-notif-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid #ffffff;
+}
+
+.content-header-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3492ef 0%, #8456f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.content-header-avatar:hover {
+  opacity: 0.88;
+}
+
+.content-header-avatar-initials {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* ─── Breadcrumb ───────────────────────────────────────────────────────────── */
+
+.content-header-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.content-header-breadcrumb-parent {
+  font-size: 15px;
+  font-weight: 500;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  color: var(--ink-3);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: color 0.12s;
+}
+
+.content-header-breadcrumb-parent:hover {
+  color: var(--ink-1);
+}
+
+.content-header-breadcrumb-sep {
+  font-size: 15px;
+  color: var(--ink-4);
+  user-select: none;
+}
+
+/* Last crumb (current page) — regular weight, darkest */
+.content-header-breadcrumb .content-header-label {
+  font-weight: 400;
+  font-family: 'AvenirNext_forINTUIT:Regular', 'Avenir Next', Avenir, sans-serif;
+  color: #000;
+}

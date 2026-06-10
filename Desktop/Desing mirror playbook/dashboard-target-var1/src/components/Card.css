@@ -1,0 +1,415 @@
+/* ─── Card shell ─────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  height: 100%;
+  transition:
+    box-shadow var(--duration-fast) var(--ease-standard),
+    border-color 0.2s var(--ease-standard),
+    background 0.2s var(--ease-standard);
+}
+
+/* ─── Insights card ──────────────────────────────────────────────────────── */
+
+.card--insights {
+  border-left: 3px solid var(--pill-lavender-ink);
+}
+
+/* ─── Title block (icon + title + optional subtitle) ─────────────────────── */
+
+.card-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.card-title-icon {
+  color: var(--pill-lavender-ink);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.card-header-subtitle {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Suggested state ────────────────────────────────────────────────────── */
+
+.card--suggested {
+  border: 1px dashed var(--line);
+  background: var(--surface-2, var(--canvas));
+}
+
+.card-suggested-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--pill-blue-bg, #e8f1fc);
+  color: var(--pill-blue-ink, #2563a8);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* grid-column span is applied inline by Card.jsx */
+
+/* ─── Favourite pin indicator ────────────────────────────────────────────── */
+
+.card-fav-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5238d6;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity var(--duration-fast), background var(--duration-fast);
+}
+
+.card-fav-pin:hover {
+  opacity: 1;
+  background: rgba(82, 56, 214, 0.08);
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.card-drag-handle {
+  color: var(--ink-4);
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+  cursor: grab;
+}
+
+.card:hover .card-drag-handle {
+  opacity: 1;
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-1);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Info icon + tooltip ────────────────────────────────────────────────── */
+
+.card-info-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.card-info-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: color 0.12s;
+}
+
+.card-info-btn:hover {
+  color: var(--ink-1);
+}
+
+.card-info-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 7px);
+  transform: translateX(-50%);
+  width: 220px;
+  background: var(--ink-1);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.55;
+  padding: 8px 10px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  white-space: normal;
+  z-index: 200;
+}
+
+.card-info-wrap:hover .card-info-tooltip {
+  opacity: 1;
+}
+
+/* ─── Source chip ────────────────────────────────────────────────────────── */
+
+.card-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+
+.card-source-chip:hover {
+  background: var(--line-soft);
+  color: var(--ink-2);
+}
+
+/* ─── Dot menu ───────────────────────────────────────────────────────────── */
+
+.card-dot-menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--ink-3);
+  flex-shrink: 0;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+
+.card-dot-menu:hover,
+.card-dot-menu--open {
+  background: var(--line-soft);
+  color: var(--ink-1);
+}
+
+/* ─── Body ───────────────────────────────────────────────────────────────── */
+
+.card-body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ─── Footer (⑤⑥) ────────────────────────────────────────────────────────── */
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--line-soft);
+  margin-top: 12px;
+}
+
+.card-footer-staleness {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.card-footer-ago {
+  font-size: 11px;
+  color: var(--ink-4);
+  font-weight: 400;
+}
+
+.staleness-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.staleness-dot--stale  { background: #E89642; }
+.staleness-dot--error  { background: var(--pill-pink-ink, #d43f5c); }
+
+.card-footer-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--primary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--duration-fast);
+}
+
+.card-footer-action:hover {
+  opacity: 0.75;
+}
+
+/* ─── AI sidecar (⑦ — empty in R1) ─────────────────────────────────────── */
+
+.card-ai-sidecar {
+  display: none;
+}
+
+/* ─── Drag-to-resize handle ──────────────────────────────────────────────── */
+
+.card-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ew-resize;
+  z-index: 20;
+  /* invisible tap/drag target — bar inside provides visual */
+}
+
+.card {
+  position: relative; /* needed for absolute handle positioning */
+}
+
+.card-resize-handle-bar {
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--line);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.card:hover .card-resize-handle-bar,
+.card-resize-handle:hover .card-resize-handle-bar {
+  opacity: 1;
+}
+
+.card-resize-handle:active .card-resize-handle-bar,
+.card-resize-handle:hover .card-resize-handle-bar {
+  background: var(--primary);
+  opacity: 1;
+}
+
+/* Size label tooltip shown during active drag */
+.card-resize-preview {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink-1);
+  color: var(--surface);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+
+/* ─── Drag overlay clone ─────────────────────────────────────────────────── */
+
+.card--dragging {
+  box-shadow: var(--shadow-modal);
+  transform: scale(1.02);
+  cursor: grabbing;
+}
+
+/* ─── Guardrail card ─────────────────────────────────────────────────────── */
+
+.guardrail-card {
+  border-left-width: 3px;
+}
+
+.guardrail-card--clear    { border-left-color: var(--chart-green); }
+.guardrail-card--warning  { border-left-color: var(--chart-orange); }
+.guardrail-card--critical { border-left-color: #e74c3c; }
+
+/* ─── Empty grid placeholder ─────────────────────────────────────────────── */
+
+.card-placeholder {
+  padding: 24px;
+  color: var(--ink-4);
+  font-size: var(--text-sm);
+}
+
+.card-grid-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 56px 24px;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--r-card);
+}
+
+.card-grid-empty-text {
+  font-size: var(--text-md);
+  color: var(--ink-3);
+}
+
+.add-card-btn--large {
+  padding: 11px 20px;
+  font-size: var(--text-md);
+  gap: 8px;
+}

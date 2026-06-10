@@ -1,0 +1,202 @@
+/* ─── Number-only large hero number ─────────────────────────────────────────── */
+
+.mc-number-hero {
+  font-size: var(--text-3xl);
+}
+
+/* ─── Bar chart (bar-month) ─────────────────────────────────────────────────── */
+
+.mc-bar-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 56px;
+  margin: 8px 0 4px;
+}
+
+.mc-bar {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+  transition: background var(--duration-fast);
+}
+
+/* ─── Horizontal bar ─────────────────────────────────────────────────────────── */
+
+.mc-hbar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.mc-hbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-hbar-label {
+  flex: 0 0 44px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.mc-hbar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--chart-grid);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.mc-hbar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+
+/* ─── Stacked bar ────────────────────────────────────────────────────────────── */
+
+.mc-mb-8 {
+  margin-bottom: 8px;
+}
+
+.mc-stacked-track {
+  display: flex;
+  height: 14px;
+  border-radius: 3px;
+  overflow: hidden;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.mc-stacked-seg {
+  height: 100%;
+  transition: width var(--duration-slow);
+}
+
+.mc-stacked-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.mc-stacked-leg-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mc-stacked-leg-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mc-stacked-leg-val {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+/* ─── Comparison cards ───────────────────────────────────────────────────────── */
+
+.mc-comp-cards {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.mc-comp-card {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: var(--r-input);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mc-comp-card--winner {
+  background: var(--surface);
+  border-width: 1.5px;
+}
+
+.mc-comp-card-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.mc-comp-card-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-1);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.mc-comp-card-sub {
+  font-size: var(--text-xs);
+  font-weight: 400;
+}
+
+/* ─── Comparison bar (YTD attach) ────────────────────────────────────────────── */
+
+.mc-compbar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mc-compbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mc-compbar-label {
+  flex: 0 0 44px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.mc-compbar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--chart-grid);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.mc-compbar-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--duration-slow) var(--ease-standard);
+}
+
+/* ─── Number + list ──────────────────────────────────────────────────────────── */
+
+.mc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 6px;
+}
+
+.mc-list-row {
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  font-weight: 400;
+  padding: 5px 0;
+  border-top: 1px solid var(--line-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

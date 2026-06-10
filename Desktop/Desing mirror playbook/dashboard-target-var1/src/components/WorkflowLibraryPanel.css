@@ -1,0 +1,515 @@
+/* ─── Backdrop ───────────────────────────────────────────────────────────────── */
+
+.wl-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 200;
+}
+
+/* ─── Panel ──────────────────────────────────────────────────────────────────── */
+
+.wl-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(840px, 48vw);
+  min-width: 720px;
+  background: #fff;
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.14);
+  animation: wlSlideIn 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes wlSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────────── */
+
+.wl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 32px 20px;
+  flex-shrink: 0;
+}
+
+.wl-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.wl-header-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #18181b;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.wl-restore-btn {
+  font-size: 13px;
+  font-weight: 500;
+  color: #2563eb;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wl-restore-btn:hover {
+  opacity: 0.75;
+}
+
+.wl-close-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #71717a;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.wl-close-btn:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+/* ─── Search ─────────────────────────────────────────────────────────────────── */
+
+.wl-search-wrap {
+  position: relative;
+  margin: 0 32px 14px;
+  flex-shrink: 0;
+}
+
+.wl-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #a1a1aa;
+  pointer-events: none;
+}
+
+.wl-search-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: #f4f4f5;
+  padding: 0 36px 0 38px;
+  font-size: 15px;
+  color: #18181b;
+  outline: none;
+  transition: box-shadow 0.15s;
+}
+
+.wl-search-input::placeholder {
+  color: #a1a1aa;
+}
+
+.wl-search-input:focus {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.wl-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #a1a1aa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.wl-search-clear:hover {
+  background: #e4e4e7;
+  color: #52525b;
+}
+
+/* ─── Filter chips ───────────────────────────────────────────────────────────── */
+
+.wl-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 32px 20px;
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.wl-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.wl-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  color: #3f3f46;
+}
+
+.wl-chip:hover {
+  border-color: #a1a1aa;
+  color: #18181b;
+}
+
+.wl-chip--active {
+  background: #18181b;
+  border-color: #18181b;
+  color: #fff;
+}
+
+.wl-chip--active:hover {
+  background: #27272a;
+  border-color: #27272a;
+  color: #fff;
+}
+
+.wl-chip--agentic-active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #fff;
+}
+
+.wl-chip--agentic-active:hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+  color: #fff;
+}
+
+.wl-chips-divider {
+  width: 1px;
+  height: 18px;
+  background: #e4e4e7;
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+/* ─── Scrollable body ────────────────────────────────────────────────────────── */
+
+.wl-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32px;
+  scrollbar-width: thin;
+  scrollbar-color: #e4e4e7 transparent;
+}
+
+.wl-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.wl-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.wl-body::-webkit-scrollbar-thumb {
+  background: #e4e4e7;
+  border-radius: 99px;
+}
+
+/* ─── Section ────────────────────────────────────────────────────────────────── */
+
+.wl-section {
+  margin-bottom: 8px;
+}
+
+.wl-section-label {
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 10;
+  padding: 28px 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.wl-section-label::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, #fff, transparent);
+  pointer-events: none;
+}
+
+/* ─── Card grid ──────────────────────────────────────────────────────────────── */
+
+.wl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+/* ─── Workflow card — mirrors homepage action tile ────────────────────────────── */
+
+.wl-card {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px 16px 14px 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-height: 80px;
+}
+
+.wl-card:hover {
+  border-color: #a1a1aa;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.wl-card-icon-chip {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #a78bfa, #60a5fa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  border: none;
+}
+
+.wl-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.wl-card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #18181b;
+  line-height: 1.3;
+}
+
+.wl-card-desc-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.wl-card-description {
+  font-size: 12px;
+  color: #71717a;
+  line-height: 1.4;
+}
+
+/* ─── BU pills (10px in library cards) ──────────────────────────────────────── */
+
+.wl-bu-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.wl-bu-pill--cg {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.wl-bu-pill--gbsg {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.wl-bu-pill--cg-gbsg {
+  background: #f5f3ff;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+}
+
+/* ─── Agentic pill ───────────────────────────────────────────────────────────── */
+
+.wl-agentic-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 500;
+  background: #f4f4f5;
+  color: #52525b;
+  border: 1px solid #e4e4e7;
+  flex-shrink: 0;
+}
+
+/* ─── Tool chips ─────────────────────────────────────────────────────────────── */
+
+.wl-tool-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.wl-tool-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  background: #f4f4f5;
+  color: #52525b;
+  white-space: nowrap;
+}
+
+.wl-tool-chip--overflow {
+  font-weight: 500;
+  color: #71717a;
+}
+
+/* ─── "+ Add" button ─────────────────────────────────────────────────────────── */
+
+.wl-add-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1.5px solid #2563eb;
+  background: #fff;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.12s;
+}
+
+.wl-card:hover .wl-add-btn {
+  opacity: 1;
+}
+
+.wl-add-btn:hover {
+  background: #eff6ff;
+}
+
+/* ─── "✓ Added" pill button ──────────────────────────────────────────────────── */
+
+.wl-added-pill-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.wl-added-pill-btn:hover {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+/* ─── Empty state ────────────────────────────────────────────────────────────── */
+
+.wl-empty {
+  padding: 48px 0;
+  text-align: center;
+  font-size: 14px;
+  color: #71717a;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────────────── */
+
+.wl-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  border-top: 1px solid #e4e4e7;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.wl-footer-text {
+  font-size: 14px;
+  color: #71717a;
+}
+
+.wl-footer-link {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2563eb;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+
+.wl-footer-link:hover {
+  opacity: 0.75;
+}
