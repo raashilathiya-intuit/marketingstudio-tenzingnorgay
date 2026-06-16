@@ -39,6 +39,33 @@
       line-height: 1.5;
     }
 
+    /* ── Filter pills (R1-D1 / R2-D2) ── */
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 40px;
+    }
+    .filter-pill {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 99px;
+      border: 1px solid #e0e0dd;
+      background: #fff;
+      color: #666;
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+    .filter-pill:hover {
+      border-color: #aaa;
+      color: #1a1a1a;
+    }
+    .filter-pill.active {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #1a1a1a;
+    }
+
     /* ── Date sections ── */
     .sections {
       display: flex;
@@ -119,6 +146,12 @@
       Create IPD campaign, Change order, and Conversation widgets. Click to open the prototype.
     </p>
 
+    <div class="filters">
+      <button class="filter-pill active" data-filter="all">All</button>
+      <button class="filter-pill" data-filter="r1d1">R1-D1</button>
+      <button class="filter-pill" data-filter="r2d2">R2-D2 (Target)</button>
+    </div>
+
     <div class="sections">
 
       <!-- 15 Jun -->
@@ -142,5 +175,31 @@
 
     <footer>Last updated 15 Jun 2026</footer>
   </div>
+
+  <script>
+    // Filter builds by track (R1-D1 / R2-D2). A date section hides when it has
+    // no matching build, so it stays clean as R2-D2 flows get added.
+    const pills = document.querySelectorAll('.filter-pill');
+    const sections = document.querySelectorAll('.date-section');
+
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        const filter = pill.dataset.filter;
+
+        sections.forEach(section => {
+          const builds = section.querySelectorAll('.build');
+          let anyVisible = false;
+          builds.forEach(build => {
+            const match = filter === 'all' || build.dataset.type === filter;
+            build.classList.toggle('hidden', !match);
+            if (match) anyVisible = true;
+          });
+          section.classList.toggle('hidden', !anyVisible);
+        });
+      });
+    });
+  </script>
 </body>
 </html>
