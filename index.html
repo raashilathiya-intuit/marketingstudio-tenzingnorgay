@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marketing Studio — Dashboard Builds</title>
+  <title>Marketing Studio — Prototype</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -37,33 +37,6 @@
       color: #666;
       margin: 0 0 24px;
       line-height: 1.5;
-    }
-
-    /* ── Filter pills ── */
-    .filters {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 40px;
-    }
-    .filter-pill {
-      font-size: 13px;
-      font-weight: 500;
-      padding: 6px 14px;
-      border-radius: 99px;
-      border: 1px solid #e0e0dd;
-      background: #fff;
-      color: #666;
-      cursor: pointer;
-      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-    }
-    .filter-pill:hover {
-      border-color: #aaa;
-      color: #1a1a1a;
-    }
-    .filter-pill.active {
-      background: #1a1a1a;
-      color: #fff;
-      border-color: #1a1a1a;
     }
 
     /* ── Date sections ── */
@@ -141,16 +114,10 @@
 <body>
   <div class="container">
     <div class="eyebrow">INTUIT · MARKETING STUDIO</div>
-    <h1>Dashboard Builds</h1>
+    <h1>Marketing Studio Prototype</h1>
     <p class="subtitle">
-      Dashboard explorations grouped by session. Click any build to open the prototype.
+      Create IPD campaign, Change order, and Conversation widgets. Click to open the prototype.
     </p>
-
-    <div class="filters">
-      <button class="filter-pill active" data-filter="all">All</button>
-      <button class="filter-pill" data-filter="r1d1">R1-D1</button>
-      <button class="filter-pill" data-filter="r2d2">R2-D2 (Target)</button>
-    </div>
 
     <div class="sections">
 
@@ -163,8 +130,8 @@
         <div class="builds">
           <a class="build" href="R1D1_Jun15.html" data-type="r1d1">
             <div class="build-text">
-              <span class="build-label">R1-D1</span>
-              <span class="build-desc">Create workflow (start from Home or Projects) and Change order (BETA) workflow. Updated left-nav icons.</span>
+              <span class="build-label">Marketing Studio</span>
+              <span class="build-desc">Create IPD campaign, Change order (BETA), and Conversation widgets.</span>
             </div>
             <span class="build-arrow">→</span>
           </a>
@@ -175,29 +142,5 @@
 
     <footer>Last updated 15 Jun 2026</footer>
   </div>
-
-  <script>
-    const pills = document.querySelectorAll('.filter-pill');
-    const sections = document.querySelectorAll('.date-section');
-
-    pills.forEach(pill => {
-      pill.addEventListener('click', () => {
-        pills.forEach(p => p.classList.remove('active'));
-        pill.classList.add('active');
-        const filter = pill.dataset.filter;
-
-        sections.forEach(section => {
-          const builds = section.querySelectorAll('.build');
-          let anyVisible = false;
-          builds.forEach(build => {
-            const match = filter === 'all' || build.dataset.type === filter;
-            build.classList.toggle('hidden', !match);
-            if (match) anyVisible = true;
-          });
-          section.classList.toggle('hidden', !anyVisible);
-        });
-      });
-    });
-  </script>
 </body>
 </html>
