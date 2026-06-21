@@ -94,6 +94,18 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
+    /* shown on a build whose .html hasn't been produced yet — the card is
+       non-clickable so it can't 404 */
+    .pending-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #8a6d00;
+      background: #fff4d6;
+      border: 1px solid #f0dca0;
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.02em;
+    }
 
     /* ── Build cards ── */
     .builds {
@@ -127,6 +139,17 @@
     }
     .build:hover .build-arrow { transform: translateX(2px); color: #1a1a1a; }
 
+    /* a build whose .html isn't built yet — muted, non-interactive */
+    .build--disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .build--disabled:hover {
+      border-color: #ececea;
+      transform: none;
+    }
+    .build--disabled:hover .build-arrow { transform: none; color: #aaa; }
+
     /* hidden by filter */
     .build.hidden { display: none; }
     .date-section.hidden { display: none; }
@@ -149,19 +172,35 @@
     <div class="filters">
       <button class="filter-pill active" data-filter="all">All</button>
       <button class="filter-pill" data-filter="r1d1">R1-D1</button>
-      <button class="filter-pill" data-filter="r2d2">R2-D2 (Target)</button>
+      <button class="filter-pill" data-filter="xd">XD only</button>
     </div>
 
     <div class="sections">
+
+      <!-- 22 Jun -->
+      <div class="date-section">
+        <div class="section-header">
+          <span class="section-date">22 JUN</span>
+          <span class="new-badge">New</span>
+        </div>
+        <div class="builds">
+          <a class="build" href="R2D2_June22.html" data-type="xd">
+            <div class="build-text">
+              <span class="build-label">R2-D2</span>
+              <span class="build-desc">Change-order redesign — edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+        </div>
+      </div>
 
       <!-- 18 Jun -->
       <div class="date-section">
         <div class="section-header">
           <span class="section-date">18 JUN</span>
-          <span class="new-badge">New</span>
         </div>
         <div class="builds">
-          <a class="build" href="R2D2_Jun17.html" data-type="r2d2">
+          <a class="build" href="R2D2_Jun17.html" data-type="xd">
             <div class="build-text">
               <span class="build-label">R2-D2</span>
               <span class="build-desc">Conversation update — confirmations are selected from the chat (no typing), with live History &amp; Approvals tabs.</span>
@@ -193,29 +232,43 @@
   </div>
 
   <script>
-    // Filter builds by track (R1-D1 / R2-D2). A date section hides when it has
-    // no matching build, so it stays clean as R2-D2 flows get added.
+    // Filter builds by track. 'xd' builds (the R2-D2 / XD-only prototypes) are
+    // hidden from "All" and every other tab — they appear ONLY under "XD only".
+    //   - All      → everything EXCEPT xd
+    //   - R1-D1    → only r1d1
+    //   - XD only  → only xd
     const pills = document.querySelectorAll('.filter-pill');
     const sections = document.querySelectorAll('.date-section');
+
+    const matches = (filter, type) => {
+      if (filter === 'all') return type !== 'xd';
+      return type === filter;
+    };
+
+    const applyFilter = (filter) => {
+      sections.forEach(section => {
+        const builds = section.querySelectorAll('.build');
+        let anyVisible = false;
+        builds.forEach(build => {
+          const match = matches(filter, build.dataset.type);
+          build.classList.toggle('hidden', !match);
+          if (match) anyVisible = true;
+        });
+        section.classList.toggle('hidden', !anyVisible);
+      });
+    };
 
     pills.forEach(pill => {
       pill.addEventListener('click', () => {
         pills.forEach(p => p.classList.remove('active'));
         pill.classList.add('active');
-        const filter = pill.dataset.filter;
-
-        sections.forEach(section => {
-          const builds = section.querySelectorAll('.build');
-          let anyVisible = false;
-          builds.forEach(build => {
-            const match = filter === 'all' || build.dataset.type === filter;
-            build.classList.toggle('hidden', !match);
-            if (match) anyVisible = true;
-          });
-          section.classList.toggle('hidden', !anyVisible);
-        });
+        applyFilter(pill.dataset.filter);
       });
     });
+
+    // Apply the default ("All") filter on load so the XD-only builds start
+    // hidden — without this they'd show until the first pill click.
+    applyFilter(document.querySelector('.filter-pill.active').dataset.filter);
   </script>
 </body>
 </html>
