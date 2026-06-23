@@ -177,16 +177,23 @@
 
     <div class="sections">
 
-      <!-- 22 Jun -->
+      <!-- 23 Jun -->
       <div class="date-section">
         <div class="section-header">
-          <span class="section-date">22 JUN</span>
+          <span class="section-date">23 JUN</span>
           <span class="new-badge">New</span>
         </div>
         <div class="builds">
-          <a class="build" href="R2D2_June22.html" data-type="xd">
+          <a class="build" href="R2D2_June23.html" data-type="xd">
             <div class="build-text">
-              <span class="build-label">R2-D2</span>
+              <span class="build-label">Tenzing Norgay</span>
+              <span class="build-desc">Change-order redesign — edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+          <a class="build" href="R2D2_June23.html" data-type="all">
+            <div class="build-text">
+              <span class="build-label">Tenzing Norgay</span>
               <span class="build-desc">Change-order redesign — edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
             </div>
             <span class="build-arrow">→</span>
@@ -215,7 +222,7 @@
 
     </div>
 
-    <footer>Last updated 18 Jun 2026</footer>
+    <footer>Last updated 23 Jun 2026</footer>
   </div>
 
   <script>
@@ -229,6 +236,7 @@
 
     const matches = (filter, type) => {
       if (filter === 'all') return type !== 'xd';
+      if (filter === 'xd') return type === 'xd';
       return type === filter;
     };
 
