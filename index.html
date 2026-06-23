@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketing Studio - Create + Change Order</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+      background: #fafaf9;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 96px 32px 64px;
+    }
+    .eyebrow {
+      font-size: 13px;
+      font-weight: 500;
+      color: #888;
+      letter-spacing: 0.02em;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin: 0 0 12px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: #666;
+      margin: 0 0 24px;
+      line-height: 1.5;
+    }
+
+    /* ── Filter pills (R1-D1 / R2-D2) ── */
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 40px;
+    }
+    .filter-pill {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 99px;
+      border: 1px solid #e0e0dd;
+      background: #fff;
+      color: #666;
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+    .filter-pill:hover {
+      border-color: #aaa;
+      color: #1a1a1a;
+    }
+    .filter-pill.active {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #1a1a1a;
+    }
+
+    /* ── Date sections ── */
+    .sections {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .section-date {
+      font-size: 13px;
+      font-weight: 600;
+      color: #888;
+      letter-spacing: 0.02em;
+    }
+    .new-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      background: #1a1a1a;
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    /* shown on a build whose .html hasn't been produced yet — the card is
+       non-clickable so it can't 404 */
+    .pending-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #8a6d00;
+      background: #fff4d6;
+      border: 1px solid #f0dca0;
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Build cards ── */
+    .builds {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .build {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      background: #fff;
+      border: 1px solid #ececea;
+      border-radius: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease, transform 0.15s ease;
+    }
+    .build:hover {
+      border-color: #1a1a1a;
+      transform: translateY(-1px);
+    }
+    .build-text { display: flex; flex-direction: column; gap: 4px; }
+    .build-label { font-size: 15px; font-weight: 600; }
+    .build-desc { font-size: 13px; color: #777; }
+    .build-arrow {
+      font-size: 18px;
+      color: #aaa;
+      transition: transform 0.15s ease, color 0.15s ease;
+    }
+    .build:hover .build-arrow { transform: translateX(2px); color: #1a1a1a; }
+
+    /* a build whose .html isn't built yet — muted, non-interactive */
+    .build--disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .build--disabled:hover {
+      border-color: #ececea;
+      transform: none;
+    }
+    .build--disabled:hover .build-arrow { transform: none; color: #aaa; }
+
+    /* hidden by filter */
+    .build.hidden { display: none; }
+    .date-section.hidden { display: none; }
+
+    footer {
+      margin-top: 56px;
+      font-size: 12px;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="eyebrow">INTUIT · MARKETING STUDIO</div>
+    <h1>Marketing Studio - Create + Change Order</h1>
+    <p class="subtitle">
+      Create IPD campaign, Change order, and Conversation widgets. Click to open the prototype.
+    </p>
+
+    <div class="filters">
+      <button class="filter-pill active" data-filter="all">All</button>
+      <button class="filter-pill" data-filter="r1d1">R1-D1</button>
+      <button class="filter-pill" data-filter="xd">XD only</button>
+    </div>
+
+    <div class="sections">
+
+      <!-- 22 Jun -->
+      <div class="date-section">
+        <div class="section-header">
+          <span class="section-date">22 JUN</span>
+          <span class="new-badge">New</span>
+        </div>
+        <div class="builds">
+          <a class="build" href="R2D2_June22.html" data-type="xd">
+            <div class="build-text">
+              <span class="build-label">R2-D2</span>
+              <span class="build-desc">Change-order redesign — edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 18 Jun R2-D2 (R2D2_Jun17.html) removed from the index listing; the
+           file remains in the repo. -->
+
+      <!-- 15 Jun -->
+      <div class="date-section">
+        <div class="section-header">
+          <span class="section-date">15 JUN</span>
+        </div>
+        <div class="builds">
+          <a class="build" href="R1D1_Jun15.html" data-type="r1d1">
+            <div class="build-text">
+              <span class="build-label">R1-D1</span>
+              <span class="build-desc">Create IPD campaign, Change order (BETA), and Conversation widgets. Updated left-nav icons.</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <footer>Last updated 18 Jun 2026</footer>
+  </div>
+
+  <script>
+    // Filter builds by track. 'xd' builds (the R2-D2 / XD-only prototypes) are
+    // hidden from "All" and every other tab — they appear ONLY under "XD only".
+    //   - All      → everything EXCEPT xd
+    //   - R1-D1    → only r1d1
+    //   - XD only  → only xd
+    const pills = document.querySelectorAll('.filter-pill');
+    const sections = document.querySelectorAll('.date-section');
+
+    const matches = (filter, type) => {
+      if (filter === 'all') return type !== 'xd';
+      return type === filter;
+    };
+
+    const applyFilter = (filter) => {
+      sections.forEach(section => {
+        const builds = section.querySelectorAll('.build');
+        let anyVisible = false;
+        builds.forEach(build => {
+          const match = matches(filter, build.dataset.type);
+          build.classList.toggle('hidden', !match);
+          if (match) anyVisible = true;
+        });
+        section.classList.toggle('hidden', !anyVisible);
+      });
+    };
+
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        applyFilter(pill.dataset.filter);
+      });
+    });
+
+    // Apply the default ("All") filter on load so the XD-only builds start
+    // hidden — without this they'd show until the first pill click.
+    applyFilter(document.querySelector('.filter-pill.active').dataset.filter);
+  </script>
+</body>
+</html>
