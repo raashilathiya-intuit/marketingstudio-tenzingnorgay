@@ -35,35 +35,8 @@
     .subtitle {
       font-size: 15px;
       color: #666;
-      margin: 0 0 24px;
+      margin: 0 0 40px;
       line-height: 1.5;
-    }
-
-    /* ── Filter pills (R1-D1 / R2-D2) ── */
-    .filters {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 40px;
-    }
-    .filter-pill {
-      font-size: 13px;
-      font-weight: 500;
-      padding: 6px 14px;
-      border-radius: 99px;
-      border: 1px solid #e0e0dd;
-      background: #fff;
-      color: #666;
-      cursor: pointer;
-      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-    }
-    .filter-pill:hover {
-      border-color: #aaa;
-      color: #1a1a1a;
-    }
-    .filter-pill.active {
-      background: #1a1a1a;
-      color: #fff;
-      border-color: #1a1a1a;
     }
 
     /* ── Date sections ── */
@@ -169,51 +142,35 @@
       Create IPD campaign, Change order, and Conversation widgets. Click to open the prototype.
     </p>
 
-    <div class="filters">
-      <button class="filter-pill active" data-filter="all">All</button>
-      <button class="filter-pill" data-filter="r1d1">R1-D1</button>
-      <button class="filter-pill" data-filter="xd">XD only</button>
-    </div>
-
     <div class="sections">
 
-      <!-- 23 Jun -->
+      <!-- Tenzing Norgay (July 31 release) -->
       <div class="date-section">
         <div class="section-header">
-          <span class="section-date">23 JUN</span>
+          <span class="section-date">Last updated 24 June</span>
           <span class="new-badge">New</span>
         </div>
         <div class="builds">
-          <a class="build" href="R2D2_June23.html" data-type="xd">
+          <a class="build" href="TenzingNorgay_Jul31.html">
             <div class="build-text">
-              <span class="build-label">Tenzing Norgay</span>
-              <span class="build-desc">Change-order redesign — edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
-            </div>
-            <span class="build-arrow">→</span>
-          </a>
-          <a class="build" href="R2D2_June23.html" data-type="all">
-            <div class="build-text">
-              <span class="build-label">Tenzing Norgay</span>
-              <span class="build-desc">Change-order redesign — edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
+              <span class="build-label">Tenzing Norgay (July 31 release)</span>
+              <span class="build-desc">Create IPD campaign &amp; Change order. Change-order edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
             </div>
             <span class="build-arrow">→</span>
           </a>
         </div>
       </div>
 
-      <!-- 18 Jun R2-D2 (R2D2_Jun17.html) removed from the index listing; the
-           file remains in the repo. -->
-
-      <!-- 15 Jun -->
+      <!-- Release 1 -->
       <div class="date-section">
         <div class="section-header">
-          <span class="section-date">15 JUN</span>
+          <span class="section-date">Last updated 15 June</span>
         </div>
         <div class="builds">
-          <a class="build" href="R1D1_Jun15.html" data-type="r1d1">
+          <a class="build" href="Release1_Jun15.html">
             <div class="build-text">
-              <span class="build-label">R1-D1</span>
-              <span class="build-desc">Create IPD campaign, Change order (BETA), and Conversation widgets. Updated left-nav icons.</span>
+              <span class="build-label">Release 1 (15 June)</span>
+              <span class="build-desc">Create IPD campaign &amp; Change order. The agent types each reply into the prompt box and you send to advance (no reply chips).</span>
             </div>
             <span class="build-arrow">→</span>
           </a>
@@ -221,49 +178,6 @@
       </div>
 
     </div>
-
-    <footer>Last updated 23 Jun 2026</footer>
   </div>
-
-  <script>
-    // Filter builds by track. 'xd' builds (the R2-D2 / XD-only prototypes) are
-    // hidden from "All" and every other tab — they appear ONLY under "XD only".
-    //   - All      → everything EXCEPT xd
-    //   - R1-D1    → only r1d1
-    //   - XD only  → only xd
-    const pills = document.querySelectorAll('.filter-pill');
-    const sections = document.querySelectorAll('.date-section');
-
-    const matches = (filter, type) => {
-      if (filter === 'all') return type !== 'xd';
-      if (filter === 'xd') return type === 'xd';
-      return type === filter;
-    };
-
-    const applyFilter = (filter) => {
-      sections.forEach(section => {
-        const builds = section.querySelectorAll('.build');
-        let anyVisible = false;
-        builds.forEach(build => {
-          const match = matches(filter, build.dataset.type);
-          build.classList.toggle('hidden', !match);
-          if (match) anyVisible = true;
-        });
-        section.classList.toggle('hidden', !anyVisible);
-      });
-    };
-
-    pills.forEach(pill => {
-      pill.addEventListener('click', () => {
-        pills.forEach(p => p.classList.remove('active'));
-        pill.classList.add('active');
-        applyFilter(pill.dataset.filter);
-      });
-    });
-
-    // Apply the default ("All") filter on load so the XD-only builds start
-    // hidden — without this they'd show until the first pill click.
-    applyFilter(document.querySelector('.filter-pill.active').dataset.filter);
-  </script>
 </body>
 </html>
