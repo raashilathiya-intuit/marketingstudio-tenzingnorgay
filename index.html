@@ -35,8 +35,32 @@
     .subtitle {
       font-size: 15px;
       color: #666;
-      margin: 0 0 40px;
+      margin: 0 0 28px;
       line-height: 1.5;
+    }
+
+    /* ── Filter (All / Targeted offers / IPD) ── */
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 36px;
+    }
+    .filter {
+      font-size: 13px;
+      font-weight: 500;
+      color: #555;
+      background: #fff;
+      border: 1px solid #ececea;
+      border-radius: 999px;
+      padding: 7px 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .filter:hover { border-color: #c9c9c5; }
+    .filter.active {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #1a1a1a;
     }
 
     /* ── Date sections ── */
@@ -67,9 +91,8 @@
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
-    /* shown on a build whose .html hasn't been produced yet — the card is
-       non-clickable so it can't 404 */
-    .pending-badge {
+    /* WIP: this build is still in progress */
+    .wip-badge {
       font-size: 11px;
       font-weight: 600;
       color: #8a6d00;
@@ -78,6 +101,7 @@
       border-radius: 4px;
       padding: 2px 7px;
       letter-spacing: 0.02em;
+      text-transform: uppercase;
     }
 
     /* ── Build cards ── */
@@ -103,7 +127,7 @@
       transform: translateY(-1px);
     }
     .build-text { display: flex; flex-direction: column; gap: 4px; }
-    .build-label { font-size: 15px; font-weight: 600; }
+    .build-label { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
     .build-desc { font-size: 13px; color: #777; }
     .build-arrow {
       font-size: 18px;
@@ -112,16 +136,16 @@
     }
     .build:hover .build-arrow { transform: translateX(2px); color: #1a1a1a; }
 
-    /* a build whose .html isn't built yet — muted, non-interactive */
-    .build--disabled {
-      opacity: 0.55;
-      cursor: not-allowed;
+    /* type chip on a build (IPD / Targeted offers) */
+    .type-chip {
+      font-size: 11px;
+      font-weight: 600;
+      color: #555;
+      background: #f2f2f0;
+      border-radius: 4px;
+      padding: 2px 7px;
+      letter-spacing: 0.02em;
     }
-    .build--disabled:hover {
-      border-color: #ececea;
-      transform: none;
-    }
-    .build--disabled:hover .build-arrow { transform: none; color: #aaa; }
 
     /* hidden by filter */
     .build.hidden { display: none; }
@@ -142,18 +166,41 @@
       Create IPD campaign, Change order, and Conversation widgets. Click to open the prototype.
     </p>
 
+    <!-- Filter: All / Targeted offers / IPD -->
+    <div class="filters" id="filters">
+      <button class="filter active" data-filter="all">All</button>
+      <button class="filter" data-filter="targeted">Targeted offers</button>
+      <button class="filter" data-filter="ipd">IPD</button>
+    </div>
+
     <div class="sections">
 
-      <!-- Tenzing Norgay (July 31 release) -->
+      <!-- August 31 release — Targeted Offer change order (WIP) -->
       <div class="date-section">
         <div class="section-header">
-          <span class="section-date">Last updated 24 June</span>
+          <span class="section-date">Last updated 23 July</span>
           <span class="new-badge">New</span>
         </div>
         <div class="builds">
-          <a class="build" href="TenzingNorgay_Jul31.html">
+          <a class="build" href="targeted-offers-aug31/index.html" data-type="targeted">
             <div class="build-text">
-              <span class="build-label">Tenzing Norgay (July 31 release)</span>
+              <span class="build-label">Targeted Offer - August 31 <span class="wip-badge">WIP</span></span>
+              <span class="build-desc">Targeted Offers change order. Prompt-based and workbook-based change flows; edits happen inline on the canvas with a live plan &amp; step tracker.</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Tenzing Norgay (July 31 release) — IPD -->
+      <div class="date-section">
+        <div class="section-header">
+          <span class="section-date">Last updated 24 June</span>
+        </div>
+        <div class="builds">
+          <a class="build" href="TenzingNorgay_Jul31.html" data-type="ipd">
+            <div class="build-text">
+              <span class="build-label">IPD - Tenzing Norgay (July 31 release)</span>
               <span class="build-desc">Create IPD campaign &amp; Change order. Change-order edits happen inline on the canvas (no edit-mode overlay); each edit becomes its own object card &amp; History entry.</span>
             </div>
             <span class="build-arrow">→</span>
@@ -161,15 +208,15 @@
         </div>
       </div>
 
-      <!-- Release 1 -->
+      <!-- Release 1 — IPD -->
       <div class="date-section">
         <div class="section-header">
           <span class="section-date">Last updated 15 June</span>
         </div>
         <div class="builds">
-          <a class="build" href="Release1_Jun15.html">
+          <a class="build" href="Release1_Jun15.html" data-type="ipd">
             <div class="build-text">
-              <span class="build-label">Release 1 (15 June)</span>
+              <span class="build-label">IPD - Release 1 (15 June)</span>
               <span class="build-desc">Create IPD campaign &amp; Change order. The agent types each reply into the prompt box and you send to advance (no reply chips).</span>
             </div>
             <span class="build-arrow">→</span>
@@ -179,5 +226,23 @@
 
     </div>
   </div>
+
+  <script>
+    // Filter builds by type; hide any date-section left with no visible builds.
+    const filterBtns = document.querySelectorAll('.filter');
+    filterBtns.forEach(btn => btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const f = btn.dataset.filter; // all | targeted | ipd
+      document.querySelectorAll('.build').forEach(b => {
+        const show = f === 'all' || b.dataset.type === f;
+        b.classList.toggle('hidden', !show);
+      });
+      document.querySelectorAll('.date-section').forEach(sec => {
+        const anyVisible = [...sec.querySelectorAll('.build')].some(b => !b.classList.contains('hidden'));
+        sec.classList.toggle('hidden', !anyVisible);
+      });
+    }));
+  </script>
 </body>
 </html>

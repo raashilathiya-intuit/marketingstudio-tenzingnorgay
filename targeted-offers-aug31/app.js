@@ -1,0 +1,1551 @@
+/* ============================================================
+   MS 2.0 — Change Order Use Case 1  (standalone prototype)
+   Scene router + all screens. Drill-down = go a level down.
+   ============================================================ */
+
+/* ---------- tiny helpers ---------- */
+const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+const $ = (s, r=document) => r.querySelector(s);
+const $$ = (s, r=document) => [...r.querySelectorAll(s)];
+
+/* ============================================================
+   ICONS — real IDS/Figma assets from the Create-Change-Order
+   design system (public/figma/*.svg). Rendered exactly like the
+   product's Icon.tsx: a fixed square box with the vector inset by
+   Figma's per-icon [top,right,bottom,left] percentages. Each state
+   variant is its OWN file (fills are baked, not currentColor) —
+   e.g. icon-home vs icon-home-selected, icon-eye vs icon-eye-blue.
+   ============================================================ */
+const ICONS = {
+  home:{src:'icon-home.svg',inset:[8.41,8.24,8.29,8.43]},
+  homeSelected:{src:'icon-home-selected.svg',inset:[8.41,8.24,8.29,8.43]},
+  clipboard:{src:'icon-clipboard.svg',inset:[8.33,16.67,8.33,16.67]},
+  clipboardSelected:{src:'icon-clipboard-selected.svg',inset:[8.33,16.67,8.33,16.67]},
+  refresh:{src:'icon-refresh.svg',inset:[12.5,12.45,12.5,12.47]},
+  refreshSelected:{src:'icon-refresh-selected.svg',inset:[12.5,12.45,12.5,12.47]},
+  gridTile:{src:'icon-grid-tile.svg',inset:[8.33,8.33,8.33,8.33]},
+  thumbnail:{src:'icon-thumbnail.svg',inset:[8.33,8.33,8.33,8.33]},
+  chartBar:{src:'icon-chart-bar.svg',inset:[8.33,8.33,8.33,8.33]},
+  personThree:{src:'icon-person-three.svg',inset:[8.33,4.35,8.33,4.35]},
+  commentPencil:{src:'icon-comment-pencil.svg',inset:[8.33,8.33,8.33,8.33]},
+  circleQuestion:{src:'icon-circle-question.svg',inset:[8.33,8.33,8.33,8.33]},
+  megaphone:{src:'icon-megaphone.svg',inset:[12.5,16.67,12.5,16.67]},
+  image:{src:'icon-image.svg',inset:[8.34,8.31,8.33,8.35]},
+  beaker:{src:'icon-beaker.svg',inset:[8.33,18.2,8.33,18.21]},
+  percent:{src:'icon-percent.svg',inset:[12.5,12.5,12.5,12.5]},
+  people:{src:'icon-people.svg',inset:[8.32,8.33,8.33,8.33]},
+  note:{src:'icon-note.svg',inset:[12.5,12.5,12.5,12.5]},
+  comment:{src:'icon-comment.svg',inset:[8.78,8.33,7.89,8.33]},
+  help:{src:'icon-help.svg',inset:[8.33,8.33,8.33,8.3]},
+  bell:{src:'icon-bell.svg',inset:[4.17,14.51,4.17,14.45]},
+  sort:{src:'icon-sort.svg',inset:[25,33.33,25,33.33]},
+  plus:{src:'icon-plus.svg',inset:[16.75,16.74,16.58,16.6]},
+  arrowUp:{src:'icon-arrow-up.svg',inset:[16.75,16.34,16.6,16.5]},
+  arrowLeft:{src:'icon-arrow-left.svg',inset:[16.5,16.6,16.22,16.75]},
+  edit:{src:'icon-edit.svg',inset:[9.3,9.23,9.32,9.21]},
+  menuCollapse:{src:'icon-menu-collapse.svg',inset:[24.97,12.5,24.97,12.5]},
+  menuExpand:{src:'icon-menu-expand.svg',inset:[24.94,12.52,25,12.47]},
+  attach:{src:'icon-attach.svg',inset:[8.33,29.17,8.33,25]},
+  send:{src:'icon-send.svg',inset:[12.71,13.07,12.71,15.57]},
+  search:{src:'icon-search.svg',inset:[7.83,8.35,8.27,7.94]},
+  sliders:{src:'icon-sliders.svg',inset:[12.53,8.19,12.39,8.44]},
+  sortAsc:{src:'icon-sort-asc.svg',inset:[25,12.8,24.95,12.5]},
+  info:{src:'icon-info.svg',inset:[8.33,8.27,8.33,8.33]},
+  chevronDown:{src:'icon-chevron-down.svg',inset:[33.36,20.74,33.26,20.92]},
+  sortTable:{src:'icon-sort-table.svg',inset:[25,33.33,25,33.33]},
+  check:{src:'icon-check.svg',inset:[0,0,0,0]},
+  circleX:{src:'icon-circle-x.svg',inset:[0,0,0,0]},
+  eye:{src:'icon-eye.svg',inset:[0,0,0,0]},
+  eyeBlue:{src:'icon-eye-blue.svg',inset:[0,0,0,0]},
+  close:{src:'icon-close.svg',inset:[20.63,20.67,20.81,20.81]},
+  history:{src:'icon-history.svg',inset:[12.5,8.34,12.5,8.38]},
+  approvals:{src:'icon-approvals.svg',inset:[8.33,8.33,8.33,8.33]},
+  conversation:{src:'icon-conversation.svg',inset:[8.33,8.33,8.33,8.33]},
+};
+// render an icon exactly like Icon.tsx (inset-positioned <img> in a square box)
+function icon(name,size=20){
+  const d=ICONS[name]; if(!d) return '';
+  const [t,r,b,l]=d.inset;
+  return `<span class="ico-box" style="width:${size}px;height:${size}px" aria-hidden="true"><span style="position:absolute;top:${t}%;right:${r}%;bottom:${b}%;left:${l}%"><img src="figma/${d.src}" alt="" style="position:absolute;inset:0;width:100%;height:100%;max-width:none;display:block"></span></span>`;
+}
+
+/* Back-compat alias map so existing `${I.xxx}` call sites keep working,
+   now backed by the real DS assets. Each entry renders at its call-site size. */
+const I = {
+  get home(){return icon('home',22)}, get homeSelected(){return icon('homeSelected',22)},
+  get mega(){return icon('megaphone',20)}, get image(){return icon('image',20)},
+  get flask(){return icon('beaker',20)}, get percent(){return icon('percent',20)},
+  get people(){return icon('people',20)}, get note(){return icon('note',20)},
+  get edit(){return icon('edit',20)}, get help(){return icon('help',20)},
+  get bell(){return icon('bell',22)}, get editpencil(){return icon('edit',16)},
+  get chat(){return icon('conversation',20)}, get clock(){return icon('history',20)},
+  get list(){return icon('sortTable',20)}, get search(){return icon('search',18)},
+  get eye(){return icon('eye',18)}, get eyeBlue(){return icon('eyeBlue',18)},
+  get chev(){return icon('chevronDown',18)},
+  // chevron-down rotated: rot-90 = -90° → points RIGHT; rot-270 = +90° → points LEFT
+  get chevR(){return `<span class="rot-90">${icon('chevronDown',18)}</span>`},
+  get chevL(){return `<span class="rot-270">${icon('chevronDown',18)}</span>`},
+  get back(){return icon('arrowLeft',22)}, get check(){return icon('check',14)},
+  get plus(){return icon('plus',18)}, get sendUp(){return icon('arrowUp',18)},
+  get send(){return icon('send',20)}, get clip(){return icon('attach',20)},
+  get sliders(){return icon('sliders',18)}, get sort(){return icon('sort',18)},
+  // toolbar sort icon (lines + down arrow) — Figma-provided
+  sortLines:`<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.33333 4.00933L2.66667 4C2.48986 4 2.32029 4.07024 2.19526 4.19526C2.07024 4.32029 2 4.48986 2 4.66667C2 4.84348 2.07024 5.01305 2.19526 5.13807C2.32029 5.2631 2.48986 5.33333 2.66667 5.33333L9.33333 5.34267C9.51014 5.34267 9.67971 5.27243 9.80474 5.1474C9.92976 5.02238 10 4.85281 10 4.676C10 4.49919 9.92976 4.32962 9.80474 4.2046C9.67971 4.07957 9.51014 4.00933 9.33333 4.00933Z" fill="#5A6870"/><path d="M8.00667 7.338L2.67333 7.32867C2.49652 7.32867 2.32695 7.3989 2.20193 7.52393C2.0769 7.64895 2.00667 7.81852 2.00667 7.99533C2.00667 8.17214 2.0769 8.34171 2.20193 8.46674C2.32695 8.59176 2.49652 8.662 2.67333 8.662L8.00667 8.67133C8.18348 8.67133 8.35305 8.6011 8.47807 8.47607C8.6031 8.35105 8.67333 8.18148 8.67333 8.00467C8.67333 7.82786 8.6031 7.65829 8.47807 7.53326C8.35305 7.40824 8.18348 7.338 8.00667 7.338Z" fill="#5A6870"/><path d="M6.66667 10.6713L2.66667 10.662C2.48986 10.662 2.32029 10.7322 2.19526 10.8573C2.07024 10.9823 2 11.1519 2 11.3287C2 11.5055 2.07024 11.675 2.19526 11.8001C2.32029 11.9251 2.48986 11.9953 2.66667 11.9953L6.66667 12.0047C6.84348 12.0047 7.01305 11.9344 7.13807 11.8094C7.26309 11.6844 7.33333 11.5148 7.33333 11.338C7.33333 11.1612 7.26309 10.9916 7.13807 10.8666C7.01305 10.7416 6.84348 10.6713 6.66667 10.6713Z" fill="#5A6870"/><path d="M13.7553 9.52667C13.6298 9.40221 13.4599 9.33272 13.2832 9.33347C13.1064 9.33422 12.9372 9.40515 12.8127 9.53067L12.6127 9.73067L12.626 4.66667C12.626 4.48986 12.5558 4.32029 12.4307 4.19526C12.3057 4.07024 12.1361 4 11.9593 4C11.7825 4 11.613 4.07024 11.4879 4.19526C11.3629 4.32029 11.2927 4.48986 11.2927 4.66667L11.282 9.73333L11.0887 9.54133C10.9624 9.42032 10.7937 9.35375 10.6189 9.35596C10.444 9.35818 10.277 9.429 10.1539 9.55318C10.0308 9.67735 9.96138 9.84492 9.96065 10.0198C9.95992 10.1947 10.0279 10.3628 10.15 10.488L11.4887 11.8153C11.6142 11.9398 11.7841 12.0093 11.9608 12.0085C12.1376 12.0078 12.3068 11.9368 12.4313 11.8113L13.7593 10.4667C13.883 10.3412 13.9519 10.172 13.9512 9.99584C13.9504 9.81972 13.88 9.65105 13.7553 9.52667Z" fill="#5A6870"/></svg>`,
+  get sortsm(){return icon('sortTable',14)}, get info(){return icon('info',13)},
+  get target(){return icon('approvals',16)}, get dl(){return icon('sortAsc',15)},
+  get keep(){return icon('check',15)}, get minus(){return icon('circleX',15)},
+  // stop icon (circle with rounded square) — shown on the active/running step
+  stop:`<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9.99984 1.66699C8.35166 1.66699 6.7405 2.15573 5.37009 3.07141C3.99968 3.98709 2.93158 5.28858 2.30084 6.8113C1.67011 8.33401 1.50509 10.0096 1.82663 11.6261C2.14817 13.2426 2.94185 14.7274 4.10728 15.8929C5.27272 17.0583 6.75758 17.852 8.37409 18.1735C9.9906 18.4951 11.6662 18.3301 13.1889 17.6993C14.7116 17.0686 16.0131 16.0005 16.9288 14.6301C17.8444 13.2597 18.3332 11.6485 18.3332 10.0003C18.3307 7.79093 17.452 5.67273 15.8897 4.11045C14.3274 2.54817 12.2092 1.66942 9.99984 1.66699ZM9.99984 16.667C8.6813 16.667 7.39237 16.276 6.29604 15.5435C5.19971 14.8109 4.34523 13.7697 3.84064 12.5515C3.33606 11.3334 3.20404 9.99293 3.46127 8.69972C3.71851 7.40652 4.35345 6.21863 5.2858 5.28628C6.21815 4.35393 7.40603 3.71899 8.69924 3.46176C9.99245 3.20452 11.3329 3.33654 12.5511 3.84113C13.7692 4.34571 14.8104 5.2002 15.543 6.29652C16.2755 7.39285 16.6665 8.68178 16.6665 10.0003C16.6645 11.7678 15.9615 13.4624 14.7117 14.7122C13.4619 15.962 11.7673 16.665 9.99984 16.667Z" fill="#6B6C72"/><path d="M6.66651 7.50033C6.66651 7.04009 7.0396 6.66699 7.49984 6.66699H12.4998C12.9601 6.66699 13.3332 7.04009 13.3332 7.50033V12.5003C13.3332 12.9606 12.9601 13.3337 12.4998 13.3337H7.49984C7.0396 13.3337 6.66651 12.9606 6.66651 12.5003V7.50033Z" fill="#6B6C72"/></svg>`,
+  checkSm:`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l4 4L19 6"/></svg>`,
+  // bare stroked tick (Figma checkmark 235:6652) — inherits currentColor so state CSS drives the color
+  tick:`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.3 8.3l2.9 2.9 6.5-6.5"/></svg>`,
+  // tree node-type tiles (white glyph on colored tile) — kept as small inline SVGs
+  seg:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="16" r="3"/><path d="M8 11v2a3 3 0 0 0 3 3h2"/></svg>`,
+  tileFlask:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/></svg>`,
+  tilePct:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M19 5 5 19"/><circle cx="7.5" cy="7.5" r="2.2"/><circle cx="16.5" cy="16.5" r="2.2"/></svg>`,
+  tileGrid:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><rect x="14" y="14" width="7" height="7" rx="1.4"/></svg>`,
+  tileMega:`<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.2718 2.62386C16.1508 2.54959 16.013 2.50727 15.8711 2.50086C15.7293 2.49444 15.5882 2.52415 15.461 2.58719L10.636 4.99969H5.8335C5.17045 4.99969 4.53457 5.26309 4.06573 5.73193C3.59689 6.20077 3.3335 6.83665 3.3335 7.49969V10.833C3.3335 11.4961 3.59689 12.132 4.06573 12.6008C4.53457 13.0696 5.17045 13.333 5.8335 13.333H6.93516L8.39266 16.9764C8.43337 17.078 8.49371 17.1707 8.57022 17.249C8.64674 17.3274 8.73794 17.3899 8.83861 17.433C8.93929 17.4761 9.04747 17.4989 9.15697 17.5002C9.26648 17.5015 9.37516 17.4812 9.47683 17.4405C9.57849 17.3998 9.67115 17.3395 9.74949 17.263C9.82784 17.1864 9.89035 17.0952 9.93345 16.9946C9.97655 16.8939 9.9994 16.7857 10.0007 16.6762C10.002 16.5667 9.98171 16.458 9.941 16.3564L8.731 13.333H10.636L15.461 15.7455C15.5881 15.809 15.7293 15.839 15.8712 15.8326C16.0131 15.8261 16.151 15.7835 16.2719 15.7088C16.3927 15.6341 16.4924 15.5297 16.5615 15.4056C16.6306 15.2815 16.6669 15.1418 16.6668 14.9997V3.33303C16.6669 3.19095 16.6307 3.05122 16.5615 2.9271C16.4924 2.80298 16.3927 2.69859 16.2718 2.62386V2.62386ZM5.00016 10.833V7.49969C5.00016 7.27868 5.08796 7.06672 5.24424 6.91044C5.40052 6.75416 5.61248 6.66636 5.8335 6.66636H10.0002V11.6664H5.8335C5.61248 11.6664 5.40052 11.5786 5.24424 11.4223C5.08796 11.266 5.00016 11.054 5.00016 10.833ZM15.0002 13.6514L11.6668 11.9847V6.34803L15.0002 4.68136V13.6514Z" fill="white"/></svg>`,
+  tag:`<svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M4 13 11 6a2 2 0 0 1 1.4-.6H18a2 2 0 0 1 2 2v5.6a2 2 0 0 1-.6 1.4l-7 7a2 2 0 0 1-2.8 0l-5.6-5.6a2 2 0 0 1 0-2.8Z" fill="#3d8b40"/><circle cx="15.5" cy="8.5" r="1.6" fill="#fff"/></svg>`,
+  avatar:`figma/avatar.png`,
+};
+
+/* ---------- shared chrome — left nav (Figma nodes 2875-25673 collapsed /
+   3224-25988 expanded). Change-order (refresh) intentionally omitted. ---------- */
+const RAIL_MAIN = [
+  {id:'home',icon:'home',sel:'homeSelected',label:'Home'},
+  {id:'projects',icon:'gridTile',label:'Projects'},
+  {id:'insights',icon:'chartBar',label:'Insights'},
+];
+const RAIL_SECONDARY = [
+  {icon:'megaphone',label:'Campaigns'},{icon:'image',label:'Creatives'},
+  {icon:'beaker',label:'Experiments'},{icon:'percent',label:'Promotions'},
+  {icon:'personThree',label:'Audiences'},{icon:'note',label:'Experiences'},
+];
+const RAIL_FOOTER = [{icon:'commentPencil',label:'Feedback'},{icon:'circleQuestion',label:'Support'}];
+let navExpanded = false;
+
+function renderRail(){
+  const rail = $('#rail');
+  rail.classList.toggle('rail--expanded', navExpanded);
+  rail.innerHTML = '';
+  // logo header (+ collapse toggle when expanded / logo mark toggles when collapsed)
+  if(navExpanded){
+    rail.appendChild(el(`<div class="rail__logo rail__logo--x">
+      <img src="figma/logo-mark.svg" alt="" style="width:30px;height:auto">
+      <img src="figma/logo-wordmark.svg" alt="Marketing Studio" style="height:20px;margin-left:6px">
+      <button class="rail__collapse" id="navToggle" aria-label="Collapse menu">${icon('menuCollapse',20)}</button>
+    </div>`));
+  } else {
+    // collapsed: M logo by default; swaps to the expand icon on hover (July-31 LeftNav)
+    rail.appendChild(el(`<button class="rail__logo rail__logoBtn" id="navToggle" aria-label="Expand menu">
+      <img class="rail__logoMark" src="figma/logo-mark.svg" alt="Marketing Studio" style="width:30px;height:auto;display:block">
+      <span class="rail__logoExpand">${icon('menuExpand',20)}</span>
+    </button>`));
+  }
+  const item=(it,i,grp)=>{
+    const sel = grp==='main' && i===0;   // Home active throughout this flow
+    const ic = icon(sel&&it.sel?it.sel:it.icon,20);
+    return el(`<button class="navItem ${sel?'navItem--selected':''}"><span class="navItem__icon">${ic}</span>${navExpanded?`<span class="navItem__label">${it.label}</span>`:''}</button>`);
+  };
+  const grpMain=el(`<div class="rail__group"></div>`);
+  RAIL_MAIN.forEach((it,i)=>grpMain.appendChild(item(it,i,'main')));
+  rail.appendChild(grpMain);
+  rail.appendChild(el(`<div class="rail__divider"></div>`));
+  const grpSec=el(`<div class="rail__group"></div>`);
+  RAIL_SECONDARY.forEach((it,i)=>grpSec.appendChild(item(it,i,'sec')));
+  rail.appendChild(grpSec);
+  rail.appendChild(el(`<div class="rail__spacer"></div>`));
+  const grpFoot=el(`<div class="rail__group"></div>`);
+  RAIL_FOOTER.forEach((it,i)=>grpFoot.appendChild(item(it,i,'foot')));
+  rail.appendChild(grpFoot);
+  // avatar row — pink/white avatar + name (kept per request)
+  rail.appendChild(el(`<div class="navItem navItem--avatar"><img class="rail__avatar" src="figma/avatar.png" alt="">${navExpanded?`<span class="navItem__label">Raashi Lathiya</span>`:''}</div>`));
+  // toggle wiring
+  const t=$('#navToggle'); if(t) t.onclick=()=>{ navExpanded=!navExpanded; renderRail(); };
+}
+
+function topbar(crumbHTML){
+  return `<div class="topbar">
+    <div class="crumb">${crumbHTML}<span class="edit">${I.editpencil}</span></div>
+    <div class="topbar__spacer"></div>
+    <span class="bell">${I.bell}</span>
+  </div>`;
+}
+
+/* AI panel scaffold. opts: {step, stepLoading, body, composer='Ask Marketing Agent', draft}
+   stepLoading=true → the step marker shows the II spinner; else the green check. */
+function aiPanel(opts){
+  const marker = opts.stepLoading
+    ? `<span class="chk chk--loading"><img class="spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"></span>`
+    : `<span class="chk">${I.checkSm}</span>`;
+  const step = opts.step ? `<div class="ai__step">
+      ${marker}
+      <span class="cv">${opts.step} <span class="dot dot--chev">${I.chev}</span></span>
+      <span class="dot">${I.stop}</span>
+    </div>` : '';
+  const draft = opts.draft || '';
+  const filled = draft ? ' promptBox__input--filled' : '';
+  return `<aside class="ai${opts.opening?' ai--opening':''}">
+    <div class="ai__tabs">
+      <button class="ai__tab active">${I.chat}</button>
+      <button class="ai__tab">${I.clock}</button>
+      <button class="ai__tab">${icon('approvals',20)}</button>
+    </div>
+    ${step}
+    <div class="ai__body">${opts.body}</div>
+    <div class="ai__composer">
+      <div class="promptBox">
+        <div class="promptBox__content">
+          <div class="promptBox__input${filled}" id="composerInput" data-ph="${opts.composer||'Ask Marketing Agent'}">${draft || `<span class="promptBox__ph">${opts.composer||'Ask Marketing Agent'}</span>`}</div>
+          <div class="promptBox__actions">
+            <button class="promptBox__ctrl">${icon('attach',20)}</button>
+            <button class="promptBox__send" id="composerSend">${icon('send',20)}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>`;
+}
+
+/* ---------- conversation-widget builders (real DS markup) ---------- */
+const userBubble = (text,time='20:33 pm')=>`<div class="chatMsgGroup chatMsgGroup--user">
+  <div class="chatBubble chatBubble--user">${text}</div>
+  <span class="chatTime">${time}</span></div>`;
+const agentMsg = (inner,time='20:33 pm')=>`<div class="chatMsgGroup">${inner}${time?`<span class="chatTime">${time}</span>`:''}</div>`;
+const bubble = (html)=>`<div class="chatBubble">${html}</div>`;
+const disclosure = (label,steps=[])=>`<div class="chatStatusBlock">
+    <button class="chatStatus" data-disclosure><span>${label}</span><span class="chatStatus__chev">${I.chev}</span></button>
+    <ul class="chatStatus__steps agentTasks__list--settled" style="display:none">${steps.map(s=>`<li class="agentTask agentTask--done"><span class="agentTask__check">${I.tick}</span><span class="agentTask__label">${s}</span></li>`).join('')}</ul>
+  </div>`;
+const objectCard = (ic,name)=>`<div class="objectCard"><div class="objectCard__left"><span class="objectCard__iconTile">${icon(ic,16)}</span><span class="objectCard__name">${name}</span></div><button class="objectCard__eye">${icon('eyeBlue',20)}</button></div>`;
+const replyBtn = (text,id)=>`<button class="cardReplyBtn" id="${id}">${text}</button>`;
+const recordedReply = (text)=>`<div class="cardReply"><img class="cardReply__avatar" src="figma/avatar.png" alt="">${text}</div>`;
+const DL_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7.5239 11.1493C7.58581 11.2114 7.65937 11.2607 7.74037 11.2944C7.82136 11.328 7.9082 11.3453 7.9959 11.3453C8.04819 11.3453 8.10031 11.3393 8.15123 11.3273C8.28131 11.2958 8.39902 11.2262 8.48923 11.1273C8.62256 10.9873 10.1386 9.48133 11.1366 8.48867C11.2004 8.42734 11.2514 8.35392 11.2865 8.27269C11.3217 8.19146 11.3403 8.10405 11.3413 8.01554C11.3423 7.92704 11.3257 7.83922 11.2924 7.75721C11.2591 7.6752 11.2098 7.60063 11.1474 7.53787C11.085 7.47511 11.0107 7.4254 10.9289 7.39165C10.8471 7.3579 10.7593 7.34078 10.6708 7.34128C10.5823 7.34179 10.4948 7.35992 10.4134 7.39461C10.332 7.4293 10.2582 7.47986 10.1966 7.54333C9.54323 8.19267 9.04656 8.686 8.66323 9.06867L8.66656 2.66667C8.66656 2.48986 8.59633 2.32029 8.4713 2.19526C8.34628 2.07024 8.17671 2 7.9999 2C7.82309 2 7.65352 2.07024 7.52849 2.19526C7.40347 2.32029 7.33323 2.48986 7.33323 2.66667V9.06667L5.80523 7.53733C5.67967 7.4157 5.51136 7.34826 5.33655 7.34953C5.16175 7.35079 4.99443 7.42067 4.87065 7.54411C4.74686 7.66754 4.67651 7.83466 4.67475 8.00946C4.67299 8.18426 4.73996 8.35276 4.86123 8.47867L7.5239 11.1493Z" fill="#0365AC"/><path d="M13.3332 7.35333C13.1564 7.35333 12.9868 7.42357 12.8618 7.5486C12.7368 7.67362 12.6666 7.84319 12.6666 8.02L12.6606 12.02C12.6606 12.1968 12.5903 12.3664 12.4653 12.4914C12.3403 12.6164 12.1707 12.6867 11.9939 12.6867L3.9939 12.6747C3.81709 12.6747 3.64752 12.6044 3.52249 12.4794C3.39747 12.3544 3.32723 12.1848 3.32723 12.008L3.33323 8.008C3.33323 7.83119 3.26299 7.66162 3.13797 7.5366C3.01294 7.41157 2.84337 7.34133 2.66656 7.34133C2.48975 7.34133 2.32018 7.41157 2.19516 7.5366C2.07013 7.66162 1.9999 7.83119 1.9999 8.008L1.9939 12.008C1.9939 12.5384 2.20461 13.0471 2.57968 13.4222C2.95476 13.7973 3.46346 14.008 3.9939 14.008L11.9939 14.02C12.5243 14.02 13.033 13.8093 13.4081 13.4342C13.7832 13.0591 13.9939 12.5504 13.9939 12.02L13.9999 8.02C13.9999 7.84319 13.9297 7.67362 13.8046 7.5486C13.6796 7.42357 13.51 7.35333 13.3332 7.35333Z" fill="#0365AC"/></svg>`;
+const dlLink = ()=>`<span class="link-dl">Download change summary ${DL_ICON}</span>`;
+
+/* agent working loader — assist GIF + subtask checklist.
+   tasks: [{label, state:'idle'|'active'|'done'}] */
+function agentLoader(label, tasks, bare=false){
+  // Figma "Doing some tasks" (7463-9100): bare stroked tick per row (no green circle).
+  // During loading a fade hierarchy applies (done=dark, active/pending=faded); once
+  // ALL steps are done the whole list settles to the done color.
+  const allDone = tasks.length && tasks.every(t=>t.state==='done');
+  const list = bare ? '' : `<ul class="agentTasks__list${allDone?' agentTasks__list--settled':''}">${tasks.map(t=>`
+    <li class="agentTask ${t.state==='done'?'agentTask--done':t.state==='active'?'agentTask--active':'agentTask--idle'}">
+      <span class="agentTask__check">${I.tick}</span>
+      <span class="agentTask__label">${t.label}</span>
+    </li>`).join('')}</ul>`;
+  return `<div class="chatMsgGroup"><div class="agentTasks">
+    <div class="agentTasks__head"><img class="agentTasks__loader spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"><span class="agentTasks__label agentTasks__label--shimmer">${label}</span></div>
+    ${list}
+  </div></div>`;
+}
+
+/* status badge */
+const badge = (t)=>{
+  if(t==='Published'||t==='Verified') return `<span class="badge badge--pos">${t}</span>`;
+  if(t==='Draft') return `<span class="badge badge--draft">${t}</span>`;   // blue #d6ebff/#0a73dc (nodes 25033/25303)
+  if(t==='Edited') return `<span class="badge badge--edited">${t}</span>`;
+  return `<span class="badge badge--neutral">${t}</span>`;
+};
+
+/* meta grid (shared) */
+const META = [
+  ['PRODUCT','QBL (QB Live Assisted)'],['LOCALE','en-us'],
+  ['GOAL','RETENTION'],['SUB GOAL','FTU'],
+  ['START DATE','01/28/2026'],['END DATE','04/22/2026'],
+  ['START TIME','9:18 am'],['END TIME','12: 30 am'],
+  ['TIME ZONE','United States (Los Angeles)'],['PRIORITY','Medium'],
+  ['VALUE','10.0'],
+];
+function metaGrid(){
+  return `<div class="meta">${META.map(([k,v])=>`<div><div class="meta__k">${k}</div><div class="meta__v">${v}</div></div>`).join('')}</div>`;
+}
+
+/* generic table builder.
+   opts.select: rows carry a checkbox the user toggles to select (data-selrow).
+   opts.selected: array/Set of pre-checked row indices. */
+function tableHTML(cols, rows, opts={}){
+  const sel = opts.selected instanceof Set ? opts.selected : new Set(opts.selected||[]);
+  const cb = opts.checkbox ? `<th class="cbcol"><input type="checkbox" class="cb"></th>` : '';
+  const head = cols.map(c=>`<th><span class="th-inner">${c.label}${c.info?`<span class="i">${I.info}</span>`:''}<span class="sort">${I.sortsm}</span></span></th>`).join('');
+  const body = rows.map((r,ri)=>{
+    const on = sel.has(ri);
+    const cbc = opts.checkbox ? `<td class="cbcol">${opts.select?`<input type="checkbox" class="cb" data-selrow="${ri}" ${on?'checked':''}>`:`<input type="checkbox" class="cb" disabled>`}</td>` : '';
+    const rowEdited = !!r.editedRow;   // whole-row yellow band (WB tables)
+    const tds = cols.map(c=>{
+      const val = r[c.key];
+      // a cell is yellow if the whole row is edited OR the per-cell editedKey flags it
+      const edited = (rowEdited || (c.editedKey && r[c.editedKey])) ? ' class="edited"' : '';
+      if(c.badge) return `<td${edited}>${badge(val)}</td>`;
+      return `<td${edited}>${val}</td>`;
+    }).join('');
+    const drill = opts.drillrow ? ` data-drillplace="${ri}" style="cursor:pointer"` : '';
+    return `<tr ${opts.select?`data-selrowtr="${ri}"`:''}${rowEdited?' class="row-edited"':''}${drill}>${cbc}${tds}</tr>`;
+  }).join('');
+  return `<div class="tbl-wrap"><table class="tbl">
+    <thead><tr>${cb}${head}</tr></thead>
+    <tbody>${body}</tbody></table></div>`;
+}
+
+/* ============================================================
+   SCENE DATA
+   ============================================================ */
+// search list rows
+const SEARCH_ROWS = [
+  ['ELM9071-TargetedOffers-QBOPayroll','Published'],['ELM9684-TargetedOffers-QBOPayroll','Draft'],
+  ['ELM9533-TargetedOffers-QBOPayroll','Draft'],['ELM4217-TargetedOffers-QBOPayroll','Published'],
+  ['ELM7856-TargetedOffers-QBOPayroll','Draft'],['ELM3041-TargetedOffers-QBOPayroll','Draft'],
+  ['ELM6198-TargetedOffers-QBOPayroll','Published'],['ELM8724-TargetedOffers-QBOPayroll','Draft'],
+  ['ELM2365-TargetedOffers-QBOPayroll','Draft'],['ELM5490-TargetedOffers-QBOPayroll','Draft'],
+].map(([name,status])=>({name,id:'1113460',status,start:'Jul 9, 2025',end:'Dec 9, 2025',mod:'Dec 12, 2025'}));
+
+// audiences (same across detail screens)
+const AUDIENCES = [
+  ['AUD_AUDIENCE1-QBO_MediumPriceSensitivty','Medium Price Sensitivity'],
+  ['AUD_AUDIENCE2-QBO_HighPriceSensitivity','High Price Sensitivity'],
+  ['AUD_AUDIENCE3-QBO_NoPriceSensitvty','No Price Sensitivity'],
+  ['AUD_AUDIENCE4-QBO_BroadlyAvailable','Broadly Available (Email)'],
+].map(([name,desc])=>({name,status:'Verified',desc,size:'~141k',mod:'06/30 18:30PST'}));
+
+const PLACEMENTS = [
+  ['Hellobox - Chart of Accounts','Hellobox - Image','1','19'],
+  ['Hellobox - Expenses','Hellobox - Image','2','19'],
+  ['Hellobox - Banking','Hellobox - Image','3','27'],
+  ['Hellobox - Payments Deposit','Hellobox - Image','3','27'],
+  ['Hellobox - Vendors','Hellobox - Image','2','27'],
+  ['Banner - Shell','Banner','N/A','27'],
+  ['Content - Get EligibleOffers API','Notification','N/A','27'],
+].map(([name,tmpl,cap,off])=>({name,tmpl,status:'Verified',cap,off,mod:'06/30 18:30PST'}));
+
+// billing offers + experiments — endDate param decides the diff
+function billingRows(endDate, edited){
+  return [
+    ['20059622','70% (Email)','19'],['20059628','90% (Email)','19'],
+    ['No billing code','Controls / free trial offers','27'],
+  ].map(([code,title,off])=>({code,status:'Verified',title,off,start:'01/28/2026',end:endDate,sku:'QB Live Assisted',mod:'06/30 18:30PST',edited}));
+}
+function experimentRows(endDate, edited){
+  return [
+    ['IPD - Medium Price Sensitivity','IXP 321930'],['IPD - High Price Sensitivity','IXP 321931'],
+    ['IPD - Unknown Price Sensitivity','IXP 321933'],['Landing Page - ALL Price Sensitivity','IXP 321934'],
+  ].map(([name,id])=>({name,status:'Verified',id,start:'03/12/2026',end:endDate,t1:'70% off 3 mo',t2:'90% off 3 mo',ctrl:'30D Free Trial',mod:'06/30 18:30PST',edited}));
+}
+
+/* column defs */
+const COL = {
+  search:[{label:'Campaign name',key:'name'},{label:'Campaign ID',key:'id'},{label:'Status',key:'status',badge:1},{label:'Start date',key:'start'},{label:'End date',key:'end'},{label:'Last modified',key:'mod',info:1}],
+  aud:[{label:'Audience name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Description',key:'desc'},{label:'Size',key:'size'},{label:'Last updated',key:'mod'}],
+  billing:[{label:'Billing code',key:'code',info:1},{label:'QA status',key:'status',badge:1},{label:'Title',key:'title'},{label:'No. of offers',key:'off'},{label:'Start date',key:'start'},{label:'End date',key:'end',editedKey:'edited'},{label:'SKU',key:'sku'},{label:'Last updated',key:'mod'}],
+  place:[{label:'Placement name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Template',key:'tmpl'},{label:'Impression cap',key:'cap'},{label:'No. of offers',key:'off'},{label:'Last updated',key:'mod'}],
+  exp:[{label:'Experiment name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'ID',key:'id'},{label:'Start date',key:'start'},{label:'End date',key:'end',editedKey:'edited'},{label:'Last updated',key:'mod'}],
+};
+
+/* campaign-data section: table of the 4 sub-tables. endDate/edited drive diff */
+function campaignDataTables(endDate, edited){
+  return `
+    <div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
+    <div class="sec-label">Billing offers</div>${tableHTML(COL.billing,billingRows(endDate,edited))}
+    <div class="sec-label">Placement</div>${tableHTML(COL.place,PLACEMENTS)}
+    <div class="sec-label">Experiments</div>${tableHTML(COL.exp,experimentRows(endDate,edited))}`;
+}
+
+/* view toggle control */
+// exact Figma toggle icons (user-provided). Fill swaps with active/inactive:
+// active segment → purple #5d47d5; inactive → #1d1d1f. currentColor via the button.
+const TOGGLE_TABLE_ICON = c=>`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M13.4693 1.34017C14.1418 1.40834 14.6666 1.97591 14.6666 2.66634V13.333L14.6595 13.4691C14.5958 14.0968 14.0971 14.5955 13.4693 14.6592L13.3333 14.6663H2.66659C1.97615 14.6663 1.40859 14.1415 1.34041 13.4691L1.33325 13.333V2.66634C1.33325 1.92996 1.93021 1.33301 2.66659 1.33301H13.3333L13.4693 1.34017ZM2.66659 13.333H7.33325V10.6663H2.66659V13.333ZM8.66658 10.6663V13.333H13.3333V10.6663H8.66658ZM8.66658 6.66634V9.33301H13.3333V6.66634H8.66658ZM2.66659 9.33301H7.33325V6.66634H2.66659V9.33301ZM2.66659 5.33301H13.3333V2.66634H2.66659V5.33301Z" fill="${c}"/></svg>`;
+const TOGGLE_TREE_ICON = c=>`<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M12.6666 10.6663H8.66658C8.25396 10.6675 7.85178 10.7963 7.51521 11.035C7.17863 11.2737 6.92413 11.6106 6.78659 11.9997H5.33325C5.15644 11.9997 4.98687 11.9294 4.86185 11.8044C4.73682 11.6794 4.66658 11.5098 4.66658 11.333V6.66634H6.79325C6.93041 7.05431 7.1839 7.39052 7.51915 7.62914C7.8544 7.86775 8.2551 7.99714 8.66658 7.99967H12.6666C13.197 7.99967 13.7057 7.78896 14.0808 7.41389C14.4559 7.03882 14.6666 6.53011 14.6666 5.99967C14.6666 5.46924 14.4559 4.96053 14.0808 4.58546C13.7057 4.21039 13.197 3.99967 12.6666 3.99967H8.66658C8.25396 4.00083 7.85178 4.12959 7.51521 4.3683C7.17863 4.60701 6.92413 4.94397 6.78659 5.33301H4.66658V2.66634H5.99992C6.17673 2.66634 6.3463 2.5961 6.47132 2.47108C6.59635 2.34605 6.66658 2.17649 6.66658 1.99967C6.66658 1.82286 6.59635 1.65329 6.47132 1.52827C6.3463 1.40325 6.17673 1.33301 5.99992 1.33301H1.99992C1.82311 1.33301 1.65354 1.40325 1.52851 1.52827C1.40349 1.65329 1.33325 1.82286 1.33325 1.99967C1.33325 2.17649 1.40349 2.34605 1.52851 2.47108C1.65354 2.5961 1.82311 2.66634 1.99992 2.66634H3.33325V11.333C3.33325 11.8634 3.54397 12.3721 3.91904 12.7472C4.29411 13.1223 4.80282 13.333 5.33325 13.333H6.78659C6.92413 13.722 7.17863 14.059 7.51521 14.2977C7.85178 14.5364 8.25396 14.6652 8.66658 14.6663H12.6666C13.197 14.6663 13.7057 14.4556 14.0808 14.0806C14.4559 13.7055 14.6666 13.1968 14.6666 12.6663C14.6666 12.1359 14.4559 11.6272 14.0808 11.2521C13.7057 10.8771 13.197 10.6663 12.6666 10.6663ZM8.66658 5.33301H12.6666C12.8434 5.33301 13.013 5.40325 13.138 5.52827C13.263 5.65329 13.3333 5.82286 13.3333 5.99967C13.3333 6.17649 13.263 6.34605 13.138 6.47108C13.013 6.5961 12.8434 6.66634 12.6666 6.66634H8.66658C8.48977 6.66634 8.3202 6.5961 8.19518 6.47108C8.07016 6.34605 7.99992 6.17649 7.99992 5.99967C7.99992 5.82286 8.07016 5.65329 8.19518 5.52827C8.3202 5.40325 8.48977 5.33301 8.66658 5.33301ZM12.6666 13.333H8.66658C8.48977 13.333 8.3202 13.2628 8.19518 13.1377C8.07016 13.0127 7.99992 12.8432 7.99992 12.6663C7.99992 12.4895 8.07016 12.32 8.19518 12.1949C8.3202 12.0699 8.48977 11.9997 8.66658 11.9997H12.6666C12.8434 11.9997 13.013 12.0699 13.138 12.1949C13.263 12.32 13.3333 12.4895 13.3333 12.6663C13.3333 12.8432 13.263 13.0127 13.138 13.1377C13.013 13.2628 12.8434 13.333 12.6666 13.333Z" fill="${c}"/></svg>`;
+function viewToggle(active){ // active: 'table' | 'tree'
+  return `<div class="viewtoggle" data-toggle>
+    <button data-view="table" class="${active==='table'?'active':''}">${TOGGLE_TABLE_ICON(active==='table'?'#5d47d5':'#1d1d1f')} Table</button>
+    <button data-view="tree" class="${active==='tree'?'active':''}">${TOGGLE_TREE_ICON(active==='tree'?'#5d47d5':'#1d1d1f')} Tree</button>
+  </div>`;
+}
+
+/* ---------- TREE view — data model + real expand/collapse ---------- */
+const NODE_COLORS={segment:'var(--node-segment)',experiment:'var(--node-experiment)',billing:'var(--node-billing)',placement:'var(--node-placement)',campaign:'var(--node-campaign)'};
+// tile glyphs = real DS icons tinted WHITE (Figma: icon-inverse on the colored tile)
+const whiteIcon=(name)=>`<span class="tile-ico">${icon(name,16)}</span>`;
+const NODE_ICON={segment:whiteIcon('personThree'),experiment:whiteIcon('beaker'),billing:whiteIcon('percent'),placement:whiteIcon('thumbnail'),campaign:whiteIcon('megaphone')};
+// which node ids are expanded (persists across re-renders within a scene)
+let treeExpanded = new Set();
+/* render one data node. n = {id,type,k,v,meta,children[],extra} */
+function treeNode(n){
+  const hasKids = (n.children&&n.children.length) || n.extra;
+  const open = treeExpanded.has(n.id);
+  // chevron: down when collapsed, up when expanded (Figma 6287:21907)
+  const chev = hasKids
+    ? `<span class="node__chev" data-treetoggle="${n.id}">${open?`<span class="rot-180">${I.chev}</span>`:I.chev}</span>`
+    : `<span style="width:20px;flex:0 0 20px"></span>`;
+  const kids = (open && hasKids)
+    ? `<div class="node__children">${(n.children||[]).map(treeNode).join('')}${n.extra||''}</div>`
+    : '';
+  const chip = n.offers ? `<span class="node__offers">${n.offers}</span>` : '';
+  return `<div class="node">
+    <div class="node__row ${n.type==='experiment'?'exp':''} ${n.type==='segment'?'segrow':''}">
+      ${chev}
+      <span class="node__tile" style="background:${NODE_COLORS[n.type]}">${NODE_ICON[n.type]}</span>
+      <span class="node__body"><span class="node__k">${n.k}</span><div class="node__v">${n.v}${n.meta?`<span class="node__meta">${n.meta}</span>`:''}${chip}</div></span>
+    </div>
+    ${kids}
+  </div>`;
+}
+function segGrid(){
+  return `<div class="seg-grid">${Array(4).fill(0).map(()=>`<div><div class="k">LABEL</div><div class="v">Value</div></div>`).join('')}</div>`;
+}
+function previewCard(){
+  return `<div class="preview-wrap">
+    <div class="preview-tabs"><span class="pt active">Preview</span><span class="pt">Data</span></div>
+    <div class="hellobox">
+      <div class="art">${I.tag}</div>
+      <div class="body">
+        <span class="lt">limited time</span>
+        <h4>Get 50% off Payroll for the next 3 months*</h4>
+        <p>Limited-time offer–claim before your trial ends. We'll calculate, file, and pay your payroll taxes automatically.</p>
+        <span class="cta">Claim 50% off offer</span>
+        <div class="fine">Offer valid for new paid subscriptions only. <a href="#">Terms apply</a></div>
+      </div>
+    </div>
+    <div class="preview-cap">Preview · helloboxThirdParty · SBSEG QBO Hellobox AppAccountsettings</div>
+  </div>`;
+}
+/* build the tree DATA (ids used for expand/collapse tracking).
+   Hierarchy (Figma): Experiment → Segment (+ LABEL/Value grid) → Billing offer → Placement/Template. */
+function treeData(withPreview){
+  // every placement is expandable → reveals its Preview/Data card (chevron works on all).
+  const placements=(seg)=>[
+    {id:seg+'-p1',type:'placement',k:'Placement/Template',v:'GetEligibleOffers API',meta:'content',extra:previewCard()},
+    {id:seg+'-p2',type:'placement',k:'Placement/Template',v:'Invoice - Hellobox',meta:'Hellobox-image',extra:previewCard()},
+    {id:seg+'-p3',type:'placement',k:'Placement/Template',v:'Banking - Aftertask Modal',meta:'Aftertask Modal',extra:previewCard()},
+  ];
+  // each experiment holds two segments (High / Mid), each with its own billing offer.
+  // ids are namespaced by the experiment prefix so every experiment is independently
+  // expandable (no duplicate ids across the 3 experiments).
+  const experimentSegments=(exp)=>[
+    {id:exp+'-seg-high',type:'segment',k:'Segment',v:'HighPropensity',
+      extra: segGrid() + treeNode({id:exp+'-b-high',type:'billing',k:'Billing offer',v:'20095329',meta:'90% off · 3 mo',children:placements(exp+'-high')})},
+    {id:exp+'-seg-mid',type:'segment',k:'Segment',v:'MidPropensity',
+      extra: segGrid() + treeNode({id:exp+'-b-mid',type:'billing',k:'Billing offer',v:'20095330',meta:'70% off · 3 mo',children:placements(exp+'-mid')})},
+  ];
+  return [
+    {id:'exp-t1',type:'experiment',k:'Experiment',v:'IXP ID 643354 · T1',meta:'Demo content variant · 50%',offers:'6 offers',children:experimentSegments('exp-t1')},
+    {id:'exp-t1b',type:'experiment',k:'Experiment',v:'IXP ID 643354 · T1',meta:'Demo content variant · 50%',offers:'6 offers',children:experimentSegments('exp-t1b')},
+    {id:'exp-none',type:'experiment',k:'Experiment',v:'No experiment',offers:'1 offer',children:experimentSegments('exp-none')},
+  ];
+}
+function treeView(withPreview){
+  // default-expanded set (first time only): 2nd experiment + its segments + billing offers
+  if(!treeExpanded.size) treeExpanded = new Set(['exp-t1b','exp-t1b-seg-high','exp-t1b-seg-mid','exp-t1b-b-high','exp-t1b-b-mid', ...(withPreview?['exp-t1b-high-p3']:[])]);
+  return `<div class="tree" data-tree data-preview="${withPreview?1:0}">${treeData(withPreview).map(treeNode).join('')}</div>`;
+}
+
+/* expanded prompt box used by every non-home centered composer (Figma 2858-11681):
+   1px blue-purple border, 16px radius, attach + send glyphs. */
+function expandedComposer(){
+  return `<div class="promptBox promptBox--centered promptBox--expanded"><div class="promptBox__content">
+    <div class="promptBox__input"><span class="promptBox__ph">Ask Marketing Agent</span></div>
+    <div class="promptBox__actions"><button class="promptBox__ctrl">${icon('attach',18)}</button><button class="promptBox__send">${icon('send',18)}</button></div>
+  </div></div>`;
+}
+
+/* ============================================================
+   SCENES
+   ============================================================ */
+const scenes = {};
+
+/* ---- Scene 0: HOME ---- */
+scenes.home = (state={})=>{
+  const spark = `<svg class="spark" viewBox="0 0 200 48" preserveAspectRatio="none"><polyline points="0,34 30,20 60,30 90,12 120,26 150,16 180,28 200,18" fill="none" stroke="#5d47d5" stroke-width="2"/></svg>`;
+  const metric = (label,val,delta,cls)=>`<div class="mcard"><div class="ml">${label}</div><div class="mv">${val}</div><div class="md ${cls}">${delta}</div>${spark}</div>`;
+  const shortcuts = [
+    ['Create campaign','Build email, push, or in-app campaigns with AI-assisted copy.'],
+    ['Run experiment','A/B test subject lines, offers and send times at scale.'],
+    ['Create IPD','Design in-product display creatives for targeted placements.'],
+  ].map(([t,d])=>`<div class="scard"><div class="si">${I.mega}</div><div><div class="st">${t}</div><div class="sd">${d}</div></div></div>`).join('');
+  return `<div class="content">
+    ${topbar('<span>Home</span>')}
+    <div class="scroll"><div class="pad">
+      <div class="home-hero">
+        <h1>Good Morning, Raashi.</h1>
+        <div class="sub">What would you like to do today?</div>
+        <div class="promptBox" id="homePrompt">
+          <div class="promptBox__content">
+            ${state.fileChip?`<div class="fileChip"><span class="fileChip__ico">${icon('note',14)}</span><span class="fileChip__name">name of file.doc</span><span class="fileChip__x">${icon('close',12)}</span></div>`:''}
+            <div class="promptBox__input" id="homeInput"><span class="promptBox__ph">Ask Marketing Agent</span></div>
+            <div class="promptBox__actions">
+              <button class="promptBox__ctrl">${icon('plus',18)}</button>
+              <button class="promptBox__send" id="homeSend">${icon('arrowUp',18)}</button>
+            </div>
+          </div>
+        </div>
+        <!-- Simulate a scenario: dashed pill → 2 options (prompt / workbook based) -->
+        <div class="simWrap">
+          <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
+          <div class="simMenu hidden" id="simMenu">
+            <button class="simMenu__item" data-sim="prompt">Prompt based changes</button>
+            <button class="simMenu__item" data-sim="workbook">Workbook based changes</button>
+          </div>
+        </div>
+      </div>
+      <div class="home-sec">
+        <h3>You Top Metrics</h3><div class="note">Insights only for QBO US Active IPD Campaigns</div>
+        <div class="metrics">
+          ${metric('IPD Impressions','6.4M','No Change vs last week','flat')}
+          ${metric('IPD Impressions','6.4M','↑ 9K this week','up')}
+          ${metric('IPD Impressions','6.4M','↑ 12K vs last week','up')}
+          ${metric('IPD Impressions','6.4M','↓ 0.2 vs last week','dn')}
+          ${metric('IPD Impressions','6.4M','↑ 4K vs last week','up')}
+        </div>
+        <h3>Your Shortcuts</h3><div style="height:6px"></div>
+        <div class="shortcuts">${shortcuts}</div>
+      </div>
+    </div></div>
+  </div>`;
+};
+
+/* shared chat transcripts (built from real DS widgets). Each returns HTML.
+   These accumulate as the flow progresses so the panel reads as one conversation. */
+const SEARCH_CONV = ()=>
+  userBubble('Find all QBO Payroll Targeted offers campaigns created in the last 3 months.')
+  // "created project" is its OWN agent group (Figma 2875:22232)
+  + agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">QBO Payroll Targeted offers campaigns</span>" project for you.</div>`,'')
+  // disclosure + results card = a SEPARATE group (Figma 2875:22271); disclosure 16px above the card
+  + agentMsg(
+      disclosure('Looked at your brief, created a summary',['Looked at your brief','Searching QB Payroll offers','Compiling results'])
+      + `<div class="chatBubble">Search results${objectCard('search','QBO Payroll Targeted offer campaig…')}</div>`);
+
+/* ---- CUMULATIVE TRANSCRIPT SEGMENTS ----
+   The AI panel reads as ONE continuous conversation across every scene. Each
+   downstream scene composes the full prior history (all recorded turns) and then
+   appends its own new/active message. These segments are the RECORDED (completed)
+   form of each turn, reused by later scenes so nothing is lost. */
+const ftRows = ()=>`<div class="ft" style="margin-top:6px;margin-bottom:14px">
+    <div class="ft__row"><div class="ft__k">From</div><div class="ft__v">04/22/2026</div></div>
+    <div class="ft__row"><div class="ft__k">To</div><div class="ft__v">07/31/2026</div></div></div>`;
+const ftBlk = (label)=>`<div class="ft-label">${label}</div>${ftRows()}`;
+// user's change request
+const CONV_CHANGE_REQ = ()=> userBubble('Change end date for all billing offers and experiments to 31 July');
+// plan (recorded — "Looks good"). doneCount/loadingIndex drive the row markers so the
+// plan-table in history reflects live progress as steps complete.
+const CONV_PLAN = (doneCount=0, loadingIndex=-1)=> agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${planTableRows(doneCount,loadingIndex)}</div><p class="summaryCard__q">Does this look ok? I'll then proceed.</p>${recordedReply('Looks good')}</div>`);
+// billing end-date change (recorded — "Approved")
+const CONV_BILLING = ()=> agentMsg(`<div class="chatBubble">Changed end date for all billing offers to 07/31/2026${objectCard('edit','Change end date: Billing offers - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
+// experiments end-date change (recorded — "Approved")
+const CONV_EXPERIMENTS = ()=> agentMsg(`<div class="chatBubble">Changed end date for all experiments to 07/31/2026${objectCard('edit','Change end date: Experiments - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
+// change summary (From/To) + download
+const CONV_SUMMARY = ()=> agentMsg(`<div class="chatBubble">Here is a summary of the changes I've made:${ftBlk('Changed end date for billing offers:')}${ftBlk('Changed end date for experiences:')}${dlLink()}</div>`);
+// campaign summary review (recorded — "Approved")
+const CONV_REVIEW = ()=> agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to regenerate experiences.</div>${recordedReply('Approved')}</div>`);
+// everything up to (not including) the change request
+const CONV_TO_SEARCH = ()=> SEARCH_CONV();
+// everything up to (not including) the plan
+const CONV_TO_PLAN   = ()=> SEARCH_CONV() + CONV_CHANGE_REQ();
+// everything up to (not including) billing. plan(done,loading) reflects live progress.
+const CONV_TO_BILLING = (done=0, loading=-1)=> CONV_TO_PLAN() + CONV_PLAN(done, loading);
+// everything up to (not including) experiments
+const CONV_TO_EXPERIMENTS = (done=1, loading=-1)=> CONV_TO_BILLING(done, loading) + CONV_BILLING();
+// everything up to (not including) the summary review
+const CONV_TO_REVIEW = (done=2, loading=-1)=> CONV_TO_EXPERIMENTS(done, loading) + CONV_EXPERIMENTS() + CONV_SUMMARY();
+// everything up to (not including) the final update
+const CONV_TO_UPDATE = (done=3, loading=-1)=> CONV_TO_REVIEW(done, loading) + CONV_REVIEW();
+
+/* ============================================================
+   SCENARIO 2 — WORKBOOK-BASED CHANGE ORDER (transcript segments)
+   Same cumulative-transcript pattern as the prompt flow. 5 tasks.
+   ============================================================ */
+const WB_PLAN_TASKS = [
+  'Change billing offer IDs',
+  'Change IPD content to reflect new pricing',
+  'Change images to reflect new pricing',
+  'Review change summary','Update the campaign',
+];
+function wbPlanTableRows(doneCount=0, loadingIndex=-1){
+  const marker=(i)=>{
+    if(i<doneCount) return `<span class="planNum planNum--done"><span class="ico-invert">${I.check}</span></span>`;
+    if(i===loadingIndex) return `<span class="planNum planNum--loading"><img class="spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"></span>`;
+    return `<span class="planNum">${i+1}</span>`;
+  };
+  return WB_PLAN_TASKS.map((w,i)=>`<div class="planTable__row">${marker(i)}<span>${w}</span></div>`).join('');
+}
+// user prompt (workbook attached) — file chip + prompt
+const WB_USER = ()=> userBubble(`<span class="bubbleFile"><span class="bubbleFile__ico">${icon('note',14)}</span>Name of file.csv <span class="bubbleFile__badge">1</span></span><br>${WORKBOOK_PROMPT}`);
+// created project bubble
+const WB_CREATED = ()=> agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">Change order - ELM9071 campaign</span>" project for you.</div>`,'');
+// "Here's what I understood" 3-row understanding table + Looks good
+const WB_UNDERSTOOD_TABLE = `<div class="planTable" style="margin:0">
+    ${[['Billing offers','ID replacement'],['IPD content','Update to reflect new pricing'],['Images','Update to reflect new pricing']].map(([a,b])=>`<div class="planTable__row planTable__row--2col"><span class="uw-k">${a}</span><span>${b}</span></div>`).join('')}
+  </div>`;
+const WB_UNDERSTOOD = ()=> agentMsg(
+  disclosure('Looked at your brief, created a summary',['Looked at your brief','Reading the workbook','Compiling changes'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood will be changed.</p>${WB_UNDERSTOOD_TABLE}<p class="summaryCard__q">Does this look right? I'll put together a plan once you confirm.</p>${recordedReply('Looks good')}</div>`);
+// plan (recorded)
+const WB_PLAN = (done=0, loading=-1)=> agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${wbPlanTableRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${recordedReply('Looks good')}</div>`);
+// task 1 recorded — billing offer IDs
+const WB_BILLING = ()=> agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit','Change IDs: Billing offers - ELM907…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
+// task 2 recorded — IPD content
+const WB_IPD = ()=> agentMsg(`<div class="chatBubble">Change IPD content to reflect new pricing${objectCard('edit','Change IPD content: Placement - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
+// task 3 recorded — images
+const WB_IMAGES = ()=> agentMsg(`<div class="chatBubble">Change images to reflect new pricing${objectCard('edit','Change Images: Placement - ELM90…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
+// change summary (From/To id/content) + download
+const wbFtId = ()=>`<div class="ft" style="margin-top:6px;margin-bottom:14px"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v">&lt;id&gt;</div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">&lt;id&gt;</div></div></div>`;
+const wbFtContent = ()=>`<div class="ft" style="margin-top:6px;margin-bottom:14px"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v">&lt;content&gt;</div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">&lt;content&gt;</div></div></div>`;
+const WB_SUMMARY = ()=> agentMsg(`<div class="chatBubble">Here is a summary of the changes I've made:<div class="ft-label" style="display:flex;justify-content:space-between;align-items:center">Changed Billing offer IDs <span class="link-dl" style="margin:0">Show all ${I.chev}</span></div>${wbFtId()}<div class="ft-label">Changed IPD content to reflect new pricing</div>${wbFtContent()}${dlLink()}</div>`);
+// task 4 recorded — review
+const WB_REVIEW = ()=> agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 5.</div>${recordedReply('Approved')}</div>`);
+// composed "history up to" helpers
+const WB_TO_PLAN     = ()=> WB_USER() + WB_CREATED() + WB_UNDERSTOOD();
+const WB_TO_BILLING  = (d=0,l=-1)=> WB_TO_PLAN() + WB_PLAN(d,l);
+const WB_TO_IPD      = (d=1,l=-1)=> WB_TO_BILLING(d,l) + WB_BILLING();
+const WB_TO_IMAGES   = (d=2,l=-1)=> WB_TO_IPD(d,l) + WB_IPD();
+const WB_TO_REVIEW   = (d=3,l=-1)=> WB_TO_IMAGES(d,l) + WB_IMAGES() + WB_SUMMARY();
+const WB_TO_UPDATE   = (d=4,l=-1)=> WB_TO_REVIEW(d,l) + WB_REVIEW();
+
+/* ---- Scene 1: SEARCH RESULTS (multiple) ----
+   Interaction: user CHECKS a campaign (select), which enables "View (n)".
+   Clicking View drills into that campaign. Nothing advances on a stray click. */
+scenes.searchMultiple = (state={})=>{
+  const phase = state.phase;            // 'boot' | 'created' | undefined
+  const loading = state.loading;        // search loader + skeleton table
+  const sel = new Set(state.selected||[]);
+  const n = sel.size;
+  const uPrompt = userBubble('Find all QBO Payroll Targeted offers campaigns created in the last 3 months.');
+  const createdBubble = `<div class="chatBubble">I have created "<span class="chatBubble__name">QBO Payroll Targeted offers campaigns</span>" project for you.</div>`;
+  // ── FULL-SCREEN boot loader (step 1): centered spinner + "Creating a project"
+  //    on an empty canvas — NO messages yet. Shown right after the user sends. ──
+  if(phase==='bootfull'){
+    return `<div class="content">
+      ${topbar('<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:220px;height:14px;display:inline-block"></span>')}
+      <div class="scroll scroll--center">${bootCanvas()}</div>
+    </div>`;
+  }
+  // ── CENTERED phase: prompt → created bubble → searching loader play in a single
+  //    centered conversation column — NO canvas, NO toolbar, NO pagination. ──
+  if(phase==='msg-prompt' || phase==='msg-created' || phase==='msg-search'){
+    let centeredBody = uPrompt;
+    if(phase==='msg-created' || phase==='msg-search') centeredBody += agentMsg(createdBubble);
+    if(phase==='msg-search') centeredBody += agentLoader('Searching experiences', state.tasks||[]);
+    return `<div class="content content--centered">
+      ${topbar('<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>')}
+      <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${centeredBody}</div>
+        ${expandedComposer()}
+      </div></div>
+    </div>`;
+  }
+  let body, table;
+  if(loading){
+    body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching experiences', state.tasks||[]);
+    table = skeletonTable(COL.search,true);        // canvas skeleton
+  } else {
+    body = SEARCH_CONV();
+    table = tableHTML(COL.search,SEARCH_ROWS,{checkbox:true,select:true,selected:sel});
+  }
+  const act = (icon,label)=>`<span class="act ${n?'act--on':'act--off'}">${icon} ${label} (${n})</span>`;
+  const pager = loading ? '' : `<div class="pager">
+        <span>1-10 of 22 items</span>
+        <span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span>
+      </div>`;
+  const content = `<div class="content${state.opening?' content--opening':''}">
+    ${topbar('<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>')}
+    <div class="scroll"><div class="pad">
+      <h2 class="page-h">QBO Payroll Targeted offers campaigns in the last 3 months</h2>
+      <div class="toolbar">
+        <div class="search">${I.search}<span>Search</span></div>
+        <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+      </div>
+      ${table}
+      ${pager}
+    </div></div>
+    <div class="selbar">${n} of n selected
+      <div class="acts">
+        ${act(I.keep,'Keep')}
+        ${act(I.minus,'Remove')}
+        <span class="act act--view ${n?'act--on':'act--off'}" ${n?'data-view-selected':''}>${I.eye} View (${n})</span>
+      </div>
+    </div>
+  </div>`;
+  return content + aiPanel({body,opening:state.opening});
+};
+
+/* detail body builder shared by scenes 2 & 3 (single campaign) */
+function detailContent({crumb,view,endDate,edited,showIdentity}){
+  const dataBody = view==='tree' ? treeView(false) : campaignDataTables(endDate,edited);
+  const identity = showIdentity ? `<div class="identity">
+      <span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span>
+      <span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span>
+    </div>` : '';
+  const header = showIdentity ? '' : `<div class="detail-h">
+      <span class="back" data-back>${I.back}</span>
+      <span class="title">ELM9071-TargetedOffers-QBOPayroll</span>
+      ${badge('Published')}
+      <span class="detail-sub" style="margin:0">Last updated: 1 min ago</span>
+      <span class="verselect">v1 ${I.chev}</span>
+    </div>`;
+  return `<div class="content">
+    ${topbar(crumb)}
+    <div class="scroll"><div class="pad">
+      <div class="detail-sticky">
+        ${header}
+        <div class="tabs tabs--insticky" style="${showIdentity?'':'margin-top:18px'}">
+          <span class="tab active">Campaign meta</span><span class="tab">Experiences</span>
+        </div>
+      </div>
+      ${identity}
+      ${metaGrid()}
+      <div class="data-head"><span class="h">Campaign data</span>${viewToggle(view)}</div>
+      <div id="dataZone">${dataBody}</div>
+    </div></div>
+  </div>`;
+}
+
+/* ---- Scene 2: SINGLE CAMPAIGN (drill-down) ---- */
+scenes.singleCampaign = (state={view:'table'})=>{
+  const draft = state.draft || '';
+  return detailContent({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',view:state.view,endDate:'04/22/2026',edited:false})
+    + aiPanel({body:SEARCH_CONV(), draft});
+};
+
+/* ---- Scene 3: CHANGE-ORDER INTENT + plan playback ---- */
+const PLAN_TASKS = [
+  'Change end date for all billing offers to 07/31/2026',
+  'Change end date for all experiments to 07/31/2026',
+  'Review change summary','Update the campaign',
+];
+/* plan-table rows shared by planCard + CONV_PLAN.
+   rows < doneCount → green check; row === loadingIndex → II spinner; else → number. */
+function planTableRows(doneCount=0, loadingIndex=-1){
+  const marker=(i)=>{
+    if(i<doneCount) return `<span class="planNum planNum--done"><span class="ico-invert">${I.check}</span></span>`;
+    if(i===loadingIndex) return `<span class="planNum planNum--loading"><img class="spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"></span>`;
+    return `<span class="planNum">${i+1}</span>`;
+  };
+  return PLAN_TASKS.map((w,i)=>`<div class="planTable__row">${marker(i)}<span>${w}</span></div>`).join('');
+}
+function planCard(doneCount=0, loadingIndex=-1){
+  return `<div class="summaryCard">
+    <p class="summaryCard__intro">I will make the changes in the following order:</p>
+    <div class="planTable">
+      <div class="planTable__head"><span>Task</span><span>What happens</span></div>
+      ${planTableRows(doneCount,loadingIndex)}
+    </div>
+    <p class="summaryCard__q">Does this look ok? I'll then proceed.</p>
+    ${replyBtn('Looks good','looksGood')}
+  </div>`;
+}
+scenes.coIntent = (state={view:'table'})=>{
+  const loading = state.loading;
+  const conv = CONV_TO_PLAN();
+  const body = loading
+    ? conv + agentLoader('Creating a plan', state.tasks||[])
+    : conv + agentMsg(disclosure('Read your brief, created a plan',['Reading your request','Mapping requested changes','Ordering the tasks']) + planCard(0));
+  return detailContent({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',view:state.view,endDate:'04/22/2026',edited:false}) + aiPanel({body});
+};
+
+/* artifact table screen (billing / experiments) */
+function artifactScreen({crumb,title,version,table,step,body,stepLoading}){
+  const content = `<div class="content">
+    ${topbar(crumb)}
+    <div class="scroll"><div class="pad">
+      <div class="detail-h"><span class="title">${title}</span>${version?`<span class="verselect">${version} ${I.chev}</span>`:''}</div>
+      <div style="height:16px"></div>
+      ${table}
+    </div></div>
+  </div>`;
+  return content + aiPanel({step,body,stepLoading});
+}
+
+/* ---- Scene 4: BILLING OFFERS artifact ---- */
+scenes.billing = (state={})=>{
+  const loading = state.loading;
+  // step 1: while loading row 1 spins; once settled (header checked) row 1 is checked too
+  const conv = CONV_TO_BILLING(loading?0:1, loading?0:-1);
+  const editBody = loading
+    ? conv + agentLoader('Changing billing offers end date', state.tasks||[])
+    : conv + agentMsg(
+        `<div class="chatBubble">Changed end date for all billing offers to 07/31/2026${objectCard('edit','Change end date: Billing offers - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','approveBilling')}</div>`);
+  // rows flip OLD (04/22/2026, no highlight) → NEW (07/31/2026, yellow) one by one
+  const editRows = state.rowsDone!==undefined ? state.rowsDone : 3;
+  const flip = (rows)=>rows.map((r,i)=> i<editRows ? {...r,end:'07/31/2026',edited:true} : {...r,end:'04/22/2026',edited:false});
+  const billTbl = state.skeleton ? skeletonTable(COL.billing,false)
+    : loading ? tableHTML(COL.billing, flip(billingRows('04/22/2026',false)))
+    : tableHTML(COL.billing, billingRows('07/31/2026',true));
+  const table = billTbl;
+  return artifactScreen({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',title:'Billing offers - ELM9071 campaign',table,step:'1.  Change billing offers end date',body:editBody,stepLoading:loading});
+};
+
+/* ---- Scene 5: EXPERIMENTS artifact ---- */
+scenes.experiments = (state={})=>{
+  const loading = state.loading;
+  // step 2: row 1 done; while loading row 2 spins; settled → rows 1-2 checked
+  const conv = CONV_TO_EXPERIMENTS(loading?1:2, loading?1:-1);
+  const body = loading
+    ? conv + agentLoader('Changing experiments end date', state.tasks||[])
+    : conv + agentMsg(
+        `<div class="chatBubble">Changed end date for all experiments to 07/31/2026${objectCard('edit','Change end date: Experiments - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','approveExp')}</div>`);
+  const editRows = state.rowsDone!==undefined ? state.rowsDone : 4;
+  const flip = (rows)=>rows.map((r,i)=> i<editRows ? {...r,end:'07/31/2026',edited:true} : {...r,end:'04/22/2026',edited:false});
+  const expTbl = state.skeleton ? skeletonTable(COL.exp,false)
+    : loading ? tableHTML(COL.exp, flip(experimentRows('04/22/2026',false)))
+    : tableHTML(COL.exp, experimentRows('07/31/2026',true));
+  const table = expTbl;
+  return artifactScreen({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',title:'Experiments - ELM9071 campaign',table,step:'2.  Change experiments end date',body,stepLoading:loading});
+};
+
+/* ---- Scene 6: CAMPAIGN OBJECT — diff summary (table ⇄ tree) ---- */
+scenes.campaignObject = (state={view:'table'})=>{
+  const loading = state.loading;
+  // reveal: 0 = neither new bubble, 1 = summary only, 2 = summary + review (default when settled)
+  const reveal = state.reveal!==undefined ? state.reveal : 2;
+  // step 3 (review): rows 1-2 done; loading → row 3 spins; settled → rows 1-3 checked
+  const priorConv = CONV_TO_EXPERIMENTS(loading?2:3, loading?2:-1) + CONV_EXPERIMENTS();
+  const summaryMsg = CONV_SUMMARY();
+  const reviewMsg = agentMsg(
+    `<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to regenerate experiences.</div>${replyBtn('Approve','approveCampaign')}</div>`);
+  let body;
+  if(loading){
+    body = priorConv + agentLoader('Reviewing change summary', state.tasks||[]);
+  } else {
+    // messages appear one after the other: summary first, then the review bubble
+    body = priorConv + (reveal>=1?summaryMsg:'') + (reveal>=2?reviewMsg:'');
+  }
+  const dataBody = state.view==='tree' ? treeView(false) : campaignDataTables('07/31/2026',true);
+  // before the summary appears, show a skeleton canvas (something is loading)
+  const canvas = loading
+    ? summarySkeleton()
+    : `<div class="detail-h"><span class="title">Campaign summary - ELM9071 campaign</span></div>
+      <div style="height:10px"></div>
+      <div class="identity">
+        <span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span>
+        <span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span>
+      </div>
+      ${metaGrid()}
+      <div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div>
+      <div id="dataZone">${dataBody}</div>`;
+  const content = `<div class="content">
+    ${topbar('<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>')}
+    <div class="scroll"><div class="pad">${canvas}</div></div>
+  </div>`;
+  return content + aiPanel({step:'3.  Review change summary',body,stepLoading:loading});
+};
+
+/* ---- Scene 7: CAMPAIGN TREE - Segment view (final) ---- */
+scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
+  const loading = state.loading;
+  // step 4 (final): rows 1-3 done; loading → row 4 spins; settled → all 4 checked
+  const savedConv = CONV_TO_UPDATE(loading?3:4, loading?3:-1);
+  const body = loading
+    ? savedConv + agentLoader('Updating the campaign', state.tasks||[])
+    : savedConv + agentMsg(
+        `<div class="chatBubble">Updated campaign and regenerated experiences with the end dates changes to Billing offers and experiments.${objectCard('megaphone','Update campaign - ELM9071 campai…')}<div class="bubble-q">Does this look ok?</div>${replyBtn('Looks good','looksGoodFinal')}</div>`);
+
+  let mainInner;
+  if(state.tab==='experiences'){
+    // some regenerated experiences are Edited (yellow highlight on the name cell + "Edited" status)
+    const editedIdx=new Set([1,3,6,9]);
+    const rows = Array(10).fill(0).map((_,i)=>{const ed=editedIdx.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':'Draft',ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
+    const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
+    // while regenerating (loading), show a skeleton table on the canvas before the experiences appear
+    const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true});
+    const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
+    mainInner = `<div class="toolbar">
+        <div class="search">${I.search}<span>Search</span></div>
+        <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+        <span class="groupby">Group by ${I.chev}</span>
+      </div>
+      ${expTable}
+      ${pager}`;
+  } else {
+    const dataBody = state.view==='tree' ? treeView(true) : campaignDataTables('07/31/2026',true);
+    mainInner = `<div class="identity">
+        <span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span>
+        <span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span>
+      </div>
+      ${metaGrid()}
+      <div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div>
+      <div id="dataZone">${dataBody}</div>`;
+  }
+  const content = `<div class="content">
+    ${topbar('<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>')}
+    <div class="scroll"><div class="pad">
+      <div class="detail-sticky">
+        <div class="detail-h">
+          <span class="title">ELM9071-TargetedOffers-QBOPayroll</span>
+          ${badge('Edited')}
+          <span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span>
+          <span class="verselect">v2 ${I.chev}</span>
+        </div>
+        <div class="tabs tabs--insticky">
+          <span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span>
+          <span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span>
+        </div>
+      </div>
+      ${mainInner}
+    </div></div>
+  </div>`;
+  return content + aiPanel({step:'4.  Update campaign',body,stepLoading:loading});
+};
+
+/* ============================================================
+   SCENARIO 2 — WORKBOOK SCENES
+   Reuses artifactScreen, tableHTML (edited highlights), plan/step spinners,
+   cumulative WB_* transcript. Placement rows drill down to a content table.
+   ============================================================ */
+const WB_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>Change order - ELM9071 campaign</span>';
+
+// content (Hellobox) rows for the placement drill-down. mode: 'ipd' (headline col yellow) | 'image' (image col yellow)
+function contentTable(mode){
+  const metaChips = (real)=> real
+    ? `<span class="cbadge cbadge--o">Hellobox</span><span class="cbadge cbadge--p">20059622</span><span class="cbadge cbadge--t">IXP 321930</span><span class="cbadge cbadge--u">QB Live Assisted</span>`
+    : `<span class="cbadge cbadge--o">Template</span><span class="cbadge cbadge--p">Billing offer</span><span class="cbadge cbadge--t">IXP</span><span class="cbadge cbadge--u">SKU</span>`;
+  const rows = Array.from({length:9}).map((_,i)=>{
+    const edited = i<6;              // first 6 rows are the edited (yellow) set
+    const headline = (mode==='image'||!edited) ? 'Save 90% on Live Expert Assisted for 3 months' : 'Save 90% on Live Expert Assisted for 3 months';
+    const body = 'Get one-on-one expert guidance setting up your chart of accounts and more. Cancel anytime. Terms apply.';
+    const third = mode==='image'
+      ? `<span class="imgcell${edited?' edited':''}">imagename.png</span>`
+      : `Start saving today`;
+    const hl = mode==='ipd' && edited ? `<span class="edited hl-cell">${headline}</span>` : headline;
+    return `<tr>
+      <td>${hl}</td>
+      <td class="col-body">${body}</td>
+      <td>${third}</td>
+      <td class="col-meta">${metaChips(i<2)}</td>
+    </tr>`;
+  }).join('');
+  const thirdHead = mode==='image' ? 'Image' : 'CTA';
+  return `<div class="tbl-wrap"><table class="tbl tbl--content"><thead><tr>
+      <th><span class="th-inner">Headline ${I.info}<span class="sort">${I.sortsm}</span></span></th>
+      <th><span class="th-inner">Body ${I.info}<span class="sort">${I.sortsm}</span></span></th>
+      <th><span class="th-inner">${thirdHead} ${I.info}<span class="sort">${I.sortsm}</span></span></th>
+      <th><span class="th-inner">Metadata ${I.info}<span class="sort">${I.sortsm}</span></span></th>
+    </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+// placement table where each row drills into the content table (steps 2 & 3).
+// rows 0,1,3,5 highlighted; every row clickable (data-drillplace) to open content.
+function placementDrill(){
+  const rows = PLACEMENTS.map((r,i)=>({...r, editedRow:[0,1,3,5].includes(i)}));
+  return tableHTML(COL.place, rows, {drillrow:true});
+}
+
+/* ---- WB intake: Change-order summary + plan (staggered like prompt flow) ---- */
+scenes.coIntentWB = (state={})=>{
+  const phase = state.phase;           // 'bootfull' | 'msg-user' | 'msg-created' | 'msg-understood' | 'msg-loader'
+  const loading = state.loading;       // planning loader (after 'Looks good' on understanding)
+  if(phase==='bootfull'){
+    return `<div class="content">${topbar('<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:220px;height:14px;display:inline-block"></span>')}<div class="scroll scroll--center">${bootCanvas()}</div></div>`;
+  }
+  // live understanding card (its "Looks good" pill triggers the planning loader)
+  const understoodLive = disclosure('Looked at your brief, created a summary',['Looked at your brief','Reading the workbook','Compiling changes'])
+    + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood will be changed.</p>${WB_UNDERSTOOD_TABLE}<p class="summaryCard__q">Does this look right? I'll put together a plan once you confirm.</p>${replyBtn('Looks good','wbApproveUnderstood')}</div>`;
+  if(phase==='msg-user' || phase==='msg-created' || phase==='msg-loader' || phase==='msg-understood' || phase==='planning'){
+    let b = WB_USER();
+    if(phase!=='msg-user') b += WB_CREATED();
+    if(phase==='msg-loader') b += agentLoader('Looking at your brief', state.tasks||[]);
+    if(phase==='msg-understood') b += agentMsg(understoodLive);
+    if(phase==='planning') b += WB_UNDERSTOOD() + agentLoader('Creating a plan', state.tasks||[]);
+    return `<div class="content content--centered">${topbar(WB_CRUMB)}
+      <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${b}</div>
+        ${expandedComposer()}
+      </div></div></div>`;
+  }
+  // settled plan phase: understanding recorded → plan card with live "Looks good"
+  const conv = WB_USER() + WB_CREATED() + WB_UNDERSTOOD();
+  const body = loading
+    ? conv + agentLoader('Creating a plan', state.tasks||[])
+    : conv + agentMsg(disclosure('Looked at your brief, created a plan',['Reading your request','Mapping requested changes','Ordering the tasks']) + `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${wbPlanTableRows(0,-1)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${replyBtn('Looks good','wbApprovePlan')}</div>`);
+  return `<div class="content content--centered">${topbar(WB_CRUMB)}<div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${body}</div>
+    ${expandedComposer()}
+  </div></div></div>`;
+};
+
+/* ---- WB step 1: Change billing offer IDs ---- */
+scenes.billingIDs = (state={})=>{
+  const loading = state.loading;
+  const conv = WB_TO_BILLING(loading?0:1, loading?0:-1);
+  const body = loading
+    ? conv + agentLoader('Changing billing offer IDs', state.tasks||[])
+    : conv + agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit','Change IDs: Billing offers - ELM907…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','wbApproveBilling')}</div>`);
+  // top 2 billing rows highlighted (IDs changed). skeleton shows while loading.
+  const rows = billingRows('07/31/2026',false).map((r,i)=>({...r, editedRow:i<2}));
+  const billTbl = (loading||state.skeleton) ? skeletonTable(COL.billing,false) : tableHTML(COL.billing, rows);
+  return artifactScreen({crumb:WB_CRUMB,title:'Billing offers - ELM9071 campaign',table:billTbl,step:'1.  Change billing offer IDs',body,stepLoading:loading});
+};
+
+/* WB step 2 & 3 share a placement table that drills into the content table.
+   state.drill = index of the placement row being viewed (content table shown). */
+function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loading,tasks,mode,drill,drillLoading}){
+  let canvas, title, crumb=WB_CRUMB, backForDrill=false;
+  if(drill!==undefined && drill!==null){
+    // content drill-down view (skeleton flashes before the content table)
+    backForDrill=true;
+    title='Hellobox - Chart of Accounts';
+    const contentBody = drillLoading
+      ? skeletonTable([{label:'Headline'},{label:'Body'},{label:mode==='image'?'Image':'CTA'},{label:'Metadata'}],false)
+      : contentTable(mode);
+    canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('QA Error')}
+        <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
+      <div style="height:16px"></div>${contentBody}`;
+    crumb = '<span>Home</span> <span class="sep">/</span> <span>ELM9071 campaign</span>';
+  } else {
+    title=`Placement - ELM9071 campaign`;
+    canvas = `<div class="detail-h"><span class="title">Placement - ELM9071 campaign</span></div><div style="height:16px"></div>${loading?skeletonTable(COL.place,false):placementDrill()}`;
+  }
+  const bodyFull = loading ? conv + agentLoader(loaderLabel, tasks||[]) : conv + activeReply;
+  const content = `<div class="content">${topbar(crumb)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
+  return content + aiPanel({step,body:bodyFull,stepLoading:loading});
+}
+
+scenes.ipdContent = (state={})=>{
+  const loading=state.loading;
+  const conv = WB_TO_IPD(loading?1:2, loading?1:-1);
+  const activeReply = agentMsg(`<div class="chatBubble">Change IPD content to reflect new pricing${objectCard('edit','Change IPD content: Placement - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','wbApproveIpd')}</div>`);
+  return wbPlacementScene({step:'2.  Change IPD content to reflect new pricing',conv,activeReply,loaderLabel:'Changing IPD content',loading,tasks:state.tasks,mode:'ipd',drill:state.drill,drillLoading:state.drillLoading});
+};
+scenes.images = (state={})=>{
+  const loading=state.loading;
+  const conv = WB_TO_IMAGES(loading?2:3, loading?2:-1);
+  const activeReply = agentMsg(`<div class="chatBubble">Change images to reflect new pricing${objectCard('edit','Change Images: Placement - ELM90…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${replyBtn('Approve','wbApproveImages')}</div>`);
+  return wbPlacementScene({step:'3.  Change images to reflect new pricing',conv,activeReply,loaderLabel:'Changing images',loading,tasks:state.tasks,mode:'image',drill:state.drill,drillLoading:state.drillLoading});
+};
+
+/* ---- WB step 4: Review change summary ---- */
+scenes.campaignObjectWB = (state={view:'table'})=>{
+  const loading=state.loading;
+  const reveal = state.reveal!==undefined ? state.reveal : 2;
+  const priorConv = WB_TO_IMAGES(loading?3:4, loading?3:-1) + WB_IMAGES();
+  const summaryMsg = WB_SUMMARY();
+  const reviewMsg = agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 5.</div>${replyBtn('Approve','wbApproveReview')}</div>`);
+  let body;
+  if(loading){ body = priorConv + agentLoader('Reviewing change summary', state.tasks||[]); }
+  else { body = priorConv + (reveal>=1?summaryMsg:'') + (reveal>=2?reviewMsg:''); }
+  // campaign summary canvas with billing + placement rows highlighted yellow
+  const canvas = loading ? summarySkeleton() : `<div class="detail-h"><span class="title">Campaign summary - ELM9071 campaign</span></div>
+    <div style="height:10px"></div>
+    <div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span></div>
+    ${metaGrid()}
+    <div class="data-head"><span class="h">Campaign data</span>${viewToggle('table')}</div>
+    <div id="dataZone">${wbSummaryTables()}</div>`;
+  const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
+  return content + aiPanel({step:'4.  Review change summary',body,stepLoading:loading});
+};
+
+// summary tables for WB review: audiences (plain), billing (2 rows yellow), placement (all yellow), experiments
+function wbSummaryTables(){
+  const bill = billingRows('07/31/2026',false).map((r,i)=>({...r,editedRow:i<2}));
+  const place = PLACEMENTS.map(r=>({...r,editedRow:true}));
+  return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
+    <div class="sec-label">Billing offers</div>${tableHTML(COL.billing,bill)}
+    <div class="sec-label">Placement</div>${tableHTML(COL.place,place)}
+    <div class="sec-label">Experiments</div>${tableHTML(COL.exp,experimentRows('04/22/2026',false))}`;
+}
+
+/* ---- WB step 5: Update the campaign (Experiences + same tree) ---- */
+scenes.campaignTreeWB = (state={view:'tree',tab:'experiences'})=>{
+  const loading=state.loading;
+  const savedConv = WB_TO_UPDATE(loading?4:5, loading?4:-1);
+  const body = loading
+    ? savedConv + agentLoader('Updating the campaign', state.tasks||[])
+    : savedConv + agentMsg(`<div class="chatBubble">Updated campaign and regenerated experiences with the changes to Billing offers, IPD content and images.${objectCard('megaphone','Update campaign - ELM9071 campai…')}<div class="bubble-q">Does this look ok?</div>${replyBtn('Looks good','wbLooksGoodFinal')}</div>`);
+  let mainInner;
+  if(state.tab==='experiences'){
+    const editedIdx=new Set([1,3,6,9]);
+    const rows = Array(10).fill(0).map((_,i)=>{const ed=editedIdx.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':'Draft',ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
+    const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
+    const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true});
+    const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
+    mainInner = `<div class="toolbar"><div class="search">${I.search}<span>Search</span></div><span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span><span class="groupby">Group by ${I.chev}</span></div>${expTable}${pager}`;
+  } else {
+    mainInner = `<div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span></div>${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):campaignDataTables('07/31/2026',true)}</div>`;
+  }
+  const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">
+    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span>${badge('Edited')}<span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
+    <div class="tabs tabs--insticky"><span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span><span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span></div></div>
+    ${mainInner}</div></div></div>`;
+  return content + aiPanel({step:'5.  Update the campaign',body,stepLoading:loading});
+};
+
+/* skeleton canvas for the Campaign summary scene (shown before the summary appears) */
+function summarySkeleton(){
+  const bar=(w,h=14,mt=0)=>`<span class="cfskel cfskel--bar" style="display:block;width:${w};height:${h}px;margin-top:${mt}px"></span>`;
+  const metaCell=()=>`<div>${bar('40%',10)}${bar('70%',16,8)}</div>`;
+  return `<div style="max-width:520px">${bar('55%',26)}</div>
+    <div style="height:18px"></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="cfskel" style="width:36px;height:36px;border-radius:8px"></span>
+      <div style="flex:1;max-width:260px">${bar('30%',10)}${bar('60%',16,8)}</div>
+    </div>
+    <div style="height:24px"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px 64px;max-width:760px">
+      ${Array.from({length:8}).map(metaCell).join('')}
+    </div>
+    <div style="height:28px"></div>
+    ${bar('160px',18)}
+    <div style="height:14px"></div>
+    <div class="tbl-wrap">${Array.from({length:6}).map((_,i)=>`<div style="display:flex;gap:24px;padding:16px 20px;border-bottom:1px solid #f1f1f3">${Array.from({length:5}).map((_,j)=>`<span class="cfskel cfskel--bar" style="flex:1;height:14px;max-width:${60+((i*7+j*11)%30)}%"></span>`).join('')}</div>`).join('')}</div>`;
+}
+
+/* skeleton table (8 rows) for loading state */
+function skeletonTable(cols,checkbox){
+  const head = (checkbox?`<th class="cbcol"></th>`:'')+cols.map(c=>`<th>${c.label}</th>`).join('');
+  const body = Array.from({length:8}).map((_,i)=>`<tr>${checkbox?`<td class="cbcol"><span class="skel skel--check"></span></td>`:''}${cols.map((c,j)=>`<td><span class="skel" style="width:${50+((i*7+j*11)%40)}%"></span></td>`).join('')}</tr>`).join('');
+  return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+/* full-canvas boot loader (July-31 intake): centered assist GIF + shimmer text */
+function bootCanvas(){
+  return `<div class="bootLoader"><img class="bootLoader__gif spinnerII" src="figma/spinner-ii.gif" alt=""><span class="bootLoader__shimmer">Creating a project</span></div>`;
+}
+
+/* ============================================================
+   LOADER ORCHESTRATION — golden timings from ChangeOrder.tsx
+   ============================================================ */
+const LOADERS = {
+  search:   { label:'Searching experiences', tasks:['Reading your brief','Searching QB Payroll offers','Compiling results'], after:5400 },
+  planning: { label:'Creating a plan', tasks:['Reading your request','Mapping requested changes','Ordering the tasks'], after:3400 },
+  saving:   { label:'Applying your changes', tasks:['Applying changes to experiences','Updating statuses','Refreshing the table'], after:2900 },
+};
+// edit-task loader (row-by-row): skeleton 1900, row step 900 (start 2200), 4 subtask ticks
+const EDIT_SUBTASKS = {
+  billing:['Loading the billing offers','Locating the end-date field','Applying the new end date','Saving the updated offers'],
+  experiments:['Loading the experiments','Locating the end-date field','Applying the new end date','Saving the updated experiments'],
+};
+
+let timers = [];
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+/* INTAKE sequence:
+   1) full-screen "Creating a project" boot loader (alone, no messages)
+   2) messages appear IN SEQUENCE, one after another:
+        user prompt → "I have created…project" bubble → "Searching experiences" loader
+   3) search loader ticks through subtasks → results table.
+   Timeline: bootfull 2400ms → prompt (600ms) → created (900ms) → search 5400ms (4 subtasks). */
+function runIntake(){
+  const searchTasks=['Reading your brief','Searching QB Payroll offers','Compiling results'];
+  const tick=(activeIdx)=>render('searchMultiple',{phase:'msg-search',tasks:searchTasks.map((label,j)=>({label,state:j<activeIdx?'done':j===activeIdx?'active':'idle'}))});
+  // 1) full-screen boot loader — no messages
+  render('searchMultiple',{phase:'bootfull'});
+  // 2) staggered messages
+  const promptAt=2400, createdAt=promptAt+600, searchAt=createdAt+900;
+  timers.push(setTimeout(()=>render('searchMultiple',{phase:'msg-prompt'}),promptAt));
+  timers.push(setTimeout(()=>render('searchMultiple',{phase:'msg-created'}),createdAt));
+  // 3) search loader + subtasks
+  const searchDur=5400;
+  timers.push(setTimeout(()=>tick(0),searchAt));
+  const slot=(searchDur-600)/searchTasks.length;
+  searchTasks.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),searchAt+Math.round(slot*(i+1)))));
+  // 4) canvas OPENS: conversation slides right, canvas slides in from the left,
+  //    then the canvas shows a skeleton loader before the results appear.
+  const openAt=searchAt+searchDur;
+  timers.push(setTimeout(()=>render('searchMultiple',{loading:true,opening:true}),openAt));
+  // 5) real results after the open animation + a short skeleton hold
+  timers.push(setTimeout(()=>go('searchMultiple',{}),openAt+2000));
+}
+
+/* Run a generic AI loader phase (search / planning / saving) then advance.
+   loadingExtra merges into each loading render (e.g. {tab:'experiences'} to show
+   the canvas skeleton during the phase). */
+function runLoader(scene, cfg, nextName, nextState, loadingExtra={}){
+  const tasks = cfg.tasks.map(label=>({label,state:'idle'}));
+  tasks[0].state='active';
+  render(scene,{loading:true,...loadingExtra,tasks:tasks.map(t=>({...t}))});
+  const slot=(cfg.after-600)/cfg.tasks.length;
+  cfg.tasks.forEach((_,i)=>{
+    timers.push(setTimeout(()=>{
+      const t=cfg.tasks.map((label,j)=>({label,state:j<=i?'done':j===i+1?'active':'idle'}));
+      render(scene,{loading:true,...loadingExtra,tasks:t});
+    }, Math.round(slot*(i+1))));
+  });
+  timers.push(setTimeout(()=>go(nextName,nextState), cfg.after));
+}
+
+/* Step 3 sequence: "Reviewing change summary" loader → then the two review messages
+   appear ONE AFTER THE OTHER (summary bubble, then the campaign-summary review bubble). */
+function runReviewSequence(){
+  const cfg = LOADERS.saving; const label='Reviewing change summary';
+  const tasks = cfg.tasks.map(l=>({label:l,state:'idle'})); tasks[0].state='active';
+  render('campaignObject',{view:'table',loading:true,tasks:tasks.map(t=>({...t}))});
+  const slot=(cfg.after-600)/cfg.tasks.length;
+  cfg.tasks.forEach((_,i)=>timers.push(setTimeout(()=>{
+    const t=cfg.tasks.map((l,j)=>({label:l,state:j<=i?'done':j===i+1?'active':'idle'}));
+    render('campaignObject',{view:'table',loading:true,tasks:t});
+  }, Math.round(slot*(i+1)))));
+  // after the loader: reveal the summary bubble, then the review bubble ~900ms later.
+  // use render() (not go) so the pending reveal:2 timer isn't cleared by go()'s clearTimers.
+  const doneAt=cfg.after;
+  timers.push(setTimeout(()=>render('campaignObject',{view:'table',reveal:1}), doneAt));
+  timers.push(setTimeout(()=>render('campaignObject',{view:'table',reveal:2}), doneAt+900));
+}
+
+/* ===== WORKBOOK runners ===== */
+// intake: full-screen boot → staggered messages → "Looking at your brief" loader → understanding card
+function runIntakeWB(){
+  render('coIntentWB',{phase:'bootfull'});
+  const subs=['Looked at your brief','Reading the workbook','Compiling changes'];
+  const a=2400,b=a+600,ldr=b+900,dur=3600;
+  timers.push(setTimeout(()=>render('coIntentWB',{phase:'msg-user'}),a));
+  timers.push(setTimeout(()=>render('coIntentWB',{phase:'msg-created'}),b));
+  // loader with ticking subtasks
+  const tick=(idx)=>render('coIntentWB',{phase:'msg-loader',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  timers.push(setTimeout(()=>tick(0),ldr));
+  const slot=(dur-600)/subs.length;
+  subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),ldr+Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>go('coIntentWB',{phase:'msg-understood'}),ldr+dur));
+}
+// placement row → content drill-down: skeleton flash (~1100ms) then the content table
+function drillInto(scene, idx){
+  clearTimers();
+  go(scene,{drill:idx,drillLoading:true});
+  timers.push(setTimeout(()=>render(scene,{drill:idx}),1100));
+}
+// understanding "Looks good" → planning loader → settled plan card
+function runWBPlan(){
+  const cfg=LOADERS.planning;
+  const tasks=cfg.tasks.map(l=>({label:l,state:'idle'})); tasks[0].state='active';
+  render('coIntentWB',{phase:'planning',tasks:tasks.map(t=>({...t}))});
+  const slot=(cfg.after-600)/cfg.tasks.length;
+  cfg.tasks.forEach((_,i)=>timers.push(setTimeout(()=>{const t=cfg.tasks.map((l,j)=>({label:l,state:j<=i?'done':j===i+1?'active':'idle'}));render('coIntentWB',{phase:'planning',tasks:t});},Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>go('coIntentWB',{}), cfg.after));
+}
+// generic step loader for WB artifact steps: loader (with plan/step spinner via scene) → next
+function runWBStep(scene, label, nextName, nextState, loadingExtra={}){
+  runLoader(scene, {label, tasks:LOADERS.saving.tasks, after:2900}, nextName, nextState, loadingExtra);
+}
+// WB review (step 4): loader → summary bubble → review bubble (staggered)
+function runWBReview(){
+  const cfg={after:2900,tasks:LOADERS.saving.tasks};
+  const tasks=cfg.tasks.map(l=>({label:l,state:'idle'})); tasks[0].state='active';
+  render('campaignObjectWB',{view:'table',loading:true,tasks:tasks.map(t=>({...t}))});
+  const slot=(cfg.after-600)/cfg.tasks.length;
+  cfg.tasks.forEach((_,i)=>timers.push(setTimeout(()=>{const t=cfg.tasks.map((l,j)=>({label:l,state:j<=i?'done':j===i+1?'active':'idle'}));render('campaignObjectWB',{view:'table',loading:true,tasks:t});},Math.round(slot*(i+1)))));
+  const d=cfg.after;
+  timers.push(setTimeout(()=>render('campaignObjectWB',{view:'table',reveal:1}),d));
+  timers.push(setTimeout(()=>render('campaignObjectWB',{view:'table',reveal:2}),d+900));
+}
+
+/* Edit-task loader: table cells flip row-by-row + 4-tick conversation loader.
+   A single shared state object is mutated by both the row timers and the
+   loader-tick timers so they never stomp each other (golden: skeleton 1900,
+   rows start 2200 every 900ms, 4 subtask ticks over total/5, done at total). */
+function runEditLoader(scene, kind, rowCount, nextName, nextState){
+  const subs = EDIT_SUBTASKS[kind];
+  const start=2200, ROW_STEP=900;
+  const total = start + rowCount*ROW_STEP + 900;
+  // canvas skeleton for the first 1900ms (July-31 editLoading), then flipping table
+  const st = {loading:true, skeleton:true, rowsDone:0, loaderStep:0};
+  const paint=()=>render(scene,{loading:true,skeleton:st.skeleton,rowsDone:st.rowsDone,
+    tasks:subs.map((label,i)=>({label,state:st.loaderStep>i?'done':st.loaderStep===i?'active':'idle'}))});
+  paint();
+  timers.push(setTimeout(()=>{ st.skeleton=false; paint(); }, 1900));
+  for(let i=1;i<=rowCount;i++) timers.push(setTimeout(()=>{ st.rowsDone=i; paint(); }, start+i*ROW_STEP));
+  for(let i=1;i<=4;i++) timers.push(setTimeout(()=>{ st.loaderStep=i; paint(); }, Math.round((total/5)*i)));
+  timers.push(setTimeout(()=>go(nextName,nextState), total));
+}
+
+/* re-render a scene body in place WITHOUT resetting scroll (for loader ticks) */
+function render(scene, state){
+  current = {name:scene, state};
+  const main=$('#main');
+  main.innerHTML = scenes[scene](state);
+  wire(scene, state);
+  const b=main.querySelector('.ai__body'); if(b) b.scrollTop=b.scrollHeight;
+  // centered-chat (intake) auto-scrolls its own .scroll so the latest message stays visible
+  const cc=main.querySelector('.content--centered .scroll'); if(cc) cc.scrollTop=cc.scrollHeight;
+}
+
+/* ============================================================
+   ROUTER + interactions — GUIDED DEMO (auto-driving, like the
+   real Create-Change-Order). Every prompt/approval is TYPED into
+   the prompt box at 18ms/char, then auto-sends. The user can also
+   click to drive it manually; toggle autopilot with the 'p' key.
+   ============================================================ */
+// Two scenarios share the app. 'prompt' = end-date change via prompt; 'workbook' = change order via attached workbook.
+let scenario = 'prompt';
+const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','billing','experiments','campaignObject','campaignTree'];
+const FLOW_WORKBOOK = ['home','coIntentWB','billingIDs','ipdContent','images','campaignObjectWB','campaignTreeWB'];
+// active FLOW switches with the scenario
+function FLOW_ARR(){ return scenario==='workbook' ? FLOW_WORKBOOK : FLOW_PROMPT; }
+const FLOW = FLOW_PROMPT; // back-comaptible alias (prompt-flow arrow-nav default)
+const TYPE_MS = 18;                    // per-char typing speed (source)
+// auto-type prompts + delays before typing starts (source: ChangeOrder.tsx)
+const FIND_PROMPT = 'Find all QBO Payroll Targeted offers campaigns created in the last 3 months.';
+const CHANGE_PROMPT = 'Change end date for all billing offers and experiments to 31 July';
+const WORKBOOK_PROMPT = "I'd like to execute a change order for the ELM9071 campaign. I've attached the workbook.";
+const APPROVE_PROMPT = 'Approved';
+const LOOKS_GOOD = 'Looks good';
+/* USER-TRIGGERED guided demo: the user clicks to advance each step (send button,
+   "Looks good"/"Approve" pills, drilling into a row). Each trigger then plays the
+   typed-prompt animation + loader on its own. Autopilot (fully hands-off) stays
+   available via the 'p' key but is OFF by default. */
+let autopilot = false;
+let current = {name:'home', state:{}};
+
+/* Type `text` into a prompt-box input el at 18ms/char, then call done().
+   Shows a blinking caret while typing; clears the placeholder first. */
+function typeInto(input, text, done){
+  if(!input){ done&&done(); return; }
+  input.classList.add('promptBox__input--filled');
+  input.innerHTML='<span class="promptBox__caret"></span>';
+  const caret=input.firstChild; let i=0;
+  const tick=()=>{
+    i++; input.textContent=text.slice(0,i);
+    if(i<text.length) timers.push(setTimeout(tick,TYPE_MS));
+    else { input.innerHTML=text+'<span class="promptBox__caret"></span>'; timers.push(setTimeout(()=>done&&done(),650)); }
+  };
+  timers.push(setTimeout(tick,140));
+}
+
+function go(name, state={}){
+  clearTimers();
+  current = {name, state};
+  const main = $('#main');
+  main.innerHTML = scenes[name](state);
+  wire(name, state);
+  main.querySelectorAll('.scroll').forEach(s=>s.scrollTop=0);
+  const b = main.querySelector('.ai__body'); if(b) b.scrollTop = b.scrollHeight;
+  // centered-chat intake: keep the latest message visible (overrides the reset above)
+  const cc=main.querySelector('.content--centered .scroll'); if(cc) cc.scrollTop=cc.scrollHeight;
+  // HOME: nothing auto-types on load — the user picks a scenario from the
+  // "Simulate a scenario" pill first, which then types that scenario's prompt.
+  if(name==='home' && state.autotype){
+    timers.push(setTimeout(()=>{
+      const inp=$('#homeInput'); if(inp) typeInto(inp,state.autotype,null);  // type only, no send
+    },600));
+  }
+  // SINGLE CAMPAIGN: on open, the AI TYPES the change request into the composer,
+  // then STOPS. The user clicks Send (composerSend) to run the loader → plan.
+  else if(name==='singleCampaign' && !state.typed){
+    timers.push(setTimeout(()=>{
+      const inp=$('#composerInput'); if(inp) typeInto(inp,CHANGE_PROMPT,null);  // type only, no send
+    },1400));
+  }
+  else if(autopilot && !state.loading) scheduleAuto(name, state);
+}
+
+/* Optional AUTOPILOT (opt-in via 'p'): performs the SAME user triggers on a
+   timer so a hands-off demo is possible. It drives the real controls, never a
+   shortcut — e.g. it checks a row then clicks View, exactly like a person. */
+function scheduleAuto(name, state){
+  const t=(fn,ms)=>timers.push(setTimeout(fn,ms));
+  if(name==='home') t(()=>trigger.home(),900);
+  else if(name==='searchMultiple' && !state.loading){
+    if(!(state.selected&&state.selected.length)) t(()=>render('searchMultiple',{selected:[0]}),1200);
+    else t(()=>trigger.viewSelected(state),900);
+  }
+  else if(name==='singleCampaign') t(()=>trigger.change(state),1200);
+  else if(name==='coIntent' && !state.loading) t(()=>trigger.approvePlan(),1400);
+  else if(name==='billing' && !state.loading) t(()=>trigger.approveBilling(),1400);
+  else if(name==='experiments' && !state.loading) t(()=>trigger.approveExp(),1400);
+  else if(name==='campaignObject' && !state.loading) t(()=>trigger.approveCampaign(),1400);
+  // campaignTree = end of the guided run.
+}
+
+/* The canonical NEXT-ACTION triggers. Every advance in the flow goes through
+   exactly one of these — invoked by a real control (or by autopilot). */
+const trigger = {
+  // Home SEND (user click) — prompt is already typed by the 2s auto-type; just run
+  // the INTAKE sequence: boot loader → "created project" bubble → search + skeleton → results.
+  home:()=>{ clearTimers(); const inp=$('#homeInput'); if(scenario==='workbook'){ if(inp) inp.textContent=WORKBOOK_PROMPT; runIntakeWB(); } else { if(inp) inp.textContent=FIND_PROMPT; runIntake(); } },
+  viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
+  // change SEND (user click) — prompt already typed on campaign open; run planning loader → plan.
+  change:(state)=>{ clearTimers(); const inp=$('#composerInput'); if(inp) inp.textContent=CHANGE_PROMPT; runLoader('coIntent',LOADERS.planning,'coIntent',{view:state.view||'table'}); },
+  // Pill clicks: the pill converts to a recorded reply IN PLACE (avatar + text)
+  // inside the same message, then the loader runs. NOT typed into the composer.
+  approvePlan:()=>{ recordPillThen(()=>runEditLoader('billing','billing',3,'billing',{})); },
+  approveBilling:()=>{ recordPillThen(()=>runEditLoader('experiments','experiments',4,'experiments',{})); },
+  approveExp:()=>{ recordPillThen(()=>runReviewSequence()); },
+  approveCampaign:()=>{ recordPillThen(()=>runLoader('campaignTree',LOADERS.saving,'campaignTree',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
+  // ── WORKBOOK triggers ──
+  wbApproveUnderstood:()=>{ recordPillThen(()=>runWBPlan()); },
+  wbApprovePlan:()=>{ recordPillThen(()=>runWBStep('billingIDs','Changing billing offer IDs','billingIDs',{})); },
+  wbApproveBilling:()=>{ recordPillThen(()=>runWBStep('ipdContent','Loading IPD content','ipdContent',{})); },   // loader → placement table (step 2)
+  wbApproveIpd:()=>{ recordPillThen(()=>runWBStep('images','Loading placements','images',{})); },              // loader → placement table (step 3)
+  wbApproveImages:()=>{ recordPillThen(()=>runWBReview()); },
+  wbApproveReview:()=>{ recordPillThen(()=>runLoader('campaignTreeWB',LOADERS.saving,'campaignTreeWB',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
+  wbLooksGoodFinal:()=>{ autopilot=false; go('home'); },
+};
+
+/* Replace the clicked pill with the recorded reply (avatar + label) in place,
+   hold ~700ms so the user sees the reply land, then run the loader. */
+function recordPillThen(next){
+  clearTimers();
+  const pill=$('.ai__body .cardReplyBtn');
+  if(pill){
+    const label=pill.textContent.trim();
+    // "Approve" records as past-tense "Approved"; "Looks good" (and others) stay as-is
+    const recordedLabel = label==='Approve' ? 'Approved' : label;
+    pill.outerHTML=recordedReply(recordedLabel);
+    const b=$('.ai__body'); if(b) b.scrollTop=b.scrollHeight;
+  }
+  timers.push(setTimeout(next,700));
+}
+
+/* Toggle Table⇄Tree by swapping only #dataZone (preserve scroll). Re-binds itself. */
+function bindToggle(main, name, state){
+  const tg=main.querySelector('[data-toggle]'); if(!tg) return;
+  tg.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    autopilot=false;
+    const v=b.dataset.view;
+    current.state={...current.state,view:v};
+    tg.outerHTML=viewToggle(v);                       // refresh toggle (active state + icon colors)
+    const zone=main.querySelector('#dataZone');
+    const edited = name!=='singleCampaign';
+    if(zone) zone.innerHTML=(v==='tree')?treeView(name==='campaignTree'):campaignDataTables(name==='singleCampaign'?'04/22/2026':'07/31/2026',edited);
+    wireTreeChevrons(main);
+    bindToggle(main,name,current.state);              // re-bind (outerHTML replaced the node)
+  });
+}
+/* Real expand/collapse: chevron toggles the node id in treeExpanded, then
+   re-renders the tree in place (scroll preserved). */
+function wireTreeChevrons(main){
+  main.querySelectorAll('[data-treetoggle]').forEach(ch=>ch.onclick=(e)=>{
+    e.stopPropagation();
+    const id=ch.dataset.treetoggle;
+    treeExpanded.has(id)?treeExpanded.delete(id):treeExpanded.add(id);
+    const treeEl=main.querySelector('[data-tree]');
+    if(treeEl){
+      const withPreview=treeEl.dataset.preview==='1';
+      const wrap=document.createElement('div');
+      wrap.innerHTML=treeView(withPreview);
+      treeEl.replaceWith(wrap.firstElementChild);
+      wireTreeChevrons(main);   // re-bind after replace
+    }
+  });
+}
+
+function wire(name, state){
+  const main = $('#main');
+  // Table⇄Tree toggle: swap ONLY the #dataZone in place — preserve scroll position.
+  bindToggle(main, name, state);
+  main.querySelectorAll('[data-tab]').forEach(t=>t.onclick=()=>{autopilot=false;go(name,{...state,tab:t.dataset.tab,view:state.view||'tree'});});
+  const back = main.querySelector('[data-back]'); if(back) back.onclick=()=>{autopilot=false;go('searchMultiple');};
+  main.querySelectorAll('[data-disclosure]').forEach(d=>d.onclick=()=>{
+    const ul=d.parentElement.querySelector('.chatStatus__steps'); const chev=d.querySelector('.chatStatus__chev');
+    const open=ul.style.display!=='none'; ul.style.display=open?'none':'flex'; chev.classList.toggle('chatStatus__chev--open',!open);
+  });
+
+  // ── HOME: pill picks the scenario → types that prompt; Send runs it ──
+  if(name==='home'){
+    main.querySelector('#homeSend').onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.home();};
+    const pill=main.querySelector('#simPill'); const menu=main.querySelector('#simMenu');
+    if(pill&&menu){
+      pill.onclick=(e)=>{e.stopPropagation();menu.classList.toggle('hidden');};
+      menu.querySelectorAll('[data-sim]').forEach(b=>b.onclick=(e)=>{
+        e.stopPropagation(); autopilot=false;
+        scenario = b.dataset.sim;
+        // re-render home with the chosen scenario's prompt auto-typing (+ file chip for workbook)
+        if(scenario==='workbook') go('home',{autotype:WORKBOOK_PROMPT,fileChip:true});
+        else go('home',{autotype:FIND_PROMPT});
+      });
+      // click-away closes the menu
+      document.addEventListener('click',()=>menu.classList.add('hidden'),{once:true});
+    }
+  }
+
+  // ── SEARCH: checkbox toggles selection; clicking the ROW opens that campaign
+  //    (row = the drill affordance). "View (n)" also opens the selected one. ──
+  if(name==='searchMultiple' && !state.loading){
+    const sel=new Set(state.selected||[]);
+    const setSel=(s)=>render('searchMultiple',{selected:[...s]});
+    main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
+      e.stopPropagation(); autopilot=false;
+      const i=+cb.dataset.selrow; sel.has(i)?sel.delete(i):sel.add(i); setSel(sel);
+    });
+    // click a row body (not the checkbox) → drill into that campaign
+    main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
+      if(e.target.closest('[data-selrow]'))return;
+      autopilot=false; trigger.viewSelected(state);
+    });
+    const view=main.querySelector('[data-view-selected]');
+    if(view) view.onclick=()=>{autopilot=false;trigger.viewSelected(state);};
+  }
+
+  // ── SINGLE CAMPAIGN: only the composer Send button triggers the change request ──
+  if(name==='singleCampaign'){
+    const send=main.querySelector('#composerSend');
+    if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.change(state);};
+  }
+
+  // ── Plan / edits: the reply pill is the trigger ──
+  if(name==='coIntent' && !state.loading){
+    const lg=main.querySelector('#looksGood'); if(lg) lg.onclick=()=>{autopilot=false;trigger.approvePlan();};
+  }
+  if(name==='billing' && !state.loading){
+    const b=main.querySelector('#approveBilling'); if(b) b.onclick=()=>{autopilot=false;trigger.approveBilling();};
+  }
+  if(name==='experiments' && !state.loading){
+    const b=main.querySelector('#approveExp'); if(b) b.onclick=()=>{autopilot=false;trigger.approveExp();};
+  }
+  if(name==='campaignObject' && !state.loading){
+    const b=main.querySelector('#approveCampaign'); if(b) b.onclick=()=>{autopilot=false;trigger.approveCampaign();};
+  }
+  if(name==='campaignTree' && !state.loading){
+    const lg=main.querySelector('#looksGoodFinal'); if(lg) lg.onclick=()=>{autopilot=false;go('home');};
+  }
+
+  // ── WORKBOOK flow reply pills + placement drill-down ──
+  const wbPill=(id,fn)=>{const b=main.querySelector('#'+id); if(b) b.onclick=()=>{autopilot=false;fn();};};
+  if(name==='coIntentWB'){
+    wbPill('wbApproveUnderstood',()=>trigger.wbApproveUnderstood());  // understanding → plan
+    wbPill('wbApprovePlan',()=>trigger.wbApprovePlan());              // plan → billing
+  }
+  if(name==='billingIDs' && !state.loading) wbPill('wbApproveBilling',()=>trigger.wbApproveBilling());
+  if(name==='ipdContent' && !state.loading){
+    wbPill('wbApproveIpd',()=>trigger.wbApproveIpd());
+    if(state.drill===undefined) main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{autopilot=false;drillInto('ipdContent',+tr.dataset.drillplace);});
+    const bk=main.querySelector('[data-wbback]'); if(bk) bk.onclick=()=>{autopilot=false;go('ipdContent',{});};
+  }
+  if(name==='images' && !state.loading){
+    wbPill('wbApproveImages',()=>trigger.wbApproveImages());
+    if(state.drill===undefined) main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{autopilot=false;drillInto('images',+tr.dataset.drillplace);});
+    const bk=main.querySelector('[data-wbback]'); if(bk) bk.onclick=()=>{autopilot=false;go('images',{});};
+  }
+  if(name==='campaignObjectWB' && !state.loading) wbPill('wbApproveReview',()=>trigger.wbApproveReview());
+  if(name==='campaignTreeWB' && !state.loading) wbPill('wbLooksGoodFinal',()=>trigger.wbLooksGoodFinal());
+
+  wireTreeChevrons(main);   // real expand/collapse on any tree present
+}
+
+/* boot */
+renderRail();
+go('home');
+
+/* keyboard: left/right step through flow; 'p' toggles autopilot; 'r' restarts guided run */
+/* resting (non-loading) default state for each scene, so arrow-key nav in BOTH
+   directions lands each step in its correct finished state — no restart needed. */
+const FLOW_STATE = {
+  home:{},
+  searchMultiple:{},
+  singleCampaign:{view:'table'},
+  coIntent:{view:'table'},
+  billing:{},
+  experiments:{},
+  campaignObject:{view:'table'},
+  campaignTree:{view:'tree',tab:'experiences'},
+  // workbook
+  coIntentWB:{},
+  billingIDs:{},
+  ipdContent:{},
+  images:{},
+  campaignObjectWB:{view:'table'},
+  campaignTreeWB:{view:'tree',tab:'experiences'},
+};
+// jump to a step index in the ACTIVE flow with its correct resting state
+function gotoStep(i){
+  const flow=FLOW_ARR();
+  if(i<0 || i>=flow.length) return;
+  autopilot=false;
+  const name=flow[i];
+  go(name, {...(FLOW_STATE[name]||{})});
+}
+document.addEventListener('keydown',(e)=>{
+  // ignore while typing in the composer / any editable field, and with modifiers held
+  const t=e.target;
+  if(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || (t.closest && t.closest('.promptBox')))) return;
+  if(e.metaKey || e.ctrlKey || e.altKey) return;
+  if(e.key==='p'){ autopilot=!autopilot; if(autopilot) scheduleAuto(current.name,current.state); else clearTimers(); return; }
+  if(e.key==='r'){ autopilot=true; go('home'); return; }
+  const i = FLOW_ARR().indexOf(current.name);
+  if(i===-1) return;
+  if(e.key==='ArrowRight'){ e.preventDefault(); gotoStep(i+1); }
+  if(e.key==='ArrowLeft'){ e.preventDefault(); gotoStep(i-1); }
+});
