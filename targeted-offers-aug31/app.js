@@ -457,11 +457,15 @@ const scenes = {};
 scenes.home = (state={})=>{
   const spark = `<svg class="spark" viewBox="0 0 200 48" preserveAspectRatio="none"><polyline points="0,34 30,20 60,30 90,12 120,26 150,16 180,28 200,18" fill="none" stroke="#5d47d5" stroke-width="2"/></svg>`;
   const metric = (label,val,delta,cls)=>`<div class="mcard"><div class="ml">${label}</div><div class="mv">${val}</div><div class="md ${cls}">${delta}</div>${spark}</div>`;
+  // homepage shortcut icons (purple-filled to sit on the light-purple .si tile)
+  const scCampaign = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.2713 2.6241C16.1503 2.54984 16.0125 2.50751 15.8707 2.5011C15.7288 2.49469 15.5877 2.52439 15.4605 2.58744L10.6355 4.99994H5.83301C5.16997 4.99994 4.53408 5.26333 4.06524 5.73217C3.5964 6.20101 3.33301 6.8369 3.33301 7.49994V10.8333C3.33301 11.4963 3.5964 12.1322 4.06524 12.601C4.53408 13.0699 5.16997 13.3333 5.83301 13.3333H6.93467L8.39217 16.9766C8.43288 17.0783 8.49322 17.1709 8.56974 17.2493C8.64625 17.3276 8.73745 17.3901 8.83813 17.4332C8.9388 17.4763 9.04698 17.4992 9.15648 17.5005C9.26599 17.5018 9.37468 17.4815 9.47634 17.4408C9.57801 17.4001 9.67066 17.3397 9.749 17.2632C9.82735 17.1867 9.88986 17.0955 9.93296 16.9948C9.97606 16.8941 9.99892 16.786 10.0002 16.6765C10.0015 16.567 9.98122 16.4583 9.94051 16.3566L8.73051 13.3333H10.6355L15.4605 15.7458C15.5876 15.8093 15.7288 15.8392 15.8707 15.8328C16.0126 15.8264 16.1505 15.7838 16.2714 15.709C16.3922 15.6343 16.4919 15.5299 16.561 15.4058C16.6302 15.2817 16.6664 15.142 16.6663 14.9999V3.33327C16.6664 3.1912 16.6302 3.05146 16.561 2.92734C16.4919 2.80322 16.3922 2.69884 16.2713 2.6241ZM4.99967 10.8333V7.49994C4.99967 7.27892 5.08747 7.06696 5.24375 6.91068C5.40003 6.7544 5.61199 6.6666 5.83301 6.6666H9.99967V11.6666H5.83301C5.61199 11.6666 5.40003 11.5788 5.24375 11.4225C5.08747 11.2662 4.99967 11.0543 4.99967 10.8333ZM14.9997 13.6516L11.6663 11.9849V6.34827L14.9997 4.6816V13.6516Z" fill="#5d47d5"/></svg>`;
+  const scExperiment =`<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.0546 14.6359L12.5004 8.12091V3.33341C12.7214 3.33341 12.9334 3.24562 13.0897 3.08934C13.2459 2.93306 13.3337 2.7211 13.3337 2.50008C13.3337 2.27907 13.2459 2.06711 13.0897 1.91083C12.9334 1.75455 12.7214 1.66675 12.5004 1.66675H7.5004C7.27938 1.66675 7.06742 1.75455 6.91114 1.91083C6.75486 2.06711 6.66706 2.27907 6.66706 2.50008C6.66706 2.7211 6.75486 2.93306 6.91114 3.08934C7.06742 3.24562 7.27938 3.33341 7.5004 3.33341V8.12091L3.94706 14.6359C3.73932 15.0166 3.63419 15.4448 3.64201 15.8785C3.64983 16.3121 3.77032 16.7363 3.99165 17.1092C4.21299 17.4822 4.52754 17.7912 4.90442 18.0058C5.28129 18.2205 5.70752 18.3333 6.14123 18.3334H13.8596C14.2933 18.3335 14.7197 18.2207 15.0967 18.0061C15.4737 17.7916 15.7883 17.4826 16.0098 17.1096C16.2312 16.7366 16.3518 16.3124 16.3596 15.8787C16.3675 15.445 16.2623 15.0167 16.0546 14.6359ZM9.0654 8.73258C9.13216 8.61013 9.16711 8.47288 9.16706 8.33341V3.33341H10.8337V8.33341C10.8337 8.47288 10.8686 8.61013 10.9354 8.73258L12.5362 11.6667H7.4654L9.0654 8.73258ZM14.5762 16.2592C14.5035 16.3845 14.3988 16.4881 14.2729 16.5597C14.147 16.6313 14.0044 16.6682 13.8596 16.6667H6.14123C5.99664 16.6668 5.85453 16.6292 5.72886 16.5577C5.6032 16.4861 5.49831 16.3831 5.4245 16.2588C5.35069 16.1345 5.3105 15.9931 5.30788 15.8485C5.30526 15.7039 5.3403 15.5612 5.40956 15.4342L6.55623 13.3334H13.4454L14.5912 15.4342C14.6616 15.5609 14.6973 15.7039 14.6947 15.8488C14.692 15.9936 14.6512 16.1352 14.5762 16.2592Z" fill="#5d47d5"/></svg>`;
+  const scIpd = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.6709 4.16699C8.05161 4.16699 9.1709 5.28628 9.1709 6.66699C9.1709 8.0477 8.05161 9.16699 6.6709 9.16699C5.29019 9.16699 4.1709 8.0477 4.1709 6.66699C4.1709 5.28628 5.29019 4.16699 6.6709 4.16699ZM6.6709 5.83366C6.21066 5.83366 5.83756 6.20675 5.83756 6.66699C5.83756 7.12723 6.21066 7.50033 6.6709 7.50033C7.13114 7.50033 7.50423 7.12723 7.50423 6.66699C7.50423 6.20675 7.13114 5.83366 6.6709 5.83366Z" fill="#5d47d5"/><path fill-rule="evenodd" clip-rule="evenodd" d="M15.8376 1.66699C17.2183 1.66699 18.3376 2.78628 18.3376 4.16699V15.8337C18.3376 17.2144 17.2183 18.3337 15.8376 18.3337H4.1709C2.79019 18.3337 1.6709 17.2144 1.6709 15.8337V4.16699C1.6709 2.78628 2.79019 1.66699 4.1709 1.66699H15.8376ZM13.978 12.904C13.6449 12.5043 13.0303 12.5042 12.6971 12.904L10.4779 15.5675C10.1875 15.9158 9.67162 15.9678 9.31738 15.6847L7.19173 13.9839C6.8874 13.7405 6.45439 13.7404 6.15006 13.9839L3.41081 16.1755C3.54131 16.4652 3.83249 16.667 4.1709 16.667H15.8376C16.2092 16.667 16.5236 16.4236 16.631 16.0876L13.978 12.904ZM4.1709 3.33366C3.71066 3.33366 3.33757 3.70675 3.33757 4.16699V14.0994L5.10921 12.6826C6.02224 11.9522 7.31955 11.9522 8.23258 12.6826L9.72021 13.8724L11.417 11.8363C12.4165 10.6372 14.2587 10.6372 15.2581 11.8363L16.6709 13.5314V4.16699C16.6709 3.70675 16.2978 3.33366 15.8376 3.33366H4.1709Z" fill="#5d47d5"/></svg>`;
   const shortcuts = [
-    ['Create campaign','Build email, push, or in-app campaigns with AI-assisted copy.'],
-    ['Run experiment','A/B test subject lines, offers and send times at scale.'],
-    ['Create IPD','Design in-product display creatives for targeted placements.'],
-  ].map(([t,d])=>`<div class="scard"><div class="si">${I.mega}</div><div><div class="st">${t}</div><div class="sd">${d}</div></div></div>`).join('');
+    ['Create campaign','Build email, push, or in-app campaigns with AI-assisted copy.', scCampaign],
+    ['Run experiment','A/B test subject lines, offers and send times at scale.', scExperiment],
+    ['Create IPD','Design in-product display creatives for targeted placements.', scIpd],
+  ].map(([t,d,ic])=>`<div class="scard"><div class="si">${ic}</div><div><div class="st">${t}</div><div class="sd">${d}</div></div></div>`).join('');
   return `<div class="content">
     ${topbar('<span>Home</span>')}
     <div class="scroll"><div class="pad">
@@ -555,8 +559,7 @@ const CONV_TO_UPDATE = (done=3, loading=-1)=> CONV_TO_REVIEW(done, loading) + CO
    ============================================================ */
 const WB_PLAN_TASKS = [
   'Change billing offer IDs',
-  'Change IPD content to reflect new pricing',
-  'Change images to reflect new pricing',
+  'Change IPD content and images to reflect new pricing',
   'Review change summary','Update the campaign',
 ];
 function wbPlanTableRows(doneCount=0, loadingIndex=-1){
@@ -582,23 +585,20 @@ const WB_UNDERSTOOD = ()=> agentMsg(
 const WB_PLAN = (done=0, loading=-1)=> agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${wbPlanTableRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${recordedReply('Looks good')}</div>`);
 // task 1 recorded — billing offer IDs
 const WB_BILLING = ()=> agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit','Change IDs: Billing offers - ELM907…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
-// task 2 recorded — IPD content
-const WB_IPD = ()=> agentMsg(`<div class="chatBubble">Change IPD content to reflect new pricing${objectCard('edit','Change IPD content: Placement - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
-// task 3 recorded — images
-const WB_IMAGES = ()=> agentMsg(`<div class="chatBubble">Change images to reflect new pricing${objectCard('edit','Change Images: Placement - ELM90…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
+// task 2 recorded — IPD content AND images (merged)
+const WB_IPD = ()=> agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit','Change IPD content and images: Pl…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
 // change summary (From/To id/content) + download
 const wbFtId = ()=>`<div class="ft" style="margin-top:6px;margin-bottom:14px"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v">&lt;id&gt;</div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">&lt;id&gt;</div></div></div>`;
 const wbFtContent = ()=>`<div class="ft" style="margin-top:6px;margin-bottom:14px"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v">&lt;content&gt;</div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">&lt;content&gt;</div></div></div>`;
-const WB_SUMMARY = ()=> agentMsg(`<div class="chatBubble">Here is a summary of the changes I've made:<div class="ft-label" style="display:flex;justify-content:space-between;align-items:center">Changed Billing offer IDs <span class="link-dl" style="margin:0">Show all ${I.chev}</span></div>${wbFtId()}<div class="ft-label">Changed IPD content to reflect new pricing</div>${wbFtContent()}${dlLink()}</div>`);
-// task 4 recorded — review
-const WB_REVIEW = ()=> agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 5.</div>${recordedReply('Approved')}</div>`);
-// composed "history up to" helpers
+const WB_SUMMARY = ()=> agentMsg(`<div class="chatBubble">Here is a summary of the changes I've made:<div class="ft-label" style="display:flex;justify-content:space-between;align-items:center">Changed Billing offer IDs <span class="link-dl" style="margin:0">Show all ${I.chev}</span></div>${wbFtId()}<div class="ft-label">Changed IPD content and images to reflect new pricing</div>${wbFtContent()}${dlLink()}</div>`);
+// task 3 recorded — review
+const WB_REVIEW = ()=> agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 4.</div>${recordedReply('Approved')}</div>`);
+// composed "history up to" helpers (4 steps now: billing → ipd+images → review → update)
 const WB_TO_PLAN     = ()=> WB_USER() + WB_CREATED() + WB_UNDERSTOOD();
 const WB_TO_BILLING  = (d=0,l=-1)=> WB_TO_PLAN() + WB_PLAN(d,l);
 const WB_TO_IPD      = (d=1,l=-1)=> WB_TO_BILLING(d,l) + WB_BILLING();
-const WB_TO_IMAGES   = (d=2,l=-1)=> WB_TO_IPD(d,l) + WB_IPD();
-const WB_TO_REVIEW   = (d=3,l=-1)=> WB_TO_IMAGES(d,l) + WB_IMAGES() + WB_SUMMARY();
-const WB_TO_UPDATE   = (d=4,l=-1)=> WB_TO_REVIEW(d,l) + WB_REVIEW();
+const WB_TO_REVIEW   = (d=2,l=-1)=> WB_TO_IPD(d,l) + WB_IPD() + WB_SUMMARY();
+const WB_TO_UPDATE   = (d=3,l=-1)=> WB_TO_REVIEW(d,l) + WB_REVIEW();
 
 /* ---- Scene 1: SEARCH RESULTS (multiple) ----
    Interaction: user CHECKS a campaign (select), which enables "View (n)".
@@ -667,7 +667,26 @@ scenes.searchMultiple = (state={})=>{
 };
 
 /* detail body builder shared by scenes 2 & 3 (single campaign) */
-function detailContent({crumb,view,endDate,edited,showIdentity}){
+/* shared Experiences tab panel (toolbar + table + pager).
+   opts.loading → skeleton; opts.highlight → set of edited row indices (yellow + "Edited");
+   opts.status → default status for non-edited rows ('Draft' | 'Published'). */
+function experiencesPanel(opts={}){
+  const loading = opts.loading;
+  const hi = opts.highlight instanceof Set ? opts.highlight : new Set(opts.highlight||[]);
+  const status = opts.status || 'Draft';
+  const rows = Array(10).fill(0).map((_,i)=>{const ed=hi.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':status,ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
+  const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
+  const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true});
+  const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
+  return `<div class="toolbar">
+      <div class="search">${I.search}<span>Search</span></div>
+      <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+      <span class="groupby">Group by ${I.chev}</span>
+    </div>${expTable}${pager}`;
+}
+
+function detailContent({crumb,view,endDate,edited,showIdentity,tab}){
+  tab = tab || 'meta';
   const dataBody = view==='tree' ? treeView(false) : campaignDataTables(endDate,edited);
   const identity = showIdentity ? `<div class="identity">
       <span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span>
@@ -680,19 +699,22 @@ function detailContent({crumb,view,endDate,edited,showIdentity}){
       <span class="detail-sub" style="margin:0">Last updated: 1 min ago</span>
       <span class="verselect">v1 ${I.chev}</span>
     </div>`;
+  const metaBody = `${identity}
+      ${metaGrid()}
+      <div class="data-head"><span class="h">Campaign data</span>${viewToggle(view)}</div>
+      <div id="dataZone">${dataBody}</div>`;
+  const expBody = experiencesPanel({status:'Published'});   // pre-edit: all Published, no highlights
   return `<div class="content">
     ${topbar(crumb)}
     <div class="scroll"><div class="pad">
       <div class="detail-sticky">
         ${header}
         <div class="tabs tabs--insticky" style="${showIdentity?'':'margin-top:18px'}">
-          <span class="tab active">Campaign meta</span><span class="tab">Experiences</span>
+          <span class="tab ${tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span>
+          <span class="tab ${tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span>
         </div>
       </div>
-      ${identity}
-      ${metaGrid()}
-      <div class="data-head"><span class="h">Campaign data</span>${viewToggle(view)}</div>
-      <div id="dataZone">${dataBody}</div>
+      ${tab==='experiences' ? expBody : metaBody}
     </div></div>
   </div>`;
 }
@@ -700,7 +722,7 @@ function detailContent({crumb,view,endDate,edited,showIdentity}){
 /* ---- Scene 2: SINGLE CAMPAIGN (drill-down) ---- */
 scenes.singleCampaign = (state={view:'table'})=>{
   const draft = state.draft || '';
-  return detailContent({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',view:state.view,endDate:'04/22/2026',edited:false})
+  return detailContent({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',view:state.view,endDate:'04/22/2026',edited:false,tab:state.tab})
     + aiPanel({body:SEARCH_CONV(), draft});
 };
 
@@ -839,20 +861,8 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
 
   let mainInner;
   if(state.tab==='experiences'){
-    // some regenerated experiences are Edited (yellow highlight on the name cell + "Edited" status)
-    const editedIdx=new Set([1,3,6,9]);
-    const rows = Array(10).fill(0).map((_,i)=>{const ed=editedIdx.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':'Draft',ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
-    const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
-    // while regenerating (loading), show a skeleton table on the canvas before the experiences appear
-    const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true});
-    const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
-    mainInner = `<div class="toolbar">
-        <div class="search">${I.search}<span>Search</span></div>
-        <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
-        <span class="groupby">Group by ${I.chev}</span>
-      </div>
-      ${expTable}
-      ${pager}`;
+    // regenerated experiences: rows 1,3,6,9 Edited (yellow + "Edited"); skeleton while loading
+    mainInner = experiencesPanel({loading, highlight:[1,3,6,9]});
   } else {
     const dataBody = state.view==='tree' ? treeView(true) : campaignDataTables('07/31/2026',true);
     mainInner = `<div class="identity">
@@ -891,31 +901,28 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
    ============================================================ */
 const WB_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>Change order - ELM9071 campaign</span>';
 
-// content (Hellobox) rows for the placement drill-down. mode: 'ipd' (headline col yellow) | 'image' (image col yellow)
+// content (Hellobox) drill-down. mode 'both' = merged IPD content + images:
+// Headline / Body / CTA / Image / Metadata columns; edited rows highlight Headline + Image + Metadata.
 function contentTable(mode){
-  const metaChips = (real)=> real
-    ? `<span class="cbadge cbadge--o">Hellobox</span><span class="cbadge cbadge--p">20059622</span><span class="cbadge cbadge--t">IXP 321930</span><span class="cbadge cbadge--u">QB Live Assisted</span>`
-    : `<span class="cbadge cbadge--o">Template</span><span class="cbadge cbadge--p">Billing offer</span><span class="cbadge cbadge--t">IXP</span><span class="cbadge cbadge--u">SKU</span>`;
+  const metaChips = (real)=> `<span class="cbadge cbadge--o">${real?'Hellobox':'Template'}</span><span class="cbadge cbadge--p">${real?'20059622':'Billing offer'}</span><span class="cbadge cbadge--t">${real?'IXP 321930':'IXP'}</span><span class="cbadge cbadge--u">${real?'QB Live Assisted':'SKU'}</span>`;
+  const headline = 'Save 90% on Live Expert Assisted for 3 months';
+  const body = 'Get one-on-one expert guidance setting up your chart of accounts and more. Cancel anytime. Terms apply.';
   const rows = Array.from({length:9}).map((_,i)=>{
-    const edited = i<6;              // first 6 rows are the edited (yellow) set
-    const headline = (mode==='image'||!edited) ? 'Save 90% on Live Expert Assisted for 3 months' : 'Save 90% on Live Expert Assisted for 3 months';
-    const body = 'Get one-on-one expert guidance setting up your chart of accounts and more. Cancel anytime. Terms apply.';
-    const third = mode==='image'
-      ? `<span class="imgcell${edited?' edited':''}">imagename.png</span>`
-      : `Start saving today`;
-    const hl = mode==='ipd' && edited ? `<span class="edited hl-cell">${headline}</span>` : headline;
+    const edited = i<6;   // first 6 rows are the edited (yellow) set
+    const ed = edited ? ' edited' : '';  // whole-cell yellow band on Headline / Image / Metadata
     return `<tr>
-      <td>${hl}</td>
+      <td class="${ed}">${headline}</td>
       <td class="col-body">${body}</td>
-      <td>${third}</td>
-      <td class="col-meta">${metaChips(i<2)}</td>
+      <td>Start saving today</td>
+      <td class="${ed}"><span class="imgcell">imagename.png</span></td>
+      <td class="col-meta${ed}">${metaChips(i<2)}</td>
     </tr>`;
   }).join('');
-  const thirdHead = mode==='image' ? 'Image' : 'CTA';
   return `<div class="tbl-wrap"><table class="tbl tbl--content"><thead><tr>
       <th><span class="th-inner">Headline ${I.info}<span class="sort">${I.sortsm}</span></span></th>
       <th><span class="th-inner">Body ${I.info}<span class="sort">${I.sortsm}</span></span></th>
-      <th><span class="th-inner">${thirdHead} ${I.info}<span class="sort">${I.sortsm}</span></span></th>
+      <th><span class="th-inner">CTA ${I.info}<span class="sort">${I.sortsm}</span></span></th>
+      <th><span class="th-inner">Image ${I.info}<span class="sort">${I.sortsm}</span></span></th>
       <th><span class="th-inner">Metadata ${I.info}<span class="sort">${I.sortsm}</span></span></th>
     </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
@@ -923,7 +930,9 @@ function contentTable(mode){
 // placement table where each row drills into the content table (steps 2 & 3).
 // rows 0,1,3,5 highlighted; every row clickable (data-drillplace) to open content.
 function placementDrill(){
-  const rows = PLACEMENTS.map((r,i)=>({...r, editedRow:[0,1,3,5].includes(i)}));
+  // rows 1,2,4,6 (1-indexed) highlighted; the rest stay white
+  const hi=new Set([0,1,3,5]);
+  const rows = PLACEMENTS.map((r,i)=>({...r, editedRow:hi.has(i)}));
   return tableHTML(COL.place, rows, {drillrow:true});
 }
 
@@ -980,7 +989,7 @@ function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loa
     backForDrill=true;
     title='Hellobox - Chart of Accounts';
     const contentBody = drillLoading
-      ? skeletonTable([{label:'Headline'},{label:'Body'},{label:mode==='image'?'Image':'CTA'},{label:'Metadata'}],false)
+      ? skeletonTable([{label:'Headline'},{label:'Body'},{label:'CTA'},{label:'Image'},{label:'Metadata'}],false)
       : contentTable(mode);
     canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('QA Error')}
         <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
@@ -995,26 +1004,22 @@ function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loa
   return content + aiPanel({step,body:bodyFull,stepLoading:loading});
 }
 
+// merged step 2: IPD content AND images — drill-down highlights headline + image + metadata together
 scenes.ipdContent = (state={})=>{
   const loading=state.loading;
   const conv = WB_TO_IPD(loading?1:2, loading?1:-1);
-  const activeReply = agentMsg(`<div class="chatBubble">Change IPD content to reflect new pricing${objectCard('edit','Change IPD content: Placement - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','wbApproveIpd')}</div>`);
-  return wbPlacementScene({step:'2.  Change IPD content to reflect new pricing',conv,activeReply,loaderLabel:'Changing IPD content',loading,tasks:state.tasks,mode:'ipd',drill:state.drill,drillLoading:state.drillLoading});
-};
-scenes.images = (state={})=>{
-  const loading=state.loading;
-  const conv = WB_TO_IMAGES(loading?2:3, loading?2:-1);
-  const activeReply = agentMsg(`<div class="chatBubble">Change images to reflect new pricing${objectCard('edit','Change Images: Placement - ELM90…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${replyBtn('Approve','wbApproveImages')}</div>`);
-  return wbPlacementScene({step:'3.  Change images to reflect new pricing',conv,activeReply,loaderLabel:'Changing images',loading,tasks:state.tasks,mode:'image',drill:state.drill,drillLoading:state.drillLoading});
+  const activeReply = agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit','Change IPD content and images: Pl…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','wbApproveIpd')}</div>`);
+  return wbPlacementScene({step:'2.  Change IPD content and images',conv,activeReply,loaderLabel:'Changing IPD content and images',loading,tasks:state.tasks,mode:'both',drill:state.drill,drillLoading:state.drillLoading});
 };
 
-/* ---- WB step 4: Review change summary ---- */
+/* ---- WB step 3: Review change summary ---- */
 scenes.campaignObjectWB = (state={view:'table'})=>{
   const loading=state.loading;
   const reveal = state.reveal!==undefined ? state.reveal : 2;
-  const priorConv = WB_TO_IMAGES(loading?3:4, loading?3:-1) + WB_IMAGES();
+  // history through the merged IPD+images approval (summary revealed separately below)
+  const priorConv = WB_TO_IPD(loading?2:3, loading?2:-1) + WB_IPD();
   const summaryMsg = WB_SUMMARY();
-  const reviewMsg = agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 5.</div>${replyBtn('Approve','wbApproveReview')}</div>`);
+  const reviewMsg = agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 4.</div>${replyBtn('Approve','wbApproveReview')}</div>`);
   let body;
   if(loading){ body = priorConv + agentLoader('Reviewing change summary', state.tasks||[]); }
   else { body = priorConv + (reveal>=1?summaryMsg:'') + (reveal>=2?reviewMsg:''); }
@@ -1026,13 +1031,14 @@ scenes.campaignObjectWB = (state={view:'table'})=>{
     <div class="data-head"><span class="h">Campaign data</span>${viewToggle('table')}</div>
     <div id="dataZone">${wbSummaryTables()}</div>`;
   const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
-  return content + aiPanel({step:'4.  Review change summary',body,stepLoading:loading});
+  return content + aiPanel({step:'3.  Review change summary',body,stepLoading:loading});
 };
 
 // summary tables for WB review: audiences (plain), billing (2 rows yellow), placement (all yellow), experiments
 function wbSummaryTables(){
   const bill = billingRows('07/31/2026',false).map((r,i)=>({...r,editedRow:i<2}));
-  const place = PLACEMENTS.map(r=>({...r,editedRow:true}));
+  const placeHi=new Set([0,1,3,5]);
+  const place = PLACEMENTS.map((r,i)=>({...r,editedRow:placeHi.has(i)}));
   return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
     <div class="sec-label">Billing offers</div>${tableHTML(COL.billing,bill)}
     <div class="sec-label">Placement</div>${tableHTML(COL.place,place)}
@@ -1042,26 +1048,22 @@ function wbSummaryTables(){
 /* ---- WB step 5: Update the campaign (Experiences + same tree) ---- */
 scenes.campaignTreeWB = (state={view:'tree',tab:'experiences'})=>{
   const loading=state.loading;
-  const savedConv = WB_TO_UPDATE(loading?4:5, loading?4:-1);
+  const savedConv = WB_TO_UPDATE(loading?3:4, loading?3:-1);
   const body = loading
     ? savedConv + agentLoader('Updating the campaign', state.tasks||[])
     : savedConv + agentMsg(`<div class="chatBubble">Updated campaign and regenerated experiences with the changes to Billing offers, IPD content and images.${objectCard('megaphone','Update campaign - ELM9071 campai…')}<div class="bubble-q">Does this look ok?</div>${replyBtn('Looks good','wbLooksGoodFinal')}</div>`);
   let mainInner;
   if(state.tab==='experiences'){
-    const editedIdx=new Set([1,3,6,9]);
-    const rows = Array(10).fill(0).map((_,i)=>{const ed=editedIdx.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':'Draft',ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
-    const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
-    const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true});
-    const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
-    mainInner = `<div class="toolbar"><div class="search">${I.search}<span>Search</span></div><span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span><span class="groupby">Group by ${I.chev}</span></div>${expTable}${pager}`;
+    mainInner = experiencesPanel({loading, highlight:[1,3,6,9]});
   } else {
-    mainInner = `<div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span></div>${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):campaignDataTables('07/31/2026',true)}</div>`;
+    // Campaign meta tab reflects the WORKBOOK edits (billing IDs + placement highlights), not the prompt-flow end-date diff
+    mainInner = `<div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span></div>${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):wbSummaryTables()}</div>`;
   }
   const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">
     <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span>${badge('Edited')}<span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
     <div class="tabs tabs--insticky"><span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span><span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span></div></div>
     ${mainInner}</div></div></div>`;
-  return content + aiPanel({step:'5.  Update the campaign',body,stepLoading:loading});
+  return content + aiPanel({step:'4.  Update the campaign',body,stepLoading:loading});
 };
 
 /* skeleton canvas for the Campaign summary scene (shown before the summary appears) */
@@ -1261,7 +1263,7 @@ function render(scene, state){
 // Two scenarios share the app. 'prompt' = end-date change via prompt; 'workbook' = change order via attached workbook.
 let scenario = 'prompt';
 const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','billing','experiments','campaignObject','campaignTree'];
-const FLOW_WORKBOOK = ['home','coIntentWB','billingIDs','ipdContent','images','campaignObjectWB','campaignTreeWB'];
+const FLOW_WORKBOOK = ['home','coIntentWB','billingIDs','ipdContent','campaignObjectWB','campaignTreeWB'];
 // active FLOW switches with the scenario
 function FLOW_ARR(){ return scenario==='workbook' ? FLOW_WORKBOOK : FLOW_PROMPT; }
 const FLOW = FLOW_PROMPT; // back-comaptible alias (prompt-flow arrow-nav default)
@@ -1357,9 +1359,8 @@ const trigger = {
   // ── WORKBOOK triggers ──
   wbApproveUnderstood:()=>{ recordPillThen(()=>runWBPlan()); },
   wbApprovePlan:()=>{ recordPillThen(()=>runWBStep('billingIDs','Changing billing offer IDs','billingIDs',{})); },
-  wbApproveBilling:()=>{ recordPillThen(()=>runWBStep('ipdContent','Loading IPD content','ipdContent',{})); },   // loader → placement table (step 2)
-  wbApproveIpd:()=>{ recordPillThen(()=>runWBStep('images','Loading placements','images',{})); },              // loader → placement table (step 3)
-  wbApproveImages:()=>{ recordPillThen(()=>runWBReview()); },
+  wbApproveBilling:()=>{ recordPillThen(()=>runWBStep('ipdContent','Loading placements','ipdContent',{})); },   // loader → placement table (merged step 2)
+  wbApproveIpd:()=>{ recordPillThen(()=>runWBReview()); },                                                       // step 2 done → review (step 3)
   wbApproveReview:()=>{ recordPillThen(()=>runLoader('campaignTreeWB',LOADERS.saving,'campaignTreeWB',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
   wbLooksGoodFinal:()=>{ autopilot=false; go('home'); },
 };
@@ -1389,7 +1390,17 @@ function bindToggle(main, name, state){
     tg.outerHTML=viewToggle(v);                       // refresh toggle (active state + icon colors)
     const zone=main.querySelector('#dataZone');
     const edited = name!=='singleCampaign';
-    if(zone) zone.innerHTML=(v==='tree')?treeView(name==='campaignTree'):campaignDataTables(name==='singleCampaign'?'04/22/2026':'07/31/2026',edited);
+    if(zone){
+      if(v==='tree'){
+        // preview card only on the final tree scenes (campaignTree / campaignTreeWB)
+        zone.innerHTML = treeView(name==='campaignTree'||name==='campaignTreeWB');
+      } else if(name==='campaignTreeWB'){
+        // Scenario 2 Table view = workbook edits (billing IDs + placement), NOT the end-date diff
+        zone.innerHTML = wbSummaryTables();
+      } else {
+        zone.innerHTML = campaignDataTables(name==='singleCampaign'?'04/22/2026':'07/31/2026',edited);
+      }
+    }
     wireTreeChevrons(main);
     bindToggle(main,name,current.state);              // re-bind (outerHTML replaced the node)
   });
@@ -1416,7 +1427,14 @@ function wire(name, state){
   const main = $('#main');
   // Table⇄Tree toggle: swap ONLY the #dataZone in place — preserve scroll position.
   bindToggle(main, name, state);
-  main.querySelectorAll('[data-tab]').forEach(t=>t.onclick=()=>{autopilot=false;go(name,{...state,tab:t.dataset.tab,view:state.view||'tree'});});
+  // tab switch stays inside the same campaign — carry typed:true (no re-type) and
+  // preserve whatever's currently in the composer as the draft so it doesn't reset
+  main.querySelectorAll('[data-tab]').forEach(t=>t.onclick=()=>{
+    autopilot=false;
+    const inp=main.querySelector('#composerInput');
+    const draft = (inp && !inp.querySelector('.promptBox__ph')) ? inp.textContent.trim() : (state.draft||'');
+    go(name,{...state,tab:t.dataset.tab,typed:true,draft});
+  });
   const back = main.querySelector('[data-back]'); if(back) back.onclick=()=>{autopilot=false;go('searchMultiple');};
   main.querySelectorAll('[data-disclosure]').forEach(d=>d.onclick=()=>{
     const ul=d.parentElement.querySelector('.chatStatus__steps'); const chev=d.querySelector('.chatStatus__chev');
@@ -1494,11 +1512,6 @@ function wire(name, state){
     if(state.drill===undefined) main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{autopilot=false;drillInto('ipdContent',+tr.dataset.drillplace);});
     const bk=main.querySelector('[data-wbback]'); if(bk) bk.onclick=()=>{autopilot=false;go('ipdContent',{});};
   }
-  if(name==='images' && !state.loading){
-    wbPill('wbApproveImages',()=>trigger.wbApproveImages());
-    if(state.drill===undefined) main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{autopilot=false;drillInto('images',+tr.dataset.drillplace);});
-    const bk=main.querySelector('[data-wbback]'); if(bk) bk.onclick=()=>{autopilot=false;go('images',{});};
-  }
   if(name==='campaignObjectWB' && !state.loading) wbPill('wbApproveReview',()=>trigger.wbApproveReview());
   if(name==='campaignTreeWB' && !state.loading) wbPill('wbLooksGoodFinal',()=>trigger.wbLooksGoodFinal());
 
@@ -1525,7 +1538,6 @@ const FLOW_STATE = {
   coIntentWB:{},
   billingIDs:{},
   ipdContent:{},
-  images:{},
   campaignObjectWB:{view:'table'},
   campaignTreeWB:{view:'tree',tab:'experiences'},
 };
