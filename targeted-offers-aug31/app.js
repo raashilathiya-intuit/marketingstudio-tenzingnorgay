@@ -991,7 +991,7 @@ function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loa
     const contentBody = drillLoading
       ? skeletonTable([{label:'Headline'},{label:'Body'},{label:'CTA'},{label:'Image'},{label:'Metadata'}],false)
       : contentTable(mode);
-    canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('QA Error')}
+    canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('Verified')}
         <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
       <div style="height:16px"></div>${contentBody}`;
     crumb = '<span>Home</span> <span class="sep">/</span> <span>ELM9071 campaign</span>';
