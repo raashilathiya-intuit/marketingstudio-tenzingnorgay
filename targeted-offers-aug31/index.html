@@ -566,8 +566,8 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
 /* content (Hellobox) drill-down table — metadata chips + image/headline cells */
 .tbl--content td{vertical-align:top;white-space:normal}
 .tbl--content .col-body{max-width:360px;color:var(--text-secondary)}
-/* metadata chips stay on ONE line; cell scrolls horizontally instead of wrapping */
-.tbl--content .col-meta{white-space:nowrap;overflow-x:auto;max-width:320px;vertical-align:middle}
+/* metadata chips stay on ONE line; overflow clips under the fold (no scroll, no wrap) */
+.tbl--content .col-meta{white-space:nowrap;overflow:hidden;max-width:320px;vertical-align:middle}
 .tbl--content .col-meta::-webkit-scrollbar{height:6px}
 .imgcell{display:inline-block;color:#0a73dc}
 /* content-table edited cells (Headline / Image / Metadata) get the full yellow band */
