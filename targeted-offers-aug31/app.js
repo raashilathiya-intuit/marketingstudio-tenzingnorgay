@@ -455,9 +455,12 @@ function treeData(withPreview){
   if(!keep.size) return canonicalTree(withPreview);
   return pruneLevels(canonicalTree(withPreview), keep);
 }
+// default-expanded set: 2nd experiment + its segments + billing offers (+ a preview when shown)
+function defaultExpanded(withPreview){
+  return new Set(['exp-t1b','exp-t1b-seg-high','exp-t1b-seg-mid','exp-t1b-b-high','exp-t1b-b-mid', ...(withPreview?['exp-t1b-high-p3']:[])]);
+}
 function treeView(withPreview){
-  // default-expanded set (first time only): 2nd experiment + its segments + billing offers
-  if(!treeExpanded.size) treeExpanded = new Set(['exp-t1b','exp-t1b-seg-high','exp-t1b-seg-mid','exp-t1b-b-high','exp-t1b-b-mid', ...(withPreview?['exp-t1b-high-p3']:[])]);
+  if(!treeExpanded.size) treeExpanded = defaultExpanded(withPreview);
   return `<div class="treewrap" data-treewrap data-preview="${withPreview?1:0}">${treeToolbar()}${treeBody(withPreview)}</div>`;
 }
 /* just the .tree element (toolbar excluded) — replaced in place on chevron/filter changes */
@@ -519,18 +522,30 @@ function treeToolbar(){
       <div class="treebar__grid">
         <div class="treebar__labels"><span>Group by:</span><span>Filter by:</span></div>
         ${cols}
-        <button class="treebar__reset" data-treereset aria-label="Reset grouping">${RESET_ICON}</button>
+        <button class="eiobtn treebar__reset" data-treereset aria-label="Reset grouping">${RESET_ICON}</button>
       </div>
     </div>
     <div class="treebar__row">
       <label class="treebar__search"><span class="sico">${icon('search',24)}</span>
         <input type="text" data-treesearch placeholder="Search" value="${treeSearch.replace(/"/g,'&quot;')}"></label>
       <div class="treebar__eio">
-        <button class="eiobtn" data-treeexpand aria-label="Expand all">${EXPAND_ICON}</button>
-        <button class="eiobtn" data-treecollapse aria-label="Collapse all">${COLLAPSE_ICON}</button>
+        <button class="eiobtn ${treeExpandState()==='all'?'active':''}" data-treeexpand aria-label="Expand all">${EXPAND_ICON}</button>
+        <button class="eiobtn ${treeExpandState()==='none'?'active':''}" data-treecollapse aria-label="Collapse all">${COLLAPSE_ICON}</button>
       </div>
     </div>
   </div>`;
+}
+/* expand-state of the current (preview-aware) tree: 'all' | 'none' | 'some'.
+   Drives the purple 'active' state on the expand/collapse buttons. */
+function treeExpandState(){
+  const wrap = typeof document!=='undefined' && document.querySelector('[data-treewrap]');
+  const withPreview = wrap ? wrap.dataset.preview==='1' : false;
+  const ids = allTreeIds(withPreview);
+  if(!ids.length) return 'some';
+  const openCount = ids.filter(id=>treeExpanded.has(id)).length;
+  if(openCount===0) return 'none';
+  if(openCount===ids.length) return 'all';
+  return 'some';
 }
 
 /* search filter: keep a node if it (or any descendant) matches treeSearch. */
@@ -1566,8 +1581,17 @@ function wireTreeToolbar(main){
     chip.onclick=()=>{ autopilot=false; toggleGb(chip.dataset.gb); };
     chip.onkeydown=(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); autopilot=false; toggleGb(chip.dataset.gb); } };
   });
+  // refresh the purple 'active' state on the expand/collapse buttons after any change
+  const syncEio=()=>{
+    const st=treeExpandState();
+    const e=bar.querySelector('[data-treeexpand]'), c=bar.querySelector('[data-treecollapse]');
+    if(e) e.classList.toggle('active', st==='all');
+    if(c) c.classList.toggle('active', st==='none');
+  };
+  // reset EVERYTHING to the scene default: grouping, hidden levels, search, expansion.
   const reset=bar.querySelector('[data-treereset]');
-  if(reset) reset.onclick=()=>{ autopilot=false; treeGroupBy=GB_DEFAULT.slice(); treeHiddenTypes=new Set(); treeSearch='';
+  if(reset) reset.onclick=()=>{ autopilot=false;
+    treeGroupBy=GB_DEFAULT.slice(); treeHiddenTypes=new Set(); treeSearch=''; treeExpanded=defaultExpanded(withPreview);
     const panel=bar.querySelector('.treebar__panel');
     if(panel){ const t=document.createElement('div'); t.innerHTML=treeToolbar(); panel.replaceWith(t.querySelector('.treebar__panel')); }
     const si=bar.querySelector('[data-treesearch]'); if(si) si.value='';
@@ -1576,11 +1600,11 @@ function wireTreeToolbar(main){
   if(si) si.oninput=()=>{ autopilot=false; treeSearch=si.value;
     // when searching, auto-expand everything so matches deep in the tree are visible
     if(treeSearch.trim()) treeExpanded=new Set(allTreeIds(withPreview));
-    refreshTreeBody(main); };
+    refreshTreeBody(main); syncEio(); };
   const ex=bar.querySelector('[data-treeexpand]');
-  if(ex) ex.onclick=()=>{ autopilot=false; treeExpanded=new Set(allTreeIds(withPreview)); refreshTreeBody(main); };
+  if(ex) ex.onclick=()=>{ autopilot=false; treeExpanded=new Set(allTreeIds(withPreview)); refreshTreeBody(main); syncEio(); };
   const cl=bar.querySelector('[data-treecollapse]');
-  if(cl) cl.onclick=()=>{ autopilot=false; treeExpanded=new Set(); refreshTreeBody(main); };
+  if(cl) cl.onclick=()=>{ autopilot=false; treeExpanded=new Set(); refreshTreeBody(main); syncEio(); };
 }
 
 function wire(name, state){
