@@ -74,7 +74,9 @@
 
   /* nav */
   --nav-w:64px;
-  --ai-w:452px;
+  /* conversation pane = 3 of 12 columns across the full viewport (nav is outside the grid) */
+  --ai-w:25vw;
+  --ai-w-min:360px;
 }
 
 *{box-sizing:border-box}
@@ -166,7 +168,7 @@ button{font-family:inherit}
 
 /* ---------- AI panel — exact Figma (node 2875:22341/22080) ---------- */
 .ai{
-  width:var(--ai-w);flex:0 0 var(--ai-w);
+  width:var(--ai-w);flex:0 0 var(--ai-w);min-width:var(--ai-w-min);
   background:#fdfdfd;border:1px solid #dddee3;
   border-radius:20px;display:flex;flex-direction:column;overflow:hidden;
   box-shadow:1px -1px 6px 0 rgba(86,138,159,.12);
@@ -653,6 +655,6 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=57"></script>
+<script src="app.js?v=58"></script>
 </body>
 </html>
