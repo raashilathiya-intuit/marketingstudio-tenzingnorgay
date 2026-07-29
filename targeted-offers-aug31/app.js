@@ -369,16 +369,18 @@ const whiteIcon=(name)=>`<span class="tile-ico">${icon(name,16)}</span>`;
 const NODE_ICON={segment:whiteIcon('personThree'),experiment:whiteIcon('beaker'),billing:whiteIcon('percent'),placement:whiteIcon('thumbnail'),campaign:whiteIcon('megaphone')};
 // which node ids are expanded (persists across re-renders within a scene)
 let treeExpanded = new Set();
-/* render one data node. n = {id,type,k,v,meta,children[],extra} */
+/* render one data node. n = {id,type,k,v,meta,children[],pre,extra}
+   pre  = HTML rendered ABOVE children (e.g. segment LABEL/Value grid)
+   extra= HTML rendered BELOW children (e.g. placement preview card) */
 function treeNode(n){
-  const hasKids = (n.children&&n.children.length) || n.extra;
+  const hasKids = (n.children&&n.children.length) || n.extra || n.pre;
   const open = treeExpanded.has(n.id);
   // chevron: down when collapsed, up when expanded (Figma 6287:21907)
   const chev = hasKids
     ? `<span class="node__chev" data-treetoggle="${n.id}">${open?`<span class="rot-180">${I.chev}</span>`:I.chev}</span>`
     : `<span style="width:20px;flex:0 0 20px"></span>`;
   const kids = (open && hasKids)
-    ? `<div class="node__children">${(n.children||[]).map(treeNode).join('')}${n.extra||''}</div>`
+    ? `<div class="node__children">${n.pre||''}${(n.children||[]).map(treeNode).join('')}${n.extra||''}</div>`
     : '';
   const chip = n.offers ? `<span class="node__offers">${n.offers}</span>` : '';
   return `<div class="node">
@@ -409,9 +411,11 @@ function previewCard(){
     <div class="preview-cap">Preview · helloboxThirdParty · SBSEG QBO Hellobox AppAccountsettings</div>
   </div>`;
 }
-/* build the tree DATA (ids used for expand/collapse tracking).
-   Hierarchy (Figma): Experiment → Segment (+ LABEL/Value grid) → Billing offer → Placement/Template. */
-function treeData(withPreview){
+/* build the CANONICAL tree DATA (ids used for expand/collapse tracking).
+   Hierarchy (Figma): Experiment → Segment (+ LABEL/Value grid) → Billing offer → Placement/Template.
+   Billing is a real CHILD of Segment (not baked HTML) so group-by can prune whole levels;
+   the segment's LABEL/Value grid rides along as `pre` (rendered above the children). */
+function canonicalTree(withPreview){
   // every placement is expandable → reveals its Preview/Data card (chevron works on all).
   const placements=(seg)=>[
     {id:seg+'-p1',type:'placement',k:'Placement/Template',v:'GetEligibleOffers API',meta:'content',extra:previewCard()},
@@ -422,10 +426,10 @@ function treeData(withPreview){
   // ids are namespaced by the experiment prefix so every experiment is independently
   // expandable (no duplicate ids across the 3 experiments).
   const experimentSegments=(exp)=>[
-    {id:exp+'-seg-high',type:'segment',k:'Segment',v:'HighPropensity',
-      extra: segGrid() + treeNode({id:exp+'-b-high',type:'billing',k:'Billing offer',v:'20095329',meta:'90% off · 3 mo',children:placements(exp+'-high')})},
-    {id:exp+'-seg-mid',type:'segment',k:'Segment',v:'MidPropensity',
-      extra: segGrid() + treeNode({id:exp+'-b-mid',type:'billing',k:'Billing offer',v:'20095330',meta:'70% off · 3 mo',children:placements(exp+'-mid')})},
+    {id:exp+'-seg-high',type:'segment',k:'Segment',v:'HighPropensity',pre:segGrid(),
+      children:[{id:exp+'-b-high',type:'billing',k:'Billing offer',v:'20095329',meta:'90% off · 3 mo',children:placements(exp+'-high')}]},
+    {id:exp+'-seg-mid',type:'segment',k:'Segment',v:'MidPropensity',pre:segGrid(),
+      children:[{id:exp+'-b-mid',type:'billing',k:'Billing offer',v:'20095330',meta:'70% off · 3 mo',children:placements(exp+'-mid')}]},
   ];
   return [
     {id:'exp-t1',type:'experiment',k:'Experiment',v:'IXP ID 643354 · T1',meta:'Demo content variant · 50%',offers:'6 offers',children:experimentSegments('exp-t1')},
@@ -433,10 +437,121 @@ function treeData(withPreview){
     {id:'exp-none',type:'experiment',k:'Experiment',v:'No experiment',offers:'1 offer',children:experimentSegments('exp-none')},
   ];
 }
+/* remove every node whose type is NOT in `keep`, re-parenting its children.
+   Preserves the canonical top-to-bottom ordering of the surviving levels. */
+function pruneLevels(nodes, keep){
+  const out=[];
+  for(const n of nodes){
+    const kids = pruneLevels(n.children||[], keep);
+    if(keep.has(n.type)) out.push({...n, children:kids});
+    else out.push(...kids);        // drop this level, promote its (already-pruned) children
+  }
+  return out;
+}
+/* the tree after applying the current group-by selection. */
+function treeData(withPreview){
+  const keep = shownTypes();
+  // deselecting every real dim falls back to the full canonical tree (never show nothing).
+  if(!keep.size) return canonicalTree(withPreview);
+  return pruneLevels(canonicalTree(withPreview), keep);
+}
 function treeView(withPreview){
   // default-expanded set (first time only): 2nd experiment + its segments + billing offers
   if(!treeExpanded.size) treeExpanded = new Set(['exp-t1b','exp-t1b-seg-high','exp-t1b-seg-mid','exp-t1b-b-high','exp-t1b-b-mid', ...(withPreview?['exp-t1b-high-p3']:[])]);
-  return `<div class="tree" data-tree data-preview="${withPreview?1:0}">${treeData(withPreview).map(treeNode).join('')}</div>`;
+  return `<div class="treewrap" data-treewrap data-preview="${withPreview?1:0}">${treeToolbar()}${treeBody(withPreview)}</div>`;
+}
+/* just the .tree element (toolbar excluded) — replaced in place on chevron/filter changes */
+function treeBody(withPreview){
+  const shown = treeFilter(treeData(withPreview));
+  const body = shown.length
+    ? shown.map(treeNode).join('')
+    : `<div class="tree--empty">No results match your filters.</div>`;
+  return `<div class="tree" data-tree data-preview="${withPreview?1:0}">${body}</div>`;
+}
+
+/* ---------- tree toolbar (Figma 5136:138562) — group-by / filter-by / search / expand-collapse ----------
+   State is module-level so it survives the in-place tree re-renders. */
+// `real` dims map to an actual node type present in the tree and genuinely toggle that
+// level's visibility. `treatment`/`uipattern` have no backing data → visual-only chips.
+const TREE_DIMS = [
+  {key:'experiment',label:'Experiment',type:'experiment',real:true},
+  {key:'treatment', label:'Treatment', real:false},
+  {key:'segment',   label:'Segment',   type:'segment',   real:true},
+  {key:'placement', label:'Placement', type:'placement', real:true},
+  {key:'uipattern', label:'UI Pattern',real:false},
+  {key:'template',  label:'Template',  type:'billing',   real:true},
+];
+const DIM_BY_KEY = Object.fromEntries(TREE_DIMS.map(d=>[d.key,d]));
+const REAL_TYPES = TREE_DIMS.filter(d=>d.real).map(d=>d.type);
+const GB_DEFAULT = ['experiment','treatment','template'];
+// selected group-by chips, IN ORDER (numeric badge = 1-based position) — PRESENTATIONAL,
+// seeded to the Figma default: Experiment(1), Treatment(2), Template(3).
+let treeGroupBy = GB_DEFAULT.slice();
+// which real node TYPES the user has explicitly HIDDEN. Empty by default so the tree
+// opens in the full canonical nesting (Experiment→Segment→Billing→Placement); toggling a
+// REAL chip off prunes that level, toggling it back on restores it. Visual-only chips
+// (treatment/uipattern) never affect this.
+let treeHiddenTypes = new Set();
+// node TYPES currently shown = all real types minus the ones the user hid.
+function shownTypes(){
+  return new Set(REAL_TYPES.filter(t=>!treeHiddenTypes.has(t)));
+}
+let treeSearch = '';
+// icons for the toolbar (inline where not in the registry)
+const EYE_ICON  = `<span class="eye">${icon('eye',16)}</span>`;
+const CD_ICON   = `<span class="cd">${icon('chevronDown',16)}</span>`;
+const RESET_ICON= `<svg viewBox="0 0 20 20" fill="none"><path d="M4.2 9.2a6 6 0 1 1 1 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 5.2v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const EXPAND_ICON  = `<svg viewBox="0 0 20 20" fill="none"><rect x="2.75" y="2.75" width="14.5" height="14.5" rx="3.25" stroke="currentColor" stroke-width="1.4"/><path d="M7 8.5 10 11.5 13 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const COLLAPSE_ICON= `<svg viewBox="0 0 20 20" fill="none"><rect x="2.75" y="2.75" width="14.5" height="14.5" rx="3.25" stroke="currentColor" stroke-width="1.4"/><path d="M7 11.5 10 8.5 13 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+function treeToolbar(){
+  const cols = TREE_DIMS.map(d=>{
+    const pos = treeGroupBy.indexOf(d.key);
+    const sel = pos>=0;
+    const badge = sel ? `<span class="num">${pos+1}</span>` : '';
+    return `<div class="gbcol">
+      <span class="gbchip ${sel?'sel':''}" data-gb="${d.key}" role="button" tabindex="0">${EYE_ICON}${d.label}${badge}</span>
+      <span class="fbsel" data-fb="${d.key}"><span class="lbl">All</span>${CD_ICON}</span>
+    </div>`;
+  }).join('');
+  return `<div class="treebar" data-treebar>
+    <div class="treebar__panel">
+      <div class="treebar__grid">
+        <div class="treebar__labels"><span>Group by:</span><span>Filter by:</span></div>
+        ${cols}
+        <button class="treebar__reset" data-treereset aria-label="Reset grouping">${RESET_ICON}</button>
+      </div>
+    </div>
+    <div class="treebar__row">
+      <label class="treebar__search"><span class="sico">${icon('search',24)}</span>
+        <input type="text" data-treesearch placeholder="Search" value="${treeSearch.replace(/"/g,'&quot;')}"></label>
+      <div class="treebar__eio">
+        <button class="eiobtn" data-treeexpand aria-label="Expand all">${EXPAND_ICON}</button>
+        <button class="eiobtn" data-treecollapse aria-label="Collapse all">${COLLAPSE_ICON}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* search filter: keep a node if it (or any descendant) matches treeSearch. */
+function treeFilter(nodes){
+  const q = treeSearch.trim().toLowerCase();
+  if(!q) return nodes;
+  const walk = (n)=>{
+    const self = `${n.k||''} ${n.v||''} ${n.meta||''}`.toLowerCase().includes(q);
+    const kids = (n.children||[]).map(walk).filter(Boolean);
+    if(self || kids.length){
+      if(self) return n;                       // keep whole subtree when the node itself matches
+      return {...n, children:kids, extra:''};  // else keep only matching descendants
+    }
+    return null;
+  };
+  return nodes.map(walk).filter(Boolean);
+}
+/* collect every node id in the (unfiltered) tree — used by expand/collapse-all. */
+function allTreeIds(withPreview){
+  const ids=[]; const walk=n=>{ if((n.children&&n.children.length)||n.extra) ids.push(n.id); (n.children||[]).forEach(walk); };
+  treeData(withPreview).forEach(walk); return ids;
 }
 
 /* expanded prompt box used by every non-home centered composer (Figma 2858-11681):
@@ -1402,25 +1517,70 @@ function bindToggle(main, name, state){
       }
     }
     wireTreeChevrons(main);
+    wireTreeToolbar(main);                            // group-by / filter / search / expand-collapse
     bindToggle(main,name,current.state);              // re-bind (outerHTML replaced the node)
   });
 }
 /* Real expand/collapse: chevron toggles the node id in treeExpanded, then
    re-renders the tree in place (scroll preserved). */
+/* re-render ONLY the .tree body (toolbar stays put → search input keeps focus),
+   then re-bind chevrons. Returns silently if no tree is present. */
+function refreshTreeBody(main){
+  const treeEl=main.querySelector('[data-tree]');
+  if(!treeEl) return;
+  const withPreview=treeEl.dataset.preview==='1';
+  const wrap=document.createElement('div');
+  wrap.innerHTML=treeBody(withPreview);
+  treeEl.replaceWith(wrap.firstElementChild);
+  wireTreeChevrons(main);   // re-bind after replace
+}
 function wireTreeChevrons(main){
   main.querySelectorAll('[data-treetoggle]').forEach(ch=>ch.onclick=(e)=>{
     e.stopPropagation();
     const id=ch.dataset.treetoggle;
     treeExpanded.has(id)?treeExpanded.delete(id):treeExpanded.add(id);
-    const treeEl=main.querySelector('[data-tree]');
-    if(treeEl){
-      const withPreview=treeEl.dataset.preview==='1';
-      const wrap=document.createElement('div');
-      wrap.innerHTML=treeView(withPreview);
-      treeEl.replaceWith(wrap.firstElementChild);
-      wireTreeChevrons(main);   // re-bind after replace
-    }
+    refreshTreeBody(main);
   });
+}
+/* toolbar behavior: group-by chips, filter dropdowns (visual), search, expand/collapse all. */
+function wireTreeToolbar(main){
+  const bar=main.querySelector('[data-treebar]'); if(!bar) return;
+  const wrap=main.querySelector('[data-treewrap]');
+  const withPreview=wrap && wrap.dataset.preview==='1';
+  // group-by chip toggle: append/remove from the ordered selection, re-render both
+  // the panel (badge numbers shift) and the tree body.
+  const toggleGb=(key)=>{
+    const dim=DIM_BY_KEY[key]; if(!dim) return;
+    const i=treeGroupBy.indexOf(key);
+    const selecting = i<0;
+    if(i>=0) treeGroupBy.splice(i,1); else treeGroupBy.push(key);
+    // REAL dims also drive level visibility: deselect → hide level, select → show it.
+    if(dim.real){ if(selecting) treeHiddenTypes.delete(dim.type); else treeHiddenTypes.add(dim.type); }
+    // re-render the whole panel so chip selection + badge order update
+    const panel=bar.querySelector('.treebar__panel');
+    if(panel){ const t=document.createElement('div'); t.innerHTML=treeToolbar(); panel.replaceWith(t.querySelector('.treebar__panel')); }
+    refreshTreeBody(main);
+    wireTreeToolbar(main);   // re-bind (panel node was replaced)
+  };
+  bar.querySelectorAll('[data-gb]').forEach(chip=>{
+    chip.onclick=()=>{ autopilot=false; toggleGb(chip.dataset.gb); };
+    chip.onkeydown=(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); autopilot=false; toggleGb(chip.dataset.gb); } };
+  });
+  const reset=bar.querySelector('[data-treereset]');
+  if(reset) reset.onclick=()=>{ autopilot=false; treeGroupBy=GB_DEFAULT.slice(); treeHiddenTypes=new Set(); treeSearch='';
+    const panel=bar.querySelector('.treebar__panel');
+    if(panel){ const t=document.createElement('div'); t.innerHTML=treeToolbar(); panel.replaceWith(t.querySelector('.treebar__panel')); }
+    const si=bar.querySelector('[data-treesearch]'); if(si) si.value='';
+    refreshTreeBody(main); wireTreeToolbar(main); };
+  const si=bar.querySelector('[data-treesearch]');
+  if(si) si.oninput=()=>{ autopilot=false; treeSearch=si.value;
+    // when searching, auto-expand everything so matches deep in the tree are visible
+    if(treeSearch.trim()) treeExpanded=new Set(allTreeIds(withPreview));
+    refreshTreeBody(main); };
+  const ex=bar.querySelector('[data-treeexpand]');
+  if(ex) ex.onclick=()=>{ autopilot=false; treeExpanded=new Set(allTreeIds(withPreview)); refreshTreeBody(main); };
+  const cl=bar.querySelector('[data-treecollapse]');
+  if(cl) cl.onclick=()=>{ autopilot=false; treeExpanded=new Set(); refreshTreeBody(main); };
 }
 
 function wire(name, state){
@@ -1516,6 +1676,7 @@ function wire(name, state){
   if(name==='campaignTreeWB' && !state.loading) wbPill('wbLooksGoodFinal',()=>trigger.wbLooksGoodFinal());
 
   wireTreeChevrons(main);   // real expand/collapse on any tree present
+  wireTreeToolbar(main);    // group-by / filter / search / expand-collapse on any tree present
 }
 
 /* boot */
