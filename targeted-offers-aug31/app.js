@@ -258,8 +258,18 @@ const META = [
   ['TIME ZONE','United States (Los Angeles)'],['PRIORITY','Medium'],
   ['VALUE','10.0'],
 ];
-function metaGrid(){
-  return `<div class="meta">${META.map(([k,v])=>`<div><div class="meta__k">${k}</div><div class="meta__v">${v}</div></div>`).join('')}</div>`;
+/* metaGrid(opts) — campaign meta attribute/value grid.
+   opts.endDate / opts.priority override those values; opts.highlight=true wraps the
+   overridden END DATE + PRIORITY values in a yellow edited highlight (Figma diff view). */
+function metaGrid(opts={}){
+  const rows = META.map(([k,v])=>{
+    let val=v, edited=false;
+    if(opts.endDate && k==='END DATE'){ val=opts.endDate; edited=!!opts.highlight; }
+    if(opts.priority && k==='PRIORITY'){ val=opts.priority; edited=!!opts.highlight; }
+    const vHtml = edited ? `<span class="meta__hl">${val}</span>` : val;
+    return `<div><div class="meta__k">${k}</div><div class="meta__v">${vHtml}</div></div>`;
+  }).join('');
+  return `<div class="meta">${rows}</div>`;
 }
 
 /* generic table builder.
@@ -616,7 +626,8 @@ scenes.home = (state={})=>{
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
-            <button class="simMenu__item" data-sim="prompt">Prompt based changes</button>
+            <button class="simMenu__item" data-sim="prompt">Prompt based change - campaign meta</button>
+            <button class="simMenu__item" data-sim="promptCO">Prompt based change - billing offers &amp; IPD content</button>
             <button class="simMenu__item" data-sim="workbook">Workbook based changes</button>
           </div>
         </div>
@@ -653,35 +664,32 @@ const SEARCH_CONV = ()=>
    downstream scene composes the full prior history (all recorded turns) and then
    appends its own new/active message. These segments are the RECORDED (completed)
    form of each turn, reused by later scenes so nothing is lost. */
-const ftRows = ()=>`<div class="ft" style="margin-top:6px;margin-bottom:14px">
-    <div class="ft__row"><div class="ft__k">From</div><div class="ft__v">04/22/2026</div></div>
-    <div class="ft__row"><div class="ft__k">To</div><div class="ft__v">07/31/2026</div></div></div>`;
-const ftBlk = (label)=>`<div class="ft-label">${label}</div>${ftRows()}`;
+// From/To diff block. Defaults to the campaign end-date change (04/22 → 08/31).
+const ftRows = (from='04/22/2026', to='08/31/2026')=>`<div class="ft" style="margin-top:6px;margin-bottom:14px">
+    <div class="ft__row"><div class="ft__k">From</div><div class="ft__v">${from}</div></div>
+    <div class="ft__row"><div class="ft__k">To</div><div class="ft__v">${to}</div></div></div>`;
+const ftBlk = (label,from,to)=>`<div class="ft-label">${label}</div>${ftRows(from,to)}`;
 // user's change request
-const CONV_CHANGE_REQ = ()=> userBubble('Change end date for all billing offers and experiments to 31 July');
+const CONV_CHANGE_REQ = ()=> userBubble('Change end date for campaign to 31 August and priority to high.');
 // plan (recorded — "Looks good"). doneCount/loadingIndex drive the row markers so the
 // plan-table in history reflects live progress as steps complete.
 const CONV_PLAN = (doneCount=0, loadingIndex=-1)=> agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${planTableRows(doneCount,loadingIndex)}</div><p class="summaryCard__q">Does this look ok? I'll then proceed.</p>${recordedReply('Looks good')}</div>`);
-// billing end-date change (recorded — "Approved")
-const CONV_BILLING = ()=> agentMsg(`<div class="chatBubble">Changed end date for all billing offers to 07/31/2026${objectCard('edit','Change end date: Billing offers - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
-// experiments end-date change (recorded — "Approved")
-const CONV_EXPERIMENTS = ()=> agentMsg(`<div class="chatBubble">Changed end date for all experiments to 07/31/2026${objectCard('edit','Change end date: Experiments - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
-// change summary (From/To) + download
-const CONV_SUMMARY = ()=> agentMsg(`<div class="chatBubble">Here is a summary of the changes I've made:${ftBlk('Changed end date for billing offers:')}${ftBlk('Changed end date for experiences:')}${dlLink()}</div>`);
+// task 1 — end date + priority change (recorded — "Approved")
+const CONV_CHANGE = ()=> agentMsg(`<div class="chatBubble">Changed end date for campaign to 08/31/2026 and priority to High.${objectCard('edit','Change end date and priority - ELM…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
+// change summary (From/To for end date + priority) + download
+const CONV_SUMMARY = ()=> agentMsg(`<div class="chatBubble">Here is a summary of the changes I've made:${ftBlk('Changed end date for campaign:','04/22/2026','08/31/2026')}${ftBlk('Changed priority:','Medium','High')}${dlLink()}</div>`);
 // campaign summary review (recorded — "Approved")
 const CONV_REVIEW = ()=> agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to regenerate experiences.</div>${recordedReply('Approved')}</div>`);
 // everything up to (not including) the change request
 const CONV_TO_SEARCH = ()=> SEARCH_CONV();
 // everything up to (not including) the plan
 const CONV_TO_PLAN   = ()=> SEARCH_CONV() + CONV_CHANGE_REQ();
-// everything up to (not including) billing. plan(done,loading) reflects live progress.
-const CONV_TO_BILLING = (done=0, loading=-1)=> CONV_TO_PLAN() + CONV_PLAN(done, loading);
-// everything up to (not including) experiments
-const CONV_TO_EXPERIMENTS = (done=1, loading=-1)=> CONV_TO_BILLING(done, loading) + CONV_BILLING();
-// everything up to (not including) the summary review
-const CONV_TO_REVIEW = (done=2, loading=-1)=> CONV_TO_EXPERIMENTS(done, loading) + CONV_EXPERIMENTS() + CONV_SUMMARY();
-// everything up to (not including) the final update
-const CONV_TO_UPDATE = (done=3, loading=-1)=> CONV_TO_REVIEW(done, loading) + CONV_REVIEW();
+// everything up to (not including) task 1. plan(done,loading) reflects live progress.
+const CONV_TO_CHANGE = (done=0, loading=-1)=> CONV_TO_PLAN() + CONV_PLAN(done, loading);
+// everything up to (not including) the summary review (task 2)
+const CONV_TO_REVIEW = (done=1, loading=-1)=> CONV_TO_CHANGE(done, loading) + CONV_CHANGE() + CONV_SUMMARY();
+// everything up to (not including) the final update (task 3)
+const CONV_TO_UPDATE = (done=2, loading=-1)=> CONV_TO_REVIEW(done, loading) + CONV_REVIEW();
 
 /* ============================================================
    SCENARIO 2 — WORKBOOK-BASED CHANGE ORDER (transcript segments)
@@ -730,6 +738,56 @@ const WB_TO_IPD      = (d=1,l=-1)=> WB_TO_BILLING(d,l) + WB_BILLING();
 const WB_TO_REVIEW   = (d=2,l=-1)=> WB_TO_IPD(d,l) + WB_IPD() + WB_SUMMARY();
 const WB_TO_UPDATE   = (d=3,l=-1)=> WB_TO_REVIEW(d,l) + WB_REVIEW();
 
+/* ============================================================
+   SCENARIO 3 — PROMPT-BASED CHANGE ORDER (billing IDs + IPD content)
+   Same task body as the workbook flow, but the intake is a typed prompt
+   (no CSV chip). Only ONE billing offer ID is replaced → single-row highlight.
+   Cloned P2_* transcript so it can diverge from the workbook flow.
+   ============================================================ */
+const P2_PLAN_TASKS = [
+  'Change billing offer ID',
+  'Change IPD content and images',
+  'Review change summary','Update the campaign',
+];
+function p2PlanTableRows(doneCount=0, loadingIndex=-1){
+  const marker=(i)=>{
+    if(i<doneCount) return `<span class="planNum planNum--done"><span class="ico-invert">${I.check}</span></span>`;
+    if(i===loadingIndex) return `<span class="planNum planNum--loading"><img class="spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"></span>`;
+    return `<span class="planNum">${i+1}</span>`;
+  };
+  return P2_PLAN_TASKS.map((w,i)=>`<div class="planTable__row">${marker(i)}<span>${w}</span></div>`).join('');
+}
+// user prompt (typed — NO file chip)
+const P2_USER = ()=> userBubble(PROMPTCO_PROMPT.replace(/\n/g,'<br>'));
+const P2_CREATED = ()=> agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">Change order - ELM9071 campaign</span>" project for you.</div>`,'');
+// "Here's what I understood" table — exact wording from the shared screen
+const P2_UNDERSTOOD_TABLE = `<div class="planTable" style="margin:0">
+    ${[['Billing offers','ID replacement'],['IPD content','Update headline to reflect new pricing'],['Images','Update to imagename.png']].map(([a,b])=>`<div class="planTable__row planTable__row--2col"><span class="uw-k">${a}</span><span>${b}</span></div>`).join('')}
+  </div>`;
+const P2_UNDERSTOOD = ()=> agentMsg(
+  disclosure('Looked at your brief, created a summary',['Looked at your brief','Reading your request','Compiling changes'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood will be changed.</p>${P2_UNDERSTOOD_TABLE}<p class="summaryCard__q">Does this look right? I'll put together a plan once you confirm.</p>${recordedReply('Looks good')}</div>`);
+const P2_PLAN = (done=0, loading=-1)=> agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${p2PlanTableRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${recordedReply('Looks good')}</div>`);
+const P2_BILLING = ()=> agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit','Change IDs: Billing offers - ELM907…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
+const P2_IPD = ()=> agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit','Change IPD content and images: Pl…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
+const P2_SUMMARY = ()=> agentMsg(`<div class="chatBubble">Here is a summary of the changes I've made:<div class="ft-label" style="display:flex;justify-content:space-between;align-items:center">Changed Billing offer IDs <span class="link-dl" style="margin:0">Show all ${I.chev}</span></div>${wbFtId()}<div class="ft-label">Changed IPD content and images to reflect new pricing</div>${wbFtContent()}${dlLink()}</div>`);
+const P2_REVIEW = ()=> agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 4.</div>${recordedReply('Approved')}</div>`);
+const P2_TO_PLAN     = ()=> P2_USER() + P2_CREATED() + P2_UNDERSTOOD();
+const P2_TO_BILLING  = (d=0,l=-1)=> P2_TO_PLAN() + P2_PLAN(d,l);
+const P2_TO_IPD      = (d=1,l=-1)=> P2_TO_BILLING(d,l) + P2_BILLING();
+const P2_TO_REVIEW   = (d=2,l=-1)=> P2_TO_IPD(d,l) + P2_IPD() + P2_SUMMARY();
+const P2_TO_UPDATE   = (d=3,l=-1)=> P2_TO_REVIEW(d,l) + P2_REVIEW();
+// scenario #2 billing table: ONLY the replaced ID (row 0 = 20059622) is highlighted
+function p2SummaryTables(){
+  const bill = billingRows('07/31/2026',false).map((r,i)=>({...r,editedRow:i===0}));
+  const placeHi=new Set([0,1,3,5]);
+  const place = PLACEMENTS.map((r,i)=>({...r,editedRow:placeHi.has(i)}));
+  return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
+    <div class="sec-label">Billing offers</div>${tableHTML(COL.billing,bill)}
+    <div class="sec-label">Placement</div>${tableHTML(COL.place,place)}
+    <div class="sec-label">Experiments</div>${tableHTML(COL.exp,experimentRows('04/22/2026',false))}`;
+}
+
 /* ---- Scene 1: SEARCH RESULTS (multiple) ----
    Interaction: user CHECKS a campaign (select), which enables "View (n)".
    Clicking View drills into that campaign. Nothing advances on a stray click. */
@@ -753,7 +811,7 @@ scenes.searchMultiple = (state={})=>{
   if(phase==='msg-prompt' || phase==='msg-created' || phase==='msg-search'){
     let centeredBody = uPrompt;
     if(phase==='msg-created' || phase==='msg-search') centeredBody += agentMsg(createdBubble);
-    if(phase==='msg-search') centeredBody += agentLoader('Searching experiences', state.tasks||[]);
+    if(phase==='msg-search') centeredBody += agentLoader('Searching campaigns', state.tasks||[]);
     return `<div class="content content--centered">
       ${topbar('<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>')}
       <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${centeredBody}</div>
@@ -763,7 +821,7 @@ scenes.searchMultiple = (state={})=>{
   }
   let body, table;
   if(loading){
-    body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching experiences', state.tasks||[]);
+    body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching campaigns', state.tasks||[]);
     table = skeletonTable(COL.search,true);        // canvas skeleton
   } else {
     body = SEARCH_CONV();
@@ -804,13 +862,14 @@ function experiencesPanel(opts={}){
   const loading = opts.loading;
   const hi = opts.highlight instanceof Set ? opts.highlight : new Set(opts.highlight||[]);
   const status = opts.status || 'Draft';
-  const rows = Array(10).fill(0).map((_,i)=>{const ed=hi.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':status,ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
+  // opts.allEdited → every row is Edited (yellow); otherwise only rows in `highlight`.
+  const rows = Array(10).fill(0).map((_,i)=>{const ed=opts.allEdited||hi.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':status,ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
   const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
   const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true});
   const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
   return `<div class="toolbar">
       <div class="search">${I.search}<span>Search</span></div>
-      <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+      <span class="iconbtn">${I.sliders}</span>
       <span class="groupby">Group by ${I.chev}</span>
     </div>${expTable}${pager}`;
 }
@@ -858,8 +917,7 @@ scenes.singleCampaign = (state={view:'table'})=>{
 
 /* ---- Scene 3: CHANGE-ORDER INTENT + plan playback ---- */
 const PLAN_TASKS = [
-  'Change end date for all billing offers to 07/31/2026',
-  'Change end date for all experiments to 07/31/2026',
+  'Change end date and priority',
   'Review change summary','Update the campaign',
 ];
 /* plan-table rows shared by planCard + CONV_PLAN.
@@ -905,41 +963,28 @@ function artifactScreen({crumb,title,version,table,step,body,stepLoading}){
   return content + aiPanel({step,body,stepLoading});
 }
 
-/* ---- Scene 4: BILLING OFFERS artifact ---- */
-scenes.billing = (state={})=>{
+/* ---- Scene 4: TASK 1 — CHANGE END DATE + PRIORITY (campaign meta diff) ---- */
+scenes.changeMeta = (state={})=>{
   const loading = state.loading;
-  // step 1: while loading row 1 spins; once settled (header checked) row 1 is checked too
-  const conv = CONV_TO_BILLING(loading?0:1, loading?0:-1);
-  const editBody = loading
-    ? conv + agentLoader('Changing billing offers end date', state.tasks||[])
-    : conv + agentMsg(
-        `<div class="chatBubble">Changed end date for all billing offers to 07/31/2026${objectCard('edit','Change end date: Billing offers - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','approveBilling')}</div>`);
-  // rows flip OLD (04/22/2026, no highlight) → NEW (07/31/2026, yellow) one by one
-  const editRows = state.rowsDone!==undefined ? state.rowsDone : 3;
-  const flip = (rows)=>rows.map((r,i)=> i<editRows ? {...r,end:'07/31/2026',edited:true} : {...r,end:'04/22/2026',edited:false});
-  const billTbl = state.skeleton ? skeletonTable(COL.billing,false)
-    : loading ? tableHTML(COL.billing, flip(billingRows('04/22/2026',false)))
-    : tableHTML(COL.billing, billingRows('07/31/2026',true));
-  const table = billTbl;
-  return artifactScreen({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',title:'Billing offers - ELM9071 campaign',table,step:'1.  Change billing offers end date',body:editBody,stepLoading:loading});
-};
-
-/* ---- Scene 5: EXPERIMENTS artifact ---- */
-scenes.experiments = (state={})=>{
-  const loading = state.loading;
-  // step 2: row 1 done; while loading row 2 spins; settled → rows 1-2 checked
-  const conv = CONV_TO_EXPERIMENTS(loading?1:2, loading?1:-1);
+  // step 1: while loading row 1 spins; once settled row 1 is checked
+  const conv = CONV_TO_CHANGE(loading?0:1, loading?0:-1);
   const body = loading
-    ? conv + agentLoader('Changing experiments end date', state.tasks||[])
+    ? conv + agentLoader('Changing end date and priority', state.tasks||[])
     : conv + agentMsg(
-        `<div class="chatBubble">Changed end date for all experiments to 07/31/2026${objectCard('edit','Change end date: Experiments - EL…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','approveExp')}</div>`);
-  const editRows = state.rowsDone!==undefined ? state.rowsDone : 4;
-  const flip = (rows)=>rows.map((r,i)=> i<editRows ? {...r,end:'07/31/2026',edited:true} : {...r,end:'04/22/2026',edited:false});
-  const expTbl = state.skeleton ? skeletonTable(COL.exp,false)
-    : loading ? tableHTML(COL.exp, flip(experimentRows('04/22/2026',false)))
-    : tableHTML(COL.exp, experimentRows('07/31/2026',true));
-  const table = expTbl;
-  return artifactScreen({crumb:'<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>',title:'Experiments - ELM9071 campaign',table,step:'2.  Change experiments end date',body,stepLoading:loading});
+        `<div class="chatBubble">Changed end date for campaign to 08/31/2026 and priority to High.${objectCard('edit','Change end date and priority - ELM…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','approveChange')}</div>`);
+  // canvas = campaign meta; once settled, END DATE + PRIORITY show the new values highlighted.
+  const settled = !loading;
+  const metaOpts = settled ? {endDate:'08/31/2026',priority:'High',highlight:true} : {};
+  const canvas = loading
+    ? summarySkeleton()
+    : `<div class="detail-h"><span class="title">Campaign Meta - ELM9071 campaign</span><span class="verselect">v1 ${I.chev}</span></div>
+      <div style="height:16px"></div>
+      ${metaGrid(metaOpts)}`;
+  const content = `<div class="content">
+    ${topbar('<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>')}
+    <div class="scroll"><div class="pad">${canvas}</div></div>
+  </div>`;
+  return content + aiPanel({step:'1.  Change end date and priority',body,stepLoading:loading});
 };
 
 /* ---- Scene 6: CAMPAIGN OBJECT — diff summary (table ⇄ tree) ---- */
@@ -947,8 +992,8 @@ scenes.campaignObject = (state={view:'table'})=>{
   const loading = state.loading;
   // reveal: 0 = neither new bubble, 1 = summary only, 2 = summary + review (default when settled)
   const reveal = state.reveal!==undefined ? state.reveal : 2;
-  // step 3 (review): rows 1-2 done; loading → row 3 spins; settled → rows 1-3 checked
-  const priorConv = CONV_TO_EXPERIMENTS(loading?2:3, loading?2:-1) + CONV_EXPERIMENTS();
+  // step 2 (review): row 1 done; loading → row 2 spins; settled → rows 1-2 checked
+  const priorConv = CONV_TO_CHANGE(loading?1:2, loading?1:-1) + CONV_CHANGE();
   const summaryMsg = CONV_SUMMARY();
   const reviewMsg = agentMsg(
     `<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to regenerate experiences.</div>${replyBtn('Approve','approveCampaign')}</div>`);
@@ -959,7 +1004,8 @@ scenes.campaignObject = (state={view:'table'})=>{
     // messages appear one after the other: summary first, then the review bubble
     body = priorConv + (reveal>=1?summaryMsg:'') + (reveal>=2?reviewMsg:'');
   }
-  const dataBody = state.view==='tree' ? treeView(false) : campaignDataTables('07/31/2026',true);
+  // only the campaign end date + priority change; billing/experiment end dates stay 04/22 (unedited)
+  const dataBody = state.view==='tree' ? treeView(false) : campaignDataTables('04/22/2026',false);
   // before the summary appears, show a skeleton canvas (something is loading)
   const canvas = loading
     ? summarySkeleton()
@@ -967,39 +1013,40 @@ scenes.campaignObject = (state={view:'table'})=>{
       <div style="height:10px"></div>
       <div class="identity">
         <span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span>
-        <span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span>
+        <span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Edited')}</div></span>
       </div>
-      ${metaGrid()}
+      ${metaGrid({endDate:'08/31/2026',priority:'High',highlight:true})}
       <div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div>
       <div id="dataZone">${dataBody}</div>`;
   const content = `<div class="content">
     ${topbar('<span>Home</span> <span class="sep">/</span> <span>QB Payroll Targeted offers</span>')}
     <div class="scroll"><div class="pad">${canvas}</div></div>
   </div>`;
-  return content + aiPanel({step:'3.  Review change summary',body,stepLoading:loading});
+  return content + aiPanel({step:'2.  Review change summary',body,stepLoading:loading});
 };
 
 /* ---- Scene 7: CAMPAIGN TREE - Segment view (final) ---- */
 scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
   const loading = state.loading;
-  // step 4 (final): rows 1-3 done; loading → row 4 spins; settled → all 4 checked
-  const savedConv = CONV_TO_UPDATE(loading?3:4, loading?3:-1);
+  // step 3 (final): rows 1-2 done; loading → row 3 spins; settled → all 3 checked
+  const savedConv = CONV_TO_UPDATE(loading?2:3, loading?2:-1);
   const body = loading
     ? savedConv + agentLoader('Updating the campaign', state.tasks||[])
     : savedConv + agentMsg(
-        `<div class="chatBubble">Updated campaign and regenerated experiences with the end dates changes to Billing offers and experiments.${objectCard('megaphone','Update campaign - ELM9071 campai…')}<div class="bubble-q">Does this look ok?</div>${replyBtn('Looks good','looksGoodFinal')}</div>`);
+        `<div class="chatBubble">Updated campaign and regenerated experiences with the end date and priority changes.${objectCard('megaphone','Update campaign - ELM9071 campai…')}<div class="bubble-q">Does this look ok?</div>${replyBtn('Looks good','looksGoodFinal')}</div>`);
 
   let mainInner;
   if(state.tab==='experiences'){
-    // regenerated experiences: rows 1,3,6,9 Edited (yellow + "Edited"); skeleton while loading
-    mainInner = experiencesPanel({loading, highlight:[1,3,6,9]});
+    // regenerated experiences: ALL rows Edited (yellow + "Edited"); skeleton while loading
+    mainInner = experiencesPanel({loading, allEdited:true});
   } else {
-    const dataBody = state.view==='tree' ? treeView(true) : campaignDataTables('07/31/2026',true);
+    // only the campaign end date + priority change; billing/experiment end dates stay 04/22 (unedited)
+    const dataBody = state.view==='tree' ? treeView(true) : campaignDataTables('04/22/2026',false);
     mainInner = `<div class="identity">
         <span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span>
-        <span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span>
+        <span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Edited')}</div></span>
       </div>
-      ${metaGrid()}
+      ${metaGrid({endDate:'08/31/2026',priority:'High',highlight:true})}
       <div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div>
       <div id="dataZone">${dataBody}</div>`;
   }
@@ -1021,7 +1068,7 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
       ${mainInner}
     </div></div>
   </div>`;
-  return content + aiPanel({step:'4.  Update campaign',body,stepLoading:loading});
+  return content + aiPanel({step:'3.  Update campaign',body,stepLoading:loading});
 };
 
 /* ============================================================
@@ -1112,8 +1159,8 @@ scenes.billingIDs = (state={})=>{
 
 /* WB step 2 & 3 share a placement table that drills into the content table.
    state.drill = index of the placement row being viewed (content table shown). */
-function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loading,tasks,mode,drill,drillLoading}){
-  let canvas, title, crumb=WB_CRUMB, backForDrill=false;
+function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loading,tasks,mode,drill,drillLoading,crumb:crumbIn}){
+  let canvas, title, crumb=crumbIn||WB_CRUMB, backForDrill=false;
   if(drill!==undefined && drill!==null){
     // content drill-down view (skeleton flashes before the content table)
     backForDrill=true;
@@ -1196,6 +1243,101 @@ scenes.campaignTreeWB = (state={view:'tree',tab:'experiences'})=>{
   return content + aiPanel({step:'4.  Update the campaign',body,stepLoading:loading});
 };
 
+/* ============================================================
+   SCENARIO 3 SCENES — prompt-based billing + IPD change order.
+   Cloned from the workbook scenes; typed-prompt intake, single-row billing.
+   ============================================================ */
+const P2_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>Change order - ELM9071 campaign</span>';
+
+/* ---- P2 intake: prompt → created → understanding → plan ---- */
+scenes.p2Intent = (state={})=>{
+  const loading=state.loading, phase=state.phase;
+  if(phase==='bootfull'){
+    return `<div class="content">${topbar('<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:220px;height:14px;display:inline-block"></span>')}<div class="scroll scroll--center">${bootCanvas()}</div></div>`;
+  }
+  const understoodLive = disclosure('Looked at your brief, created a summary',['Looked at your brief','Reading your request','Compiling changes'])
+    + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood will be changed.</p>${P2_UNDERSTOOD_TABLE}<p class="summaryCard__q">Does this look right? I'll put together a plan once you confirm.</p>${replyBtn('Looks good','p2ApproveUnderstood')}</div>`;
+  if(phase==='msg-user' || phase==='msg-created' || phase==='msg-loader' || phase==='msg-understood' || phase==='planning'){
+    let b = P2_USER();
+    if(phase!=='msg-user') b += P2_CREATED();
+    if(phase==='msg-loader') b += agentLoader('Looking at your brief', state.tasks||[]);
+    if(phase==='msg-understood') b += agentMsg(understoodLive);
+    if(phase==='planning') b += P2_UNDERSTOOD() + agentLoader('Creating a plan', state.tasks||[]);
+    return `<div class="content content--centered">${topbar(P2_CRUMB)}
+      <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${b}</div>
+        ${expandedComposer()}
+      </div></div></div>`;
+  }
+  const conv = P2_USER() + P2_CREATED() + P2_UNDERSTOOD();
+  const body = loading
+    ? conv + agentLoader('Creating a plan', state.tasks||[])
+    : conv + agentMsg(disclosure('Looked at your brief, created a plan',['Reading your request','Mapping requested changes','Ordering the tasks']) + `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${p2PlanTableRows(0,-1)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${replyBtn('Looks good','p2ApprovePlan')}</div>`);
+  return `<div class="content content--centered">${topbar(P2_CRUMB)}<div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${body}</div>
+    ${expandedComposer()}
+  </div></div></div>`;
+};
+
+/* ---- P2 step 1: Change billing offer ID (single row highlighted) ---- */
+scenes.p2Billing = (state={})=>{
+  const loading = state.loading;
+  const conv = P2_TO_BILLING(loading?0:1, loading?0:-1);
+  const body = loading
+    ? conv + agentLoader('Changing billing offer ID', state.tasks||[])
+    : conv + agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit','Change IDs: Billing offers - ELM907…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','p2ApproveBilling')}</div>`);
+  // ONLY the replaced ID (row 0 = 20059622) is highlighted
+  const rows = billingRows('07/31/2026',false).map((r,i)=>({...r, editedRow:i===0}));
+  const billTbl = (loading||state.skeleton) ? skeletonTable(COL.billing,false) : tableHTML(COL.billing, rows);
+  return artifactScreen({crumb:P2_CRUMB,title:'Billing offers - ELM9071 campaign',table:billTbl,step:'1.  Change billing offer ID',body,stepLoading:loading});
+};
+
+/* ---- P2 step 2: Change IPD content and images (placement drill-down) ---- */
+scenes.p2Ipd = (state={})=>{
+  const loading=state.loading;
+  const conv = P2_TO_IPD(loading?1:2, loading?1:-1);
+  const activeReply = agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit','Change IPD content and images: Pl…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','p2ApproveIpd')}</div>`);
+  return wbPlacementScene({step:'2.  Change IPD content and images',conv,activeReply,loaderLabel:'Changing IPD content and images',loading,tasks:state.tasks,mode:'both',drill:state.drill,drillLoading:state.drillLoading,crumb:P2_CRUMB});
+};
+
+/* ---- P2 step 3: Review change summary ---- */
+scenes.p2Review = (state={view:'table'})=>{
+  const loading=state.loading;
+  const reveal = state.reveal!==undefined ? state.reveal : 2;
+  const priorConv = P2_TO_IPD(loading?2:3, loading?2:-1) + P2_IPD();
+  const summaryMsg = P2_SUMMARY();
+  const reviewMsg = agentMsg(`<div class="chatBubble">Here's the campaign summary for you review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll proceed to task 4.</div>${replyBtn('Approve','p2ApproveReview')}</div>`);
+  let body;
+  if(loading){ body = priorConv + agentLoader('Reviewing change summary', state.tasks||[]); }
+  else { body = priorConv + (reveal>=1?summaryMsg:'') + (reveal>=2?reviewMsg:''); }
+  const canvas = loading ? summarySkeleton() : `<div class="detail-h"><span class="title">Campaign summary - ELM9071 campaign</span></div>
+    <div style="height:10px"></div>
+    <div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Edited')}</div></span></div>
+    ${metaGrid()}
+    <div class="data-head"><span class="h">Campaign data</span>${viewToggle('table')}</div>
+    <div id="dataZone">${p2SummaryTables()}</div>`;
+  const content = `<div class="content">${topbar(P2_CRUMB)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
+  return content + aiPanel({step:'3.  Review change summary',body,stepLoading:loading});
+};
+
+/* ---- P2 step 4: Update the campaign ---- */
+scenes.p2Tree = (state={view:'tree',tab:'experiences'})=>{
+  const loading=state.loading;
+  const savedConv = P2_TO_UPDATE(loading?3:4, loading?3:-1);
+  const body = loading
+    ? savedConv + agentLoader('Updating the campaign', state.tasks||[])
+    : savedConv + agentMsg(`<div class="chatBubble">Updated campaign and regenerated experiences with the changes to Billing offers, IPD content and images.${objectCard('megaphone','Update campaign - ELM9071 campai…')}<div class="bubble-q">Does this look ok?</div>${replyBtn('Looks good','p2LooksGoodFinal')}</div>`);
+  let mainInner;
+  if(state.tab==='experiences'){
+    mainInner = experiencesPanel({loading, highlight:[1,3,6,9]});
+  } else {
+    mainInner = `<div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Edited')}</div></span></div>${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):p2SummaryTables()}</div>`;
+  }
+  const content = `<div class="content">${topbar(P2_CRUMB)}<div class="scroll"><div class="pad">
+    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span>${badge('Edited')}<span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
+    <div class="tabs tabs--insticky"><span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span><span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span></div></div>
+    ${mainInner}</div></div></div>`;
+  return content + aiPanel({step:'4.  Update the campaign',body,stepLoading:loading});
+};
+
 /* skeleton canvas for the Campaign summary scene (shown before the summary appears) */
 function summarySkeleton(){
   const bar=(w,h=14,mt=0)=>`<span class="cfskel cfskel--bar" style="display:block;width:${w};height:${h}px;margin-top:${mt}px"></span>`;
@@ -1232,7 +1374,7 @@ function bootCanvas(){
    LOADER ORCHESTRATION — golden timings from ChangeOrder.tsx
    ============================================================ */
 const LOADERS = {
-  search:   { label:'Searching experiences', tasks:['Reading your brief','Searching QB Payroll offers','Compiling results'], after:5400 },
+  search:   { label:'Searching campaigns', tasks:['Reading your brief','Searching QB Payroll offers','Compiling results'], after:5400 },
   planning: { label:'Creating a plan', tasks:['Reading your request','Mapping requested changes','Ordering the tasks'], after:3400 },
   saving:   { label:'Applying your changes', tasks:['Applying changes to experiences','Updating statuses','Refreshing the table'], after:2900 },
 };
@@ -1248,7 +1390,7 @@ function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
 /* INTAKE sequence:
    1) full-screen "Creating a project" boot loader (alone, no messages)
    2) messages appear IN SEQUENCE, one after another:
-        user prompt → "I have created…project" bubble → "Searching experiences" loader
+        user prompt → "I have created…project" bubble → "Searching campaigns" loader
    3) search loader ticks through subtasks → results table.
    Timeline: bootfull 2400ms → prompt (600ms) → created (900ms) → search 5400ms (4 subtasks). */
 function runIntake(){
@@ -1354,6 +1496,41 @@ function runWBReview(){
   timers.push(setTimeout(()=>render('campaignObjectWB',{view:'table',reveal:2}),d+900));
 }
 
+/* ===== SCENARIO 3 (prompt CO) runners — clone of the WB runners ===== */
+function runIntakeP2(){
+  render('p2Intent',{phase:'bootfull'});
+  const subs=['Looked at your brief','Reading your request','Compiling changes'];
+  const a=2400,b=a+600,ldr=b+900,dur=3600;
+  timers.push(setTimeout(()=>render('p2Intent',{phase:'msg-user'}),a));
+  timers.push(setTimeout(()=>render('p2Intent',{phase:'msg-created'}),b));
+  const tick=(idx)=>render('p2Intent',{phase:'msg-loader',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  timers.push(setTimeout(()=>tick(0),ldr));
+  const slot=(dur-600)/subs.length;
+  subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),ldr+Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>go('p2Intent',{phase:'msg-understood'}),ldr+dur));
+}
+function runP2Plan(){
+  const cfg=LOADERS.planning;
+  const tasks=cfg.tasks.map(l=>({label:l,state:'idle'})); tasks[0].state='active';
+  render('p2Intent',{phase:'planning',tasks:tasks.map(t=>({...t}))});
+  const slot=(cfg.after-600)/cfg.tasks.length;
+  cfg.tasks.forEach((_,i)=>timers.push(setTimeout(()=>{const t=cfg.tasks.map((l,j)=>({label:l,state:j<=i?'done':j===i+1?'active':'idle'}));render('p2Intent',{phase:'planning',tasks:t});},Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>go('p2Intent',{}), cfg.after));
+}
+function runP2Step(scene, label, nextName, nextState, loadingExtra={}){
+  runLoader(scene, {label, tasks:LOADERS.saving.tasks, after:2900}, nextName, nextState, loadingExtra);
+}
+function runP2Review(){
+  const cfg={after:2900,tasks:LOADERS.saving.tasks};
+  const tasks=cfg.tasks.map(l=>({label:l,state:'idle'})); tasks[0].state='active';
+  render('p2Review',{view:'table',loading:true,tasks:tasks.map(t=>({...t}))});
+  const slot=(cfg.after-600)/cfg.tasks.length;
+  cfg.tasks.forEach((_,i)=>timers.push(setTimeout(()=>{const t=cfg.tasks.map((l,j)=>({label:l,state:j<=i?'done':j===i+1?'active':'idle'}));render('p2Review',{view:'table',loading:true,tasks:t});},Math.round(slot*(i+1)))));
+  const d=cfg.after;
+  timers.push(setTimeout(()=>render('p2Review',{view:'table',reveal:1}),d));
+  timers.push(setTimeout(()=>render('p2Review',{view:'table',reveal:2}),d+900));
+}
+
 /* Edit-task loader: table cells flip row-by-row + 4-tick conversation loader.
    A single shared state object is mutated by both the row timers and the
    loader-tick timers so they never stomp each other (golden: skeleton 1900,
@@ -1392,16 +1569,21 @@ function render(scene, state){
    ============================================================ */
 // Two scenarios share the app. 'prompt' = end-date change via prompt; 'workbook' = change order via attached workbook.
 let scenario = 'prompt';
-const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','billing','experiments','campaignObject','campaignTree'];
+const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','changeMeta','campaignObject','campaignTree'];
 const FLOW_WORKBOOK = ['home','coIntentWB','billingIDs','ipdContent','campaignObjectWB','campaignTreeWB'];
+const FLOW_PROMPTCO = ['home','p2Intent','p2Billing','p2Ipd','p2Review','p2Tree'];
 // active FLOW switches with the scenario
-function FLOW_ARR(){ return scenario==='workbook' ? FLOW_WORKBOOK : FLOW_PROMPT; }
+function FLOW_ARR(){ return scenario==='workbook' ? FLOW_WORKBOOK : scenario==='promptCO' ? FLOW_PROMPTCO : FLOW_PROMPT; }
 const FLOW = FLOW_PROMPT; // back-comaptible alias (prompt-flow arrow-nav default)
 const TYPE_MS = 18;                    // per-char typing speed (source)
 // auto-type prompts + delays before typing starts (source: ChangeOrder.tsx)
 const FIND_PROMPT = 'Find all QBO Payroll Targeted offers campaigns created in the last 3 months.';
-const CHANGE_PROMPT = 'Change end date for all billing offers and experiments to 31 July';
+const CHANGE_PROMPT = 'Change end date for campaign to 31 August and priority to high.';
 const WORKBOOK_PROMPT = "I'd like to execute a change order for the ELM9071 campaign. I've attached the workbook.";
+// scenario #2 — prompt-based billing + IPD change order (typed, no workbook)
+const PROMPTCO_PROMPT = `I'd like to execute a change order for the ELM9071 campaign. Please make the following changes:
+1. Replace the billing offer ID from 11111111 to 20059622.
+2. For IPD creatives tied to this billing offer, update the headline from "50% off" to "90% off" and update the image to imagename.png`;
 const APPROVE_PROMPT = 'Approved';
 const LOOKS_GOOD = 'Looks good';
 /* USER-TRIGGERED guided demo: the user clicks to advance each step (send button,
@@ -1465,8 +1647,7 @@ function scheduleAuto(name, state){
   }
   else if(name==='singleCampaign') t(()=>trigger.change(state),1200);
   else if(name==='coIntent' && !state.loading) t(()=>trigger.approvePlan(),1400);
-  else if(name==='billing' && !state.loading) t(()=>trigger.approveBilling(),1400);
-  else if(name==='experiments' && !state.loading) t(()=>trigger.approveExp(),1400);
+  else if(name==='changeMeta' && !state.loading) t(()=>trigger.approveChange(),1400);
   else if(name==='campaignObject' && !state.loading) t(()=>trigger.approveCampaign(),1400);
   // campaignTree = end of the guided run.
 }
@@ -1476,15 +1657,17 @@ function scheduleAuto(name, state){
 const trigger = {
   // Home SEND (user click) — prompt is already typed by the 2s auto-type; just run
   // the INTAKE sequence: boot loader → "created project" bubble → search + skeleton → results.
-  home:()=>{ clearTimers(); const inp=$('#homeInput'); if(scenario==='workbook'){ if(inp) inp.textContent=WORKBOOK_PROMPT; runIntakeWB(); } else { if(inp) inp.textContent=FIND_PROMPT; runIntake(); } },
+  home:()=>{ clearTimers(); const inp=$('#homeInput');
+    if(scenario==='workbook'){ if(inp) inp.textContent=WORKBOOK_PROMPT; runIntakeWB(); }
+    else if(scenario==='promptCO'){ if(inp) inp.textContent=PROMPTCO_PROMPT; runIntakeP2(); }
+    else { if(inp) inp.textContent=FIND_PROMPT; runIntake(); } },
   viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
   // change SEND (user click) — prompt already typed on campaign open; run planning loader → plan.
   change:(state)=>{ clearTimers(); const inp=$('#composerInput'); if(inp) inp.textContent=CHANGE_PROMPT; runLoader('coIntent',LOADERS.planning,'coIntent',{view:state.view||'table'}); },
   // Pill clicks: the pill converts to a recorded reply IN PLACE (avatar + text)
   // inside the same message, then the loader runs. NOT typed into the composer.
-  approvePlan:()=>{ recordPillThen(()=>runEditLoader('billing','billing',3,'billing',{})); },
-  approveBilling:()=>{ recordPillThen(()=>runEditLoader('experiments','experiments',4,'experiments',{})); },
-  approveExp:()=>{ recordPillThen(()=>runReviewSequence()); },
+  approvePlan:()=>{ recordPillThen(()=>runLoader('changeMeta',LOADERS.saving,'changeMeta',{})); },
+  approveChange:()=>{ recordPillThen(()=>runReviewSequence()); },
   approveCampaign:()=>{ recordPillThen(()=>runLoader('campaignTree',LOADERS.saving,'campaignTree',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
   // ── WORKBOOK triggers ──
   wbApproveUnderstood:()=>{ recordPillThen(()=>runWBPlan()); },
@@ -1493,6 +1676,13 @@ const trigger = {
   wbApproveIpd:()=>{ recordPillThen(()=>runWBReview()); },                                                       // step 2 done → review (step 3)
   wbApproveReview:()=>{ recordPillThen(()=>runLoader('campaignTreeWB',LOADERS.saving,'campaignTreeWB',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
   wbLooksGoodFinal:()=>{ autopilot=false; go('home'); },
+  // ── SCENARIO 3 (prompt CO) triggers ──
+  p2ApproveUnderstood:()=>{ recordPillThen(()=>runP2Plan()); },
+  p2ApprovePlan:()=>{ recordPillThen(()=>runP2Step('p2Billing','Changing billing offer ID','p2Billing',{})); },
+  p2ApproveBilling:()=>{ recordPillThen(()=>runP2Step('p2Ipd','Loading placements','p2Ipd',{})); },
+  p2ApproveIpd:()=>{ recordPillThen(()=>runP2Review()); },
+  p2ApproveReview:()=>{ recordPillThen(()=>runLoader('p2Tree',LOADERS.saving,'p2Tree',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
+  p2LooksGoodFinal:()=>{ autopilot=false; go('home'); },
 };
 
 /* Replace the clicked pill with the recorded reply (avatar + label) in place,
@@ -1519,7 +1709,10 @@ function bindToggle(main, name, state){
     current.state={...current.state,view:v};
     tg.outerHTML=viewToggle(v);                       // refresh toggle (active state + icon colors)
     const zone=main.querySelector('#dataZone');
-    const edited = name!=='singleCampaign';
+    // CONV flow (campaignObject/campaignTree) changes only the campaign end date + priority,
+    // so its Table view keeps billing/experiment end dates at 04/22, unedited.
+    const isConv = name==='campaignObject' || name==='campaignTree';
+    const edited = !(name==='singleCampaign' || isConv);
     if(zone){
       if(v==='tree'){
         // preview card only on the final tree scenes (campaignTree / campaignTreeWB)
@@ -1528,7 +1721,7 @@ function bindToggle(main, name, state){
         // Scenario 2 Table view = workbook edits (billing IDs + placement), NOT the end-date diff
         zone.innerHTML = wbSummaryTables();
       } else {
-        zone.innerHTML = campaignDataTables(name==='singleCampaign'?'04/22/2026':'07/31/2026',edited);
+        zone.innerHTML = campaignDataTables((name==='singleCampaign'||isConv)?'04/22/2026':'07/31/2026',edited);
       }
     }
     wireTreeChevrons(main);
@@ -1636,6 +1829,7 @@ function wire(name, state){
         scenario = b.dataset.sim;
         // re-render home with the chosen scenario's prompt auto-typing (+ file chip for workbook)
         if(scenario==='workbook') go('home',{autotype:WORKBOOK_PROMPT,fileChip:true});
+        else if(scenario==='promptCO') go('home',{autotype:PROMPTCO_PROMPT});
         else go('home',{autotype:FIND_PROMPT});
       });
       // click-away closes the menu
@@ -1671,11 +1865,8 @@ function wire(name, state){
   if(name==='coIntent' && !state.loading){
     const lg=main.querySelector('#looksGood'); if(lg) lg.onclick=()=>{autopilot=false;trigger.approvePlan();};
   }
-  if(name==='billing' && !state.loading){
-    const b=main.querySelector('#approveBilling'); if(b) b.onclick=()=>{autopilot=false;trigger.approveBilling();};
-  }
-  if(name==='experiments' && !state.loading){
-    const b=main.querySelector('#approveExp'); if(b) b.onclick=()=>{autopilot=false;trigger.approveExp();};
+  if(name==='changeMeta' && !state.loading){
+    const b=main.querySelector('#approveChange'); if(b) b.onclick=()=>{autopilot=false;trigger.approveChange();};
   }
   if(name==='campaignObject' && !state.loading){
     const b=main.querySelector('#approveCampaign'); if(b) b.onclick=()=>{autopilot=false;trigger.approveCampaign();};
@@ -1698,6 +1889,20 @@ function wire(name, state){
   }
   if(name==='campaignObjectWB' && !state.loading) wbPill('wbApproveReview',()=>trigger.wbApproveReview());
   if(name==='campaignTreeWB' && !state.loading) wbPill('wbLooksGoodFinal',()=>trigger.wbLooksGoodFinal());
+
+  // ── SCENARIO 3 (prompt CO) reply pills + placement drill-down ──
+  if(name==='p2Intent'){
+    wbPill('p2ApproveUnderstood',()=>trigger.p2ApproveUnderstood());
+    wbPill('p2ApprovePlan',()=>trigger.p2ApprovePlan());
+  }
+  if(name==='p2Billing' && !state.loading) wbPill('p2ApproveBilling',()=>trigger.p2ApproveBilling());
+  if(name==='p2Ipd' && !state.loading){
+    wbPill('p2ApproveIpd',()=>trigger.p2ApproveIpd());
+    if(state.drill===undefined) main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{autopilot=false;drillInto('p2Ipd',+tr.dataset.drillplace);});
+    const bk=main.querySelector('[data-wbback]'); if(bk) bk.onclick=()=>{autopilot=false;go('p2Ipd',{});};
+  }
+  if(name==='p2Review' && !state.loading) wbPill('p2ApproveReview',()=>trigger.p2ApproveReview());
+  if(name==='p2Tree' && !state.loading) wbPill('p2LooksGoodFinal',()=>trigger.p2LooksGoodFinal());
 
   wireTreeChevrons(main);   // real expand/collapse on any tree present
   wireTreeToolbar(main);    // group-by / filter / search / expand-collapse on any tree present
@@ -1725,6 +1930,12 @@ const FLOW_STATE = {
   ipdContent:{},
   campaignObjectWB:{view:'table'},
   campaignTreeWB:{view:'tree',tab:'experiences'},
+  // prompt CO (scenario 3)
+  p2Intent:{},
+  p2Billing:{},
+  p2Ipd:{},
+  p2Review:{view:'table'},
+  p2Tree:{view:'tree',tab:'experiences'},
 };
 // jump to a step index in the ACTIVE flow with its correct resting state
 function gotoStep(i){

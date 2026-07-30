@@ -384,6 +384,8 @@ button{font-family:inherit}
   background:#f6f7f9;border-radius:12px;padding:16px 16px 16px 23px}
 .meta__k{font-size:12px;font-weight:600;letter-spacing:.8px;color:#787e94;text-transform:uppercase;margin-bottom:5px}
 .meta__v{font-size:16px;color:#000729}
+/* edited value highlight (yellow) — used in the change-order diff view */
+.meta__hl{background:var(--edited-cell);border-radius:3px;padding:0 3px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
 .identity{display:flex;align-items:center;gap:12px;margin-bottom:22px}
 .identity .tile{width:36px;height:36px;border-radius:var(--r-input);display:flex;align-items:center;justify-content:center;color:#fff}
 .identity .k{font-size:11px;letter-spacing:.05em;color:var(--text-tertiary);text-transform:uppercase}
@@ -655,6 +657,6 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=58"></script>
+<script src="app.js?v=65"></script>
 </body>
 </html>
