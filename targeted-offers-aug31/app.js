@@ -977,7 +977,7 @@ scenes.changeMeta = (state={})=>{
   const metaOpts = settled ? {endDate:'08/31/2026',priority:'High',highlight:true} : {};
   const canvas = loading
     ? summarySkeleton()
-    : `<div class="detail-h"><span class="title">Campaign Meta - ELM9071 campaign</span><span class="verselect">v1 ${I.chev}</span></div>
+    : `<div class="detail-h"><span class="title">Campaign Meta - ELM9071 campaign</span></div>
       <div style="height:16px"></div>
       ${metaGrid(metaOpts)}`;
   const content = `<div class="content">
