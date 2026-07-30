@@ -514,8 +514,10 @@ let treeSearch = '';
 const EYE_ICON  = `<span class="eye">${icon('eye',16)}</span>`;
 const CD_ICON   = `<span class="cd">${icon('chevronDown',16)}</span>`;
 const RESET_ICON= `<svg viewBox="0 0 20 20" fill="none"><path d="M4.2 9.2a6 6 0 1 1 1 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 5.2v4h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const EXPAND_ICON  = `<svg viewBox="0 0 20 20" fill="none"><rect x="2.75" y="2.75" width="14.5" height="14.5" rx="3.25" stroke="currentColor" stroke-width="1.4"/><path d="M7 8.5 10 11.5 13 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const COLLAPSE_ICON= `<svg viewBox="0 0 20 20" fill="none"><rect x="2.75" y="2.75" width="14.5" height="14.5" rx="3.25" stroke="currentColor" stroke-width="1.4"/><path d="M7 11.5 10 8.5 13 11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+// Detail toggle glyph (list) — fill follows the button's text color (active = purple)
+const DETAIL_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.33331 4C1.33331 2.89543 2.22874 2 3.33331 2H4.66665C5.77122 2 6.66665 2.89543 6.66665 4V5.33333C6.66665 6.4379 5.77122 7.33333 4.66665 7.33333H3.33331C2.22874 7.33333 1.33331 6.4379 1.33331 5.33333V4ZM3.33331 3.33333C2.96512 3.33333 2.66665 3.63181 2.66665 4V5.33333C2.66665 5.70152 2.96512 6 3.33331 6H4.66665C5.03484 6 5.33331 5.70152 5.33331 5.33333V4C5.33331 3.63181 5.03484 3.33333 4.66665 3.33333H3.33331Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M1.33331 10.6667C1.33331 9.5621 2.22874 8.66667 3.33331 8.66667H4.66665C5.77122 8.66667 6.66665 9.5621 6.66665 10.6667V12C6.66665 13.1046 5.77122 14 4.66665 14H3.33331C2.22874 14 1.33331 13.1046 1.33331 12V10.6667ZM3.33331 10C2.96512 10 2.66665 10.2985 2.66665 10.6667V12C2.66665 12.3682 2.96512 12.6667 3.33331 12.6667H4.66665C5.03484 12.6667 5.33331 12.3682 5.33331 12V10.6667C5.33331 10.2985 5.03484 10 4.66665 10H3.33331Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M7.99998 9.33333C7.99998 8.96514 8.29846 8.66667 8.66665 8.66667H14C14.3682 8.66667 14.6666 8.96514 14.6666 9.33333C14.6666 9.70152 14.3682 10 14 10H8.66665C8.29846 10 7.99998 9.70152 7.99998 9.33333Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M7.99998 2.66667C7.99998 2.29848 8.29846 2 8.66665 2H14C14.3682 2 14.6666 2.29848 14.6666 2.66667C14.6666 3.03486 14.3682 3.33333 14 3.33333H8.66665C8.29846 3.33333 7.99998 3.03486 7.99998 2.66667Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M7.99998 12C7.99998 11.6318 8.29846 11.3333 8.66665 11.3333H11.3333C11.7015 11.3333 12 11.6318 12 12C12 12.3682 11.7015 12.6667 11.3333 12.6667H8.66665C8.29846 12.6667 7.99998 12.3682 7.99998 12Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M7.99998 5.33333C7.99998 4.96514 8.29846 4.66667 8.66665 4.66667H11.3333C11.7015 4.66667 12 4.96514 12 5.33333C12 5.70152 11.7015 6 11.3333 6H8.66665C8.29846 6 7.99998 5.70152 7.99998 5.33333Z" fill="currentColor"/></svg>`;
+const EXPAND_ICON  = `<svg viewBox="0 0 22 22" fill="none"><path d="M1.4165 14.75H20.0832M8.08317 6.75L10.7498 9.41667L13.4165 6.75M5.75 20.75H15.75C18.5114 20.75 20.75 18.5114 20.75 15.75V5.75C20.75 2.98858 18.5114 0.75 15.75 0.75H5.75C2.98858 0.75 0.75 2.98858 0.75 5.75V15.75C0.75 18.5114 2.98858 20.75 5.75 20.75Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+const COLLAPSE_ICON= `<svg viewBox="0 0 22 22" fill="none"><path d="M1.4165 7.41667H20.0832M13.4168 15.4167L10.7502 12.75L8.0835 15.4167M5.75 20.75H15.75C18.5114 20.75 20.75 18.5114 20.75 15.75V5.75C20.75 2.98858 18.5114 0.75 15.75 0.75H5.75C2.98858 0.75 0.75 2.98858 0.75 5.75V15.75C0.75 18.5114 2.98858 20.75 5.75 20.75Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
 function treeToolbar(){
   const cols = TREE_DIMS.map(d=>{
@@ -779,7 +781,8 @@ const P2_TO_REVIEW   = (d=2,l=-1)=> P2_TO_IPD(d,l) + P2_IPD() + P2_SUMMARY();
 const P2_TO_UPDATE   = (d=3,l=-1)=> P2_TO_REVIEW(d,l) + P2_REVIEW();
 // scenario #2 billing table: ONLY the replaced ID (row 0 = 20059622) is highlighted
 function p2SummaryTables(){
-  const bill = billingRows('07/31/2026',false).map((r,i)=>({...r,editedRow:i===0}));
+  // scenario-2 changes one billing ID + IPD content; end dates untouched → original 04/22
+  const bill = billingRows('04/22/2026',false).map((r,i)=>({...r,editedRow:i===0}));
   const placeHi=new Set([0,1,3,5]);
   const place = PLACEMENTS.map((r,i)=>({...r,editedRow:placeHi.has(i)}));
   return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
@@ -1080,29 +1083,70 @@ const WB_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>Change orde
 
 // content (Hellobox) drill-down. mode 'both' = merged IPD content + images:
 // Headline / Body / CTA / Image / Metadata columns; edited rows highlight Headline + Image + Metadata.
-function contentTable(mode){
-  const metaChips = (real)=> `<span class="cbadge cbadge--o">${real?'Hellobox':'Template'}</span><span class="cbadge cbadge--p">${real?'20059622':'Billing offer'}</span><span class="cbadge cbadge--t">${real?'IXP 321930':'IXP'}</span><span class="cbadge cbadge--u">${real?'QB Live Assisted':'SKU'}</span>`;
-  const headline = 'Save 90% on Live Expert Assisted for 3 months';
-  const body = 'Get one-on-one expert guidance setting up your chart of accounts and more. Cancel anytime. Terms apply.';
-  const rows = Array.from({length:9}).map((_,i)=>{
-    const edited = i<6;   // first 6 rows are the edited (yellow) set
-    const ed = edited ? ' edited' : '';  // whole-cell yellow band on Headline / Image / Metadata
-    return `<tr>
-      <td class="${ed}">${headline}</td>
-      <td class="col-body">${body}</td>
-      <td>Start saving today</td>
-      <td class="${ed}"><span class="imgcell">imagename.png</span></td>
-      <td class="col-meta${ed}">${metaChips(i<2)}</td>
-    </tr>`;
-  }).join('');
-  return `<div class="tbl-wrap"><table class="tbl tbl--content"><thead><tr>
-      <th><span class="th-inner">Headline ${I.info}<span class="sort">${I.sortsm}</span></span></th>
-      <th><span class="th-inner">Body ${I.info}<span class="sort">${I.sortsm}</span></span></th>
-      <th><span class="th-inner">CTA ${I.info}<span class="sort">${I.sortsm}</span></span></th>
-      <th><span class="th-inner">Image ${I.info}<span class="sort">${I.sortsm}</span></span></th>
-      <th><span class="th-inner">Metadata ${I.info}<span class="sort">${I.sortsm}</span></span></th>
-    </tr></thead><tbody>${rows}</tbody></table></div>`;
+/* ---- drill-down "Creatives" view (Figma 5236-166780 detail / 5323-102736 preview) ----
+   The wide table was replaced by stacked creative CARDS with a Detail | Preview toggle. */
+// Detail values mirror the Preview creative content (single source of truth)
+const CREATIVE_HEADLINE = 'Get 90% off Payroll for the next 3 months*';
+const CREATIVE_BODY = "Limited-time offer–claim before your trial ends. We'll calculate, file, and pay your payroll taxes automatically.";
+const CREATIVE_CTA = 'Claim your offer';
+
+// ACCESS POINT / TEMPLATE attribute row + "Creatives" section header with the toggle
+function creativesHeader(view){
+  return `<div class="cd-attr">
+      <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v">Chart of Accounts -hellobox</div></div>
+      <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v">helloboxThirdParty</div></div>
+    </div>
+    <div class="cd-head"><span class="cd-head__t">Creatives</span>
+      <div class="cvtoggle" data-cvtoggle>
+        <button data-cv="detail" class="${view==='detail'?'active':''}">${DETAIL_ICON} Detail</button>
+        <button data-cv="preview" class="${view==='preview'?'active':''}">${icon('image',16)} Preview</button>
+      </div>
+    </div>`;
 }
+// one attribute/value pair; `edited` wraps the value in the yellow highlight
+function cdPair(label,value,edited,link){
+  const v = `<span class="cd-pair__v${link?' cd-pair__v--link':''}${edited?' cd-hl':''}">${value}</span>`;
+  return `<div class="cd-pair"><div class="cd-pair__k">${label}</div>${v}</div>`;
+}
+// DETAIL view: 9 creative cards; first 6 highlight HEADLINE + BODY yellow
+function contentDetail(){
+  const cards = Array.from({length:9}).map((_,i)=>{
+    const edited = i<6;
+    return `<div class="cd-card">
+      <div class="cd-card__name">Hellobox - Chart of Accounts</div>
+      <div class="cd-row">${cdPair('HEADLINE',CREATIVE_HEADLINE,edited)}${cdPair('BODY',CREATIVE_BODY,false)}</div>
+      <div class="cd-row">${cdPair('CTA',CREATIVE_CTA,false)}${cdPair('IMAGE','imagename.png',edited,true)}</div>
+    </div>`;
+  }).join('');
+  return `<div class="cd-list">${cards}</div>`;
+}
+// PREVIEW view: 9 creative cards rendering the actual creative; changed parts (headline/body)
+// highlighted yellow on the first 6 (edited) cards.
+function contentPreview(){
+  const cards = Array.from({length:9}).map((_,i)=>{
+    const edited = i<6;
+    const hl = edited ? ' cd-hl' : '';
+    return `<div class="cd-card">
+      <div class="cd-card__name">Hellobox - Chart of Accounts</div>
+      <div class="preview-wrap preview-wrap--wide">
+        <div class="hellobox">
+          <div class="art${hl?' cd-hl-border':''}">${I.tag}</div>
+          <div class="body">
+            <span class="lt">limited time</span>
+            <h4><span class="${hl}">Get 90% off Payroll for the next 3 months*</span></h4>
+            <p>Limited-time offer–claim before your trial ends. We'll calculate, file, and pay your payroll taxes automatically.</p>
+            <span class="cta">Claim your offer</span>
+            <div class="fine">Offer valid for new paid subscriptions only. <a href="#">Terms apply</a></div>
+          </div>
+        </div>
+        <div class="preview-cap">Preview · helloboxThirdParty · SBSEG QBO Hellobox AppAccountsettings</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="cd-list">${cards}</div>`;
+}
+// dispatch by view
+function creativesBody(view){ return view==='preview' ? contentPreview() : contentDetail(); }
 
 // placement table where each row drills into the content table (steps 2 & 3).
 // rows 0,1,3,5 highlighted; every row clickable (data-drillplace) to open content.
@@ -1152,23 +1196,24 @@ scenes.billingIDs = (state={})=>{
     ? conv + agentLoader('Changing billing offer IDs', state.tasks||[])
     : conv + agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit','Change IDs: Billing offers - ELM907…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','wbApproveBilling')}</div>`);
   // top 2 billing rows highlighted (IDs changed). skeleton shows while loading.
-  const rows = billingRows('07/31/2026',false).map((r,i)=>({...r, editedRow:i<2}));
+  const rows = billingRows('04/22/2026',false).map((r,i)=>({...r, editedRow:i<2}));
   const billTbl = (loading||state.skeleton) ? skeletonTable(COL.billing,false) : tableHTML(COL.billing, rows);
   return artifactScreen({crumb:WB_CRUMB,title:'Billing offers - ELM9071 campaign',table:billTbl,step:'1.  Change billing offer IDs',body,stepLoading:loading});
 };
 
 /* WB step 2 & 3 share a placement table that drills into the content table.
    state.drill = index of the placement row being viewed (content table shown). */
-function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loading,tasks,mode,drill,drillLoading,crumb:crumbIn}){
+function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loading,tasks,mode,drill,drillLoading,crumb:crumbIn,creativeView}){
   let canvas, title, crumb=crumbIn||WB_CRUMB, backForDrill=false;
   if(drill!==undefined && drill!==null){
-    // content drill-down view (skeleton flashes before the content table)
+    // content drill-down view (skeleton flashes before the creatives cards)
     backForDrill=true;
     title='Hellobox - Chart of Accounts';
+    const view = creativeView==='preview' ? 'preview' : 'detail';
     const contentBody = drillLoading
       ? skeletonTable([{label:'Headline'},{label:'Body'},{label:'CTA'},{label:'Image'},{label:'Metadata'}],false)
-      : contentTable(mode);
-    canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('Verified')}
+      : creativesHeader(view) + creativesBody(view);
+    canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('Edited')}
         <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
       <div style="height:16px"></div>${contentBody}`;
     crumb = '<span>Home</span> <span class="sep">/</span> <span>ELM9071 campaign</span>';
@@ -1186,7 +1231,7 @@ scenes.ipdContent = (state={})=>{
   const loading=state.loading;
   const conv = WB_TO_IPD(loading?1:2, loading?1:-1);
   const activeReply = agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit','Change IPD content and images: Pl…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','wbApproveIpd')}</div>`);
-  return wbPlacementScene({step:'2.  Change IPD content and images',conv,activeReply,loaderLabel:'Changing IPD content and images',loading,tasks:state.tasks,mode:'both',drill:state.drill,drillLoading:state.drillLoading});
+  return wbPlacementScene({step:'2.  Change IPD content and images',conv,activeReply,loaderLabel:'Changing IPD content and images',loading,tasks:state.tasks,mode:'both',drill:state.drill,drillLoading:state.drillLoading,creativeView:state.creativeView});
 };
 
 /* ---- WB step 3: Review change summary ---- */
@@ -1203,7 +1248,7 @@ scenes.campaignObjectWB = (state={view:'table'})=>{
   // campaign summary canvas with billing + placement rows highlighted yellow
   const canvas = loading ? summarySkeleton() : `<div class="detail-h"><span class="title">Campaign summary - ELM9071 campaign</span></div>
     <div style="height:10px"></div>
-    <div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span></div>
+    <div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Edited')}</div></span></div>
     ${metaGrid()}
     <div class="data-head"><span class="h">Campaign data</span>${viewToggle('table')}</div>
     <div id="dataZone">${wbSummaryTables()}</div>`;
@@ -1213,7 +1258,9 @@ scenes.campaignObjectWB = (state={view:'table'})=>{
 
 // summary tables for WB review: audiences (plain), billing (2 rows yellow), placement (all yellow), experiments
 function wbSummaryTables(){
-  const bill = billingRows('07/31/2026',false).map((r,i)=>({...r,editedRow:i<2}));
+  // billing-ID/IPD flow does NOT change end dates → keep original 04/22 (unchanged);
+  // the whole-row highlight flags the billing offers whose IDs changed.
+  const bill = billingRows('04/22/2026',false).map((r,i)=>({...r,editedRow:i<2}));
   const placeHi=new Set([0,1,3,5]);
   const place = PLACEMENTS.map((r,i)=>({...r,editedRow:placeHi.has(i)}));
   return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
@@ -1234,7 +1281,7 @@ scenes.campaignTreeWB = (state={view:'tree',tab:'experiences'})=>{
     mainInner = experiencesPanel({loading, highlight:[1,3,6,9]});
   } else {
     // Campaign meta tab reflects the WORKBOOK edits (billing IDs + placement highlights), not the prompt-flow end-date diff
-    mainInner = `<div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Draft')}</div></span></div>${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):wbSummaryTables()}</div>`;
+    mainInner = `${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):wbSummaryTables()}</div>`;
   }
   const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">
     <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span>${badge('Edited')}<span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
@@ -1284,8 +1331,8 @@ scenes.p2Billing = (state={})=>{
   const body = loading
     ? conv + agentLoader('Changing billing offer ID', state.tasks||[])
     : conv + agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit','Change IDs: Billing offers - ELM907…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','p2ApproveBilling')}</div>`);
-  // ONLY the replaced ID (row 0 = 20059622) is highlighted
-  const rows = billingRows('07/31/2026',false).map((r,i)=>({...r, editedRow:i===0}));
+  // ONLY the replaced ID (row 0 = 20059622) is highlighted; end date unchanged (04/22)
+  const rows = billingRows('04/22/2026',false).map((r,i)=>({...r, editedRow:i===0}));
   const billTbl = (loading||state.skeleton) ? skeletonTable(COL.billing,false) : tableHTML(COL.billing, rows);
   return artifactScreen({crumb:P2_CRUMB,title:'Billing offers - ELM9071 campaign',table:billTbl,step:'1.  Change billing offer ID',body,stepLoading:loading});
 };
@@ -1295,7 +1342,7 @@ scenes.p2Ipd = (state={})=>{
   const loading=state.loading;
   const conv = P2_TO_IPD(loading?1:2, loading?1:-1);
   const activeReply = agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit','Change IPD content and images: Pl…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${replyBtn('Approve','p2ApproveIpd')}</div>`);
-  return wbPlacementScene({step:'2.  Change IPD content and images',conv,activeReply,loaderLabel:'Changing IPD content and images',loading,tasks:state.tasks,mode:'both',drill:state.drill,drillLoading:state.drillLoading,crumb:P2_CRUMB});
+  return wbPlacementScene({step:'2.  Change IPD content and images',conv,activeReply,loaderLabel:'Changing IPD content and images',loading,tasks:state.tasks,mode:'both',drill:state.drill,drillLoading:state.drillLoading,crumb:P2_CRUMB,creativeView:state.creativeView});
 };
 
 /* ---- P2 step 3: Review change summary ---- */
@@ -1329,7 +1376,7 @@ scenes.p2Tree = (state={view:'tree',tab:'experiences'})=>{
   if(state.tab==='experiences'){
     mainInner = experiencesPanel({loading, highlight:[1,3,6,9]});
   } else {
-    mainInner = `<div class="identity"><span class="tile" style="background:var(--node-campaign)">${I.tileMega}</span><span><span class="k">CAMPAIGN</span><div class="v">ELM9071 campaign ${badge('Edited')}</div></span></div>${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):p2SummaryTables()}</div>`;
+    mainInner = `${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):p2SummaryTables()}</div>`;
   }
   const content = `<div class="content">${topbar(P2_CRUMB)}<div class="scroll"><div class="pad">
     <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span>${badge('Edited')}<span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
@@ -1715,11 +1762,14 @@ function bindToggle(main, name, state){
     const edited = !(name==='singleCampaign' || isConv);
     if(zone){
       if(v==='tree'){
-        // preview card only on the final tree scenes (campaignTree / campaignTreeWB)
-        zone.innerHTML = treeView(name==='campaignTree'||name==='campaignTreeWB');
-      } else if(name==='campaignTreeWB'){
-        // Scenario 2 Table view = workbook edits (billing IDs + placement), NOT the end-date diff
+        // preview card only on the final tree scenes (campaignTree / campaignTreeWB / p2Tree)
+        zone.innerHTML = treeView(name==='campaignTree'||name==='campaignTreeWB'||name==='p2Tree');
+      } else if(name==='campaignTreeWB'||name==='campaignObjectWB'){
+        // Workbook flow Table view = billing-ID + placement edits, NOT the end-date diff
         zone.innerHTML = wbSummaryTables();
+      } else if(name==='p2Tree'||name==='p2Review'){
+        // Scenario 2 (prompt billing) Table view = single billing-ID + placement edits
+        zone.innerHTML = p2SummaryTables();
       } else {
         zone.innerHTML = campaignDataTables((name==='singleCampaign'||isConv)?'04/22/2026':'07/31/2026',edited);
       }
@@ -1741,6 +1791,14 @@ function refreshTreeBody(main){
   wrap.innerHTML=treeBody(withPreview);
   treeEl.replaceWith(wrap.firstElementChild);
   wireTreeChevrons(main);   // re-bind after replace
+}
+/* Detail ⇄ Preview toggle on the creatives drill-down. Re-renders the scene in place
+   with the chosen view, preserving the current drill index. */
+function wireCreativeToggle(main, scene, state){
+  main.querySelectorAll('[data-cvtoggle] button').forEach(b=>b.onclick=()=>{
+    autopilot=false;
+    render(scene, {...state, creativeView:b.dataset.cv});
+  });
 }
 function wireTreeChevrons(main){
   main.querySelectorAll('[data-treetoggle]').forEach(ch=>ch.onclick=(e)=>{
@@ -1886,6 +1944,7 @@ function wire(name, state){
     wbPill('wbApproveIpd',()=>trigger.wbApproveIpd());
     if(state.drill===undefined) main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{autopilot=false;drillInto('ipdContent',+tr.dataset.drillplace);});
     const bk=main.querySelector('[data-wbback]'); if(bk) bk.onclick=()=>{autopilot=false;go('ipdContent',{});};
+    wireCreativeToggle(main,'ipdContent',state);
   }
   if(name==='campaignObjectWB' && !state.loading) wbPill('wbApproveReview',()=>trigger.wbApproveReview());
   if(name==='campaignTreeWB' && !state.loading) wbPill('wbLooksGoodFinal',()=>trigger.wbLooksGoodFinal());
@@ -1900,6 +1959,7 @@ function wire(name, state){
     wbPill('p2ApproveIpd',()=>trigger.p2ApproveIpd());
     if(state.drill===undefined) main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{autopilot=false;drillInto('p2Ipd',+tr.dataset.drillplace);});
     const bk=main.querySelector('[data-wbback]'); if(bk) bk.onclick=()=>{autopilot=false;go('p2Ipd',{});};
+    wireCreativeToggle(main,'p2Ipd',state);
   }
   if(name==='p2Review' && !state.loading) wbPill('p2ApproveReview',()=>trigger.p2ApproveReview());
   if(name==='p2Tree' && !state.loading) wbPill('p2LooksGoodFinal',()=>trigger.p2LooksGoodFinal());
