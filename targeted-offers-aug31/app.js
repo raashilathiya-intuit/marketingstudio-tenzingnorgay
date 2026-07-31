@@ -1214,7 +1214,7 @@ function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loa
       ? skeletonTable([{label:'Headline'},{label:'Body'},{label:'CTA'},{label:'Image'},{label:'Metadata'}],false)
       : creativesHeader(view) + creativesBody(view);
     canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('Edited')}
-        <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
+        <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span></div>
       <div style="height:16px"></div>${contentBody}`;
     crumb = '<span>Home</span> <span class="sep">/</span> <span>ELM9071 campaign</span>';
   } else {
