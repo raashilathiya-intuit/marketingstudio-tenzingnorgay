@@ -269,7 +269,8 @@ function metaGrid(opts={}){
     const vHtml = edited ? `<span class="meta__hl">${val}</span>` : val;
     return `<div><div class="meta__k">${k}</div><div class="meta__v">${vHtml}</div></div>`;
   }).join('');
-  return `<div class="meta">${rows}</div>`;
+  // opts.bare → drop the grey container (bg/radius/padding); plain pairs on white
+  return `<div class="meta${opts.bare?' meta--bare':''}">${rows}</div>`;
 }
 
 /* generic table builder.
@@ -877,6 +878,20 @@ function experiencesPanel(opts={}){
     </div>${expTable}${pager}`;
 }
 
+/* Insights tab — campaign-level metric cards (reuses the home .metrics styling). */
+function insightsPanel(){
+  const spark = `<svg class="spark" viewBox="0 0 200 48" preserveAspectRatio="none"><polyline points="0,34 30,20 60,30 90,12 120,26 150,16 180,28 200,18" fill="none" stroke="#5d47d5" stroke-width="2"/></svg>`;
+  const metric = (label,val,delta,cls)=>`<div class="mcard"><div class="ml">${label}</div><div class="mv">${val}</div><div class="md ${cls}">${delta}</div>${spark}</div>`;
+  return `<div style="margin-top:20px">
+    <div class="metrics" style="grid-template-columns:repeat(4,1fr)">
+      ${metric('IPD Impressions','6.4M','↑ 12K vs last week','up')}
+      ${metric('Click-through rate','3.8%','↑ 0.4% vs last week','up')}
+      ${metric('Offer conversions','18.2K','↑ 9K this week','up')}
+      ${metric('Cost per acquisition','$42.10','↓ 0.2 vs last week','dn')}
+    </div>
+  </div>`;
+}
+
 function detailContent({crumb,view,endDate,edited,showIdentity,tab}){
   tab = tab || 'meta';
   const dataBody = view==='tree' ? treeView(false) : campaignDataTables(endDate,edited);
@@ -904,9 +919,10 @@ function detailContent({crumb,view,endDate,edited,showIdentity,tab}){
         <div class="tabs tabs--insticky" style="${showIdentity?'':'margin-top:18px'}">
           <span class="tab ${tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span>
           <span class="tab ${tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span>
+          <span class="tab ${tab==='insights'?'active':''}" data-tab="insights">Insights</span>
         </div>
       </div>
-      ${tab==='experiences' ? expBody : metaBody}
+      ${tab==='insights' ? insightsPanel() : tab==='experiences' ? expBody : metaBody}
     </div></div>
   </div>`;
 }
@@ -977,7 +993,8 @@ scenes.changeMeta = (state={})=>{
         `<div class="chatBubble">Changed end date for campaign to 08/31/2026 and priority to High.${objectCard('edit','Change end date and priority - ELM…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${replyBtn('Approve','approveChange')}</div>`);
   // canvas = campaign meta; once settled, END DATE + PRIORITY show the new values highlighted.
   const settled = !loading;
-  const metaOpts = settled ? {endDate:'08/31/2026',priority:'High',highlight:true} : {};
+  // this step reviews just the campaign meta → NO grey container (bare grid)
+  const metaOpts = settled ? {endDate:'08/31/2026',priority:'High',highlight:true,bare:true} : {bare:true};
   const canvas = loading
     ? summarySkeleton()
     : `<div class="detail-h"><span class="title">Campaign Meta - ELM9071 campaign</span></div>
@@ -1039,7 +1056,9 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
         `<div class="chatBubble">Updated campaign and regenerated experiences with the end date and priority changes.${objectCard('megaphone','Update campaign - ELM9071 campai…')}<div class="bubble-q">Does this look ok?</div>${replyBtn('Looks good','looksGoodFinal')}</div>`);
 
   let mainInner;
-  if(state.tab==='experiences'){
+  if(state.tab==='insights'){
+    mainInner = insightsPanel();
+  } else if(state.tab==='experiences'){
     // regenerated experiences: ALL rows Edited (yellow + "Edited"); skeleton while loading
     mainInner = experiencesPanel({loading, allEdited:true});
   } else {
@@ -1066,6 +1085,7 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
         <div class="tabs tabs--insticky">
           <span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span>
           <span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span>
+          <span class="tab ${state.tab==='insights'?'active':''}" data-tab="insights">Insights</span>
         </div>
       </div>
       ${mainInner}

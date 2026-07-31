@@ -382,6 +382,8 @@ button{font-family:inherit}
    (bg table/zebra #f6f7f9, radius 12, padding 16 / 23-left, col gap 20, row gap 30) */
 .meta{display:grid;grid-template-columns:1fr 1fr;gap:30px 20px;margin-bottom:28px;
   background:#f6f7f9;border-radius:12px;padding:16px 16px 16px 23px}
+/* bare variant — no grey container (used when reviewing just the campaign meta) */
+.meta--bare{background:transparent;border-radius:0;padding:0}
 .meta__k{font-size:12px;font-weight:600;letter-spacing:.8px;color:#787e94;text-transform:uppercase;margin-bottom:5px}
 .meta__v{font-size:16px;color:#000729}
 /* edited value highlight (yellow) — used in the change-order diff view */
@@ -686,6 +688,6 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=76"></script>
+<script src="app.js?v=78"></script>
 </body>
 </html>
