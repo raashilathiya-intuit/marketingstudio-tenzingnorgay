@@ -1891,7 +1891,7 @@ scenes.crTree = (state={view:'tree',tab:'meta'})=>{
     mainInner = `${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${dataBody}</div>`;
   }
   const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">
-    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071 campaign</span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v1 ${I.chev}</span></div>
+    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071 campaign</span><span class="detail-vd"></span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v1 ${I.chev}</span></div>
     <div class="tabs tabs--insticky"><span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span><span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span></div></div>
     ${mainInner}</div></div></div>`;
   return content + aiPanel({step:'7.  Create experiences',body,stepLoading:loading});
