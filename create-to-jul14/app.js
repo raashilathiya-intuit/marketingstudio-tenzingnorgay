@@ -283,7 +283,7 @@ function metaGrid(opts={}){
    opts.selected: array/Set of pre-checked row indices. */
 function tableHTML(cols, rows, opts={}){
   const sel = opts.selected instanceof Set ? opts.selected : new Set(opts.selected||[]);
-  const cb = opts.checkbox ? `<th class="cbcol"><input type="checkbox" class="cb"></th>` : '';
+  const cb = opts.checkbox ? `<th class="cbcol"><input type="checkbox" class="cb"${opts.select?'':' disabled'}></th>` : '';
   const head = cols.map(c=>`<th><span class="th-inner">${c.label}${c.info?`<span class="i">${I.info}</span>`:''}<span class="sort">${I.sortsm}</span></span></th>`).join('');
   const body = rows.map((r,ri)=>{
     const on = sel.has(ri);
@@ -1615,7 +1615,7 @@ const CR_UNDERSTOOD_TABLE = `<div class="planTable" style="margin:0">
     ${[['ELM ID','ELM9071'],['Product','QBL (QB Live Assisted)'],['Locale','en-us'],['Duration','Jan 28, 2026 - Apr 22, 2026'],['Goal','XSell/Attach, Buy, Upgrade, Discount'],['Total offers','64']].map(([a,b])=>`<div class="planTable__row planTable__row--2col"><span class="uw-k">${a}</span><span>${b}</span></div>`).join('')}
   </div>`;
 const CR_UNDERSTOOD = ()=> agentMsg(
-  disclosure('Parsing Workbook',['Reading documents','Collecting campaign metadata','Validating against CM schema'])
+  disclosure('Parsed workbook',['Reading documents','Collecting campaign metadata','Validating against CM schema'])
   + `<div class="summaryCard"><p class="summaryCard__intro">Let me play back what I understood</p>${CR_UNDERSTOOD_TABLE}<p class="summaryCard__q">Does this look ok?</p>${recordedReply('Looks good')}</div>`);
 const CR_PLAN = (done=0, loading=-1)=> agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">We'll do the following tasks to create the campaign</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${crPlanTableRows(done,loading)}</div><p class="summaryCard__q">Does this look ok?</p>${recordedReply('Looks good')}</div>`);
 // per-task recorded messages (create + validate). Each ends "Approved".
@@ -1642,7 +1642,7 @@ scenes.crIntent = (state={})=>{
   if(phase==='bootfull'){
     return `<div class="content">${topbar('<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:220px;height:14px;display:inline-block"></span>')}<div class="scroll scroll--center">${bootCanvas()}</div></div>`;
   }
-  const understoodLive = disclosure('Parsing Workbook',['Reading documents','Collecting campaign metadata','Validating against CM schema'])
+  const understoodLive = disclosure('Parsed workbook',['Reading documents','Collecting campaign metadata','Validating against CM schema'])
     + `<div class="summaryCard"><p class="summaryCard__intro">Let me play back what I understood</p>${CR_UNDERSTOOD_TABLE}<p class="summaryCard__q">Does this look ok?</p>${replyBtn('Looks good','crApproveUnderstood')}</div>`;
   if(phase==='msg-user' || phase==='msg-created' || phase==='msg-loader' || phase==='msg-understood' || phase==='planning'){
     let b = CR_USER();
@@ -1772,7 +1772,7 @@ scenes.crCreative = (state={})=>{
       <div style="height:16px"></div>${drillBody}`;
   } else {
     const tbl = loading ? skeletonTable(COL.place,false) : tableHTML(COL.place, PLACEMENTS, {drillrow:true});
-    canvas = `<div class="detail-h"><span class="title">Placement - ELM9071 campaign</span></div><div style="height:16px"></div>${tbl}`;
+    canvas = `<div class="detail-h"><span class="title">Placements - ELM9071 campaign</span></div><div style="height:16px"></div>${tbl}`;
   }
   const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
   return content + aiPanel({step:'4.  Parse and validate placements',body,stepLoading:loading});
@@ -1825,7 +1825,7 @@ scenes.crSummary = (state={view:'tree'})=>{
     : conv + agentMsg(`<div class="chatBubble">Here's the campaign summary for your review.${objectCard('megaphone','Campaign summary - ELM9071 cam…')}<div class="bubble-q">Does this look ok? I'll then proceed to task 7.</div>${replyBtn('Approve','crApproveSummary')}</div>`);
   const view = state.view||'tree';
   const canvas = loading ? summarySkeleton()
-    : `<div class="detail-h"><span class="title">ELM9071 campaign</span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span></div>
+    : `<div class="detail-h"><span class="title">Campaign summary - ELM9071 campaign</span></div>
        <div style="height:16px"></div>${metaGrid()}
        <div class="data-head"><span class="h">Campaign data</span>${viewToggle(view)}</div>
        <div id="dataZone">${view==='tree' ? treeView(true,true) : campaignDataTables('04/22/2026',false)}</div>`;
@@ -1875,7 +1875,7 @@ scenes.crTree = (state={view:'tree',tab:'meta'})=>{
     const expTabs = [['creative','Creative'],['meta','Experience meta'],['audience','Audience'],['billing','Billing offer'],['experiment','Experiment']]
       .map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-exptab="${k}">${l}</span>`).join('');
     const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">
-      <div class="detail-sticky"><div class="detail-h"><span class="back" data-expback>${I.back}</span><span class="title">${expName}</span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; 492060 ${COPY_ICON}</span><span class="verselect">v1 ${I.chev}</span></div>
+      <div class="detail-sticky"><div class="detail-h"><span class="back" data-expback>${I.back}</span><span class="title">${expName}</span><span class="detail-vd"></span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; 492060 ${COPY_ICON}</span><span class="verselect">v1 ${I.chev}</span></div>
       <div class="tabs tabs--insticky tabs--exp">${expTabs}</div></div>
       ${tabBody}</div></div></div>`;
     return content + aiPanel({step:'7.  Create experiences',body,stepLoading:false});
