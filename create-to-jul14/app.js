@@ -1875,7 +1875,7 @@ scenes.crTree = (state={view:'tree',tab:'meta'})=>{
     const expTabs = [['creative','Creative'],['meta','Experience meta'],['audience','Audience'],['billing','Billing offer'],['experiment','Experiment']]
       .map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-exptab="${k}">${l}</span>`).join('');
     const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">
-      <div class="detail-sticky"><div class="detail-h"><span class="back" data-expback>${I.back}</span><span class="title">${expName}</span><span class="detail-vd"></span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; 492060 ${COPY_ICON}</span><span class="verselect">v1 ${I.chev}</span></div>
+      <div class="detail-sticky"><div class="detail-h"><span class="back" data-expback>${I.back}</span><span class="title">${expName}</span><span class="detail-vd"></span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; 4d738ef0-9505-11f1-86ec-a3e651c6bc02 ${COPY_ICON}</span><span class="verselect">v1 ${I.chev}</span></div>
       <div class="tabs tabs--insticky tabs--exp">${expTabs}</div></div>
       ${tabBody}</div></div></div>`;
     return content + aiPanel({step:'7.  Create experiences',body,stepLoading:false});
