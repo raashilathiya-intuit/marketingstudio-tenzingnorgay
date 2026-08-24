@@ -989,8 +989,8 @@ function experiencesPanel(opts={}){
   const hi = opts.highlight instanceof Set ? opts.highlight : new Set(opts.highlight||[]);
   const status = opts.status || 'Draft';
   // opts.allEdited → every row is Edited (yellow); otherwise only rows in `highlight`.
-  const rows = Array(10).fill(0).map((_,i)=>{const ed=opts.allEdited||hi.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,status:ed?'Edited':status,ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
-  const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
+  const rows = Array(10).fill(0).map((_,i)=>{const ed=opts.allEdited||hi.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed,eid:'4d738ef0-9505-11f1-86ec-a3e65…',status:ed?'Edited':status,ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
+  const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Experience ID',key:'eid'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
   const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true,drillrow:opts.drillrow});
   const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
   // bottom action bar (Figma 919:48089): 0 selected → all actions disabled
