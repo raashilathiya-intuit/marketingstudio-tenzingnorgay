@@ -1870,7 +1870,7 @@ scenes.crTree = (state={view:'tree',tab:'meta'})=>{
       tabBody = tabTitle('IPD High Price Sensitivity · IXP 321931') + `${metaGrid2([['START DATE','March 12, 2026'],['END DATE','April 22, 2026'],['TYPE','A/B/N (3-cell)']])}<div style="height:12px"></div>${treatmentsTable()}`;
     } else {
       // no section title on the meta tab — the pairs stand alone
-      tabBody = metaGrid2([['ACCESS POINT','Chart of Accounts -hellobox'],['TEMPLATE','helloboxThirdParty'],['PRIORITY','15.0'],['CREATED BY','Stroupe, Kristin'],['START DATE','January 28, 2026'],['END DATE','April 22, 2026']]);
+      tabBody = metaGrid2([['PRIORITY','15.0'],['CREATED BY','Stroupe, Kristin'],['START DATE','January 28, 2026'],['END DATE','April 22, 2026']]);
     }
     const expTabs = [['creative','Creative'],['meta','Experience meta'],['audience','Audience'],['billing','Billing offer'],['experiment','Experiment']]
       .map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-exptab="${k}">${l}</span>`).join('');
