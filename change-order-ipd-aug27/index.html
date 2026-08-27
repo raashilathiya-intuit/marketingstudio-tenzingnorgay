@@ -330,12 +330,14 @@ button{font-family:inherit}
 .link-cm{display:flex;align-items:center;gap:6px;color:#0365ac;font-size:14px;font-weight:500;cursor:pointer;margin-top:12px}
 
 /* From/To mini table (change summary) */
-.ft{border:1px solid #e5e5ec;border-radius:8px;overflow:hidden;font-size:14px;background:#fff}
-.ft__row{display:grid;grid-template-columns:120px 1fr;border-bottom:1px solid #f0f0f2}
+/* From/To chat table — IDS Chat/Bubble Table Row (Figma 8802:32859): 16px cells,
+   125px key col, 16px padding, Regular keys / Medium values, 12px radius */
+.ft{border:1px solid #e8e8ec;border-radius:12px;overflow:hidden;font-size:16px;background:#fff}
+.ft__row{display:grid;grid-template-columns:125px 1fr;border-bottom:1px solid #dddee3}
 .ft__row:last-child{border-bottom:0}
-.ft__k{padding:14px 14px;color:var(--text-secondary);border-right:1px solid #f0f0f2}
-.ft__v{padding:14px 14px;color:var(--text-primary)}
-.ft-label{font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:2px}
+.ft__k{padding:16px;color:#393a3d;font-weight:400;line-height:1.5;border-right:1px solid #d4d7dc}
+.ft__v{padding:16px;color:#393a3d;font-weight:500;line-height:1.5}
+.ft-label{font-size:14px;font-weight:400;line-height:1.3;color:var(--text-primary);margin-bottom:2px}
 
 /* ---------- skeletons ---------- */
 .cfskel{display:block;border-radius:8px;background:#ececf0;background-image:linear-gradient(90deg,#ececf0 0px,#e7e9f8 80px,#ece8f6 140px,#ececf0 240px);background-size:240px 100%;background-repeat:no-repeat;animation:cf-shimmer 1.3s ease-in-out infinite}
@@ -758,6 +760,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
