@@ -1607,7 +1607,7 @@ const CR_USER = ()=> userBubble(`<span class="bubbleFile"><span class="bubbleFil
 const CR_CREATED = ()=> agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">DIWM QB Live campaign</span>" project for you.</div>`,'');
 // "Let me play back what I understood" — 6-row understanding table
 const CR_UNDERSTOOD_TABLE = `<div class="planTable" style="margin:0">
-    ${[['Campaign','DIWM QB Live campaign'],['Product','QBL (QB Live Assisted)'],['Locale','en-us'],['Duration','Jan 28, 2026 - Apr 22, 2026'],['Goal','XSell/Attach, Buy, Upgrade, Discount'],['Total offers','64']].map(([a,b])=>`<div class="planTable__row planTable__row--2col"><span class="uw-k">${a}</span><span>${b}</span></div>`).join('')}
+    ${[['Campaign','DIWM QB Live campaign'],['Product','QBL (QB Live Assisted)'],['Locale','en-us'],['Duration','Jan 28, 2026 - Apr 22, 2026'],['Goal','XSell/Attach, Buy, Upgrade'],['Total offers','64']].map(([a,b])=>`<div class="planTable__row planTable__row--2col"><span class="uw-k">${a}</span><span>${b}</span></div>`).join('')}
   </div>`;
 const CR_UNDERSTOOD = ()=> agentMsg(
   disclosure('Parsed workbook',['Reading documents','Collecting campaign metadata','Validating against CM schema'])
