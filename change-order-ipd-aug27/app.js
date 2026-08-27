@@ -889,9 +889,10 @@ function p2PlanTableRows(doneCount=0, loadingIndex=-1){
 const P2_USER = ()=> userBubble(PROMPTCO_PROMPT.replace(/\n/g,'<br>'));
 const P2_CREATED = ()=> agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">Change order - DIWM QB Live campaign</span>" project for you.</div>`,'');
 // "Here's what I understood" table — exact wording from the shared screen
-const P2_UNDERSTOOD_TABLE = `<div class="planTable" style="margin:0">
-    ${[['IPD content','Update headline to reflect new pricing'],['Images','Update to imagename.png']].map(([a,b])=>`<div class="planTable__row planTable__row--2col"><span class="uw-k">${a}</span><span>${b}</span></div>`).join('')}
-  </div>`;
+// prompt CO (IPD) understood card: From → To format (per design), NOT the key/value table
+const P2_UNDERSTOOD_TABLE =
+  ftBlk('IPD content headline:','Get 50% off Payroll for the next 3 months*','Get 90% off Payroll for the next 3 months*')
+  + ftBlk('IPD creative Image:','123.png','imagename.png');
 const P2_UNDERSTOOD = ()=> agentMsg(
   disclosure('Looked at your brief, created a summary',['Looked at your brief','Reading your request','Compiling changes'])
   + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood will be changed.</p>${P2_UNDERSTOOD_TABLE}<p class="summaryCard__q">Does this look right? I'll put together a plan once you confirm.</p>${recordedReply('Looks good')}</div>`);
