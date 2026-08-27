@@ -1603,7 +1603,7 @@ function crPlanTableRows(doneCount=0, loadingIndex=-1){
   return CR_PLAN_TASKS.map((w,i)=>`<div class="planTable__row">${marker(i)}<span>${w}</span></div>`).join('');
 }
 // user prompt (workbook attached) + created bubble
-const CR_USER = ()=> userBubble(`<span class="bubbleFile"><span class="bubbleFile__ico">${icon('note',14)}</span>name of file.doc</span><br>I want to create a targeted offer campaign from this Workbook.`);
+const CR_USER = ()=> userBubble(`<span class="bubbleFile"><span class="bubbleFile__ico">${icon('note',14)}</span>name of file.doc</span><br>${CREATE_PROMPT}`);
 const CR_CREATED = ()=> agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">DIWM QB Live campaign</span>" project for you.</div>`,'');
 // "Let me play back what I understood" — 6-row understanding table
 const CR_UNDERSTOOD_TABLE = `<div class="planTable" style="margin:0">
