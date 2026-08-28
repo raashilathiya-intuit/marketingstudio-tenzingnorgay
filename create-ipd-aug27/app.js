@@ -1028,7 +1028,9 @@ function detailContent({crumb,view,endDate,edited,showIdentity,tab}){
   const header = showIdentity ? '' : `<div class="detail-h">
       <span class="back" data-back>${I.back}</span>
       <span class="title">ELM9071-TargetedOffers-QBOPayroll</span>
+      <span class="detail-vd"></span>
       ${badge('Published')}
+      <span class="detail-vd"></span>
       <span class="detail-sub" style="margin:0">Last updated: 1 min ago</span>
       <span class="verselect">v1 ${I.chev}</span>
     </div>`;
@@ -1204,7 +1206,9 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
       <div class="detail-sticky">
         <div class="detail-h">
           <span class="title">ELM9071-TargetedOffers-QBOPayroll</span>
+          <span class="detail-vd"></span>
           ${badge('Edited')}
+          <span class="detail-vd"></span>
           <span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span>
           <span class="verselect">v2 ${I.chev}</span>
         </div>
@@ -1366,8 +1370,8 @@ function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loa
     const contentBody = drillLoading
       ? skeletonTable([{label:'Headline'},{label:'Body'},{label:'CTA'},{label:'Image'},{label:'Metadata'}],false)
       : creativesHeader(view) + creativesBody(view);
-    canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span>${badge('Edited')}
-        <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span></div>
+    canvas = `<div class="detail-h"><span class="back" data-wbback>${I.back}</span><span class="title">Hellobox - Chart of Accounts</span><span class="detail-vd"></span>${badge('Edited')}<span class="detail-vd"></span>
+        <span class="detail-sub" style="margin:0">Size:&nbsp;0k</span><span class="detail-vd"></span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span></div>
       <div style="height:16px"></div>${contentBody}`;
     crumb = '<span>Home</span> <span class="sep">/</span> <span>DIWM QB Live campaign</span>';
   } else {
@@ -1437,7 +1441,7 @@ scenes.campaignTreeWB = (state={view:'tree',tab:'experiences'})=>{
     mainInner = `${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):wbSummaryTables()}</div>`;
   }
   const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">
-    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span>${badge('Edited')}<span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
+    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span><span class="detail-vd"></span>${badge('Edited')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
     <div class="tabs tabs--insticky"><span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span><span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span></div></div>
     ${mainInner}</div></div></div>`;
   return content + aiPanel({step:'4.  Update the campaign',body,stepLoading:loading});
@@ -1532,7 +1536,7 @@ scenes.p2Tree = (state={view:'tree',tab:'experiences'})=>{
     mainInner = `${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):p2SummaryTables()}</div>`;
   }
   const content = `<div class="content">${topbar(P2_CRUMB)}<div class="scroll"><div class="pad">
-    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span>${badge('Edited')}<span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
+    <div class="detail-sticky"><div class="detail-h"><span class="title">ELM9071-TargetedOffers-QBOPayroll</span><span class="detail-vd"></span>${badge('Edited')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span><span class="verselect">v2 ${I.chev}</span></div>
     <div class="tabs tabs--insticky"><span class="tab ${state.tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span><span class="tab ${state.tab==='experiences'?'active':''}" data-tab="experiences">Experiences</span></div></div>
     ${mainInner}</div></div></div>`;
   return content + aiPanel({step:'4.  Update the campaign',body,stepLoading:loading});

@@ -169,20 +169,51 @@
       Create IPD campaign, Change order, and Conversation widgets. Click to open the prototype.
     </p>
 
-    <!-- Filter: All / Targeted offers / IPD -->
+    <!-- Filter: All / Targeted offers / IPD / XD only -->
     <div class="filters" id="filters">
       <button class="filter active" data-filter="all">All</button>
       <button class="filter" data-filter="targeted">Targeted offers</button>
       <button class="filter" data-filter="ipd">IPD</button>
+      <button class="filter" data-filter="xd">XD only</button>
     </div>
 
     <div class="sections">
+
+      <!-- August 28 — delete experiences workflow -->
+      <div class="date-section">
+        <div class="section-header">
+          <span class="section-date">28 AUG</span>
+          <span class="new-badge">New</span>
+        </div>
+        <div class="builds">
+          <a class="build" href="delete-experiences-aug28/index.html" data-type="ipd" data-xd="1">
+            <div class="build-text">
+              <span class="build-label">IPD - Delete experiences <span class="type-chip">XD only</span></span>
+              <span class="build-desc">Delete draft experiences via prompt. Two scenarios: user has permission (confirm intent, then hard delete) or lacks it (request-permission message).</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+          <a class="build" href="pause-experiences-aug28/index.html" data-type="ipd" data-xd="1">
+            <div class="build-text">
+              <span class="build-label">IPD - Pause experiences (unpublish) <span class="type-chip">XD only</span></span>
+              <span class="build-desc">Unpublish published experiences via prompt — impressions halt, the campaign stays live. Two scenarios: within a campaign, or from an experience search.</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+          <a class="build" href="rollback-experiences-aug28/index.html" data-type="ipd" data-xd="1">
+            <div class="build-text">
+              <span class="build-label">IPD - Rollback experiences <span class="type-chip">XD only</span></span>
+              <span class="build-desc">Roll experiences back to the previous version — feasibility check, From/To confirmation, then rollback &amp; republish. Two scenarios: within a campaign, or from an experience search.</span>
+            </div>
+            <span class="build-arrow">→</span>
+          </a>
+        </div>
+      </div>
 
       <!-- August 27 — IPD create workflow (cartesian) -->
       <div class="date-section">
         <div class="section-header">
           <span class="section-date">27 AUG</span>
-          <span class="new-badge">New</span>
         </div>
         <div class="builds">
           <a class="build" href="create-ipd-aug27/index.html" data-type="ipd">
@@ -270,7 +301,7 @@
 
     </div>
 
-    <footer>Last updated 23 Jul 2026</footer>
+    <footer>Last updated 28 Aug 2026</footer>
   </div>
 
   <script>
@@ -279,9 +310,9 @@
     filterBtns.forEach(btn => btn.addEventListener('click', () => {
       filterBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const f = btn.dataset.filter; // all | targeted | ipd
+      const f = btn.dataset.filter; // all | targeted | ipd | xd
       document.querySelectorAll('.build').forEach(b => {
-        const show = f === 'all' || b.dataset.type === f;
+        const show = f === 'all' || (f === 'xd' ? b.dataset.xd === '1' : b.dataset.type === f);
         b.classList.toggle('hidden', !show);
       });
       document.querySelectorAll('.date-section').forEach(sec => {
