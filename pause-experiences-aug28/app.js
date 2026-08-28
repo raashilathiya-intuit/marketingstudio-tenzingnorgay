@@ -165,8 +165,10 @@ function renderRail(){
 }
 
 function topbar(crumbHTML){
+  // the edit (rename) pencil belongs to project crumbs; plain Home has none
+  const isHome = crumbHTML === '<span>Home</span>';
   return `<div class="topbar">
-    <div class="crumb">${crumbHTML}<span class="edit">${I.editpencil}</span></div>
+    <div class="crumb">${crumbHTML}${isHome?'':`<span class="edit">${I.editpencil}</span>`}</div>
     <div class="topbar__spacer"></div>
     <span class="bell">${I.bell}</span>
   </div>`;
@@ -2874,12 +2876,12 @@ const PAUSE_CONFIRM = (n, active, all)=> agentMsg(`<div class="chatBubble">${all
     : `You've selected ${n} experiences to unpublish. Impressions for them will stop immediately.`}${pzWarn()}<div class="bubble-q">Are you sure you would like to unpublish these experiences?</div>${active?replyBtn(`Yes, unpublish ${n} experiences`,'yesUnpub'):recordedReply(`Yes, unpublish ${n} experiences`)}</div>`);
 const UNPUB_DONE = (n)=> agentMsg(
   disclosure(`Unpublished ${n} experiences`,['Read your request',`Unpublished ${n} experiences`,'Refreshed the list'])
-  + `<div class="chatBubble">I've unpublished ${n} selected experiences. The remaining ${UNPUB_TOTAL-n} experiences and the campaign continue to remain published.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px;font-weight:400">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
+  + `<div class="chatBubble">I've unpublished ${n} selected experiences. The remaining ${UNPUB_TOTAL-n} experiences and the campaign continue to remain published.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px;font-weight:400">To publish them again, go to Campaign Manager.</div>${cmLink()}</div>`);
 // all experiences unpublished → no published experiences remain, so the
 // campaign status changes to Draft (flow map: experiences under campaign = 0)
 const UNPUB_DONE_ALL = ()=> agentMsg(
   disclosure(`Unpublished ${UNPUB_TOTAL} experiences`,['Read your request',`Unpublished ${UNPUB_TOTAL} experiences`,'Updated the campaign status','Refreshed the list'])
-  + `<div class="chatBubble">I've unpublished all ${UNPUB_TOTAL} experiences. With no published experiences left, the campaign status has changed to Draft.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px;font-weight:400">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
+  + `<div class="chatBubble">I've unpublished all ${UNPUB_TOTAL} experiences. With no published experiences left, the campaign status has changed to Draft.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px;font-weight:400">To publish them again, go to Campaign Manager.</div>${cmLink()}</div>`);
 const PX_DONE = UNPUB_DONE;
 const PC_DONE = UNPUB_DONE;
 

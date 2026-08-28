@@ -165,8 +165,10 @@ function renderRail(){
 }
 
 function topbar(crumbHTML){
+  // the edit (rename) pencil belongs to project crumbs; plain Home has none
+  const isHome = crumbHTML === '<span>Home</span>';
   return `<div class="topbar">
-    <div class="crumb">${crumbHTML}<span class="edit">${I.editpencil}</span></div>
+    <div class="crumb">${crumbHTML}${isHome?'':`<span class="edit">${I.editpencil}</span>`}</div>
     <div class="topbar__spacer"></div>
     <span class="bell">${I.bell}</span>
   </div>`;
@@ -2822,7 +2824,7 @@ const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rolli
 const RB_INFEASIBLE = ()=> agentMsg(`<div class="chatBubble">These experiences can't be rolled back to the previous version because &lt;reason goes here&gt;.<div style="margin-top:12px">Let me know if you'd like to make changes instead.</div></div>`);
 const RB_DONE = (n)=> agentMsg(
   disclosure(`Rolled back ${n} experiences`,['Checked the version history',`Rolled back ${n} experiences`,'Refreshed the list'])
-  + `<div class="chatBubble">I've rolled back ${n} experiences to v2. They are now in Draft and will need to be published again.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}</div>`);
+  + `<div class="chatBubble">I've rolled back ${n} experiences to v2. They are now in Draft and will need to be published again.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}${cmLink()}</div>`);
 
 /* shared canvas chrome for the experience tables */
 function rxToolbar(){
@@ -3003,7 +3005,7 @@ scenes.rcDetail = (state={tab:'experiences'})=>{
           ${badge('Published')}
           <span class="detail-vd"></span>
           <span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span>
-          <span class="verselect">v2 ${I.chev}</span>
+          <span class="verselect">v3 ${I.chev}</span>
         </div>
         <div class="tabs tabs--insticky tabs--exp">
           <span class="tab ${tab==='meta'?'active':''}" data-tab="meta">Campaign meta</span>

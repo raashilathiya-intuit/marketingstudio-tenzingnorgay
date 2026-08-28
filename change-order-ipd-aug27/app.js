@@ -165,8 +165,10 @@ function renderRail(){
 }
 
 function topbar(crumbHTML){
+  // the edit (rename) pencil belongs to project crumbs; plain Home has none
+  const isHome = crumbHTML === '<span>Home</span>';
   return `<div class="topbar">
-    <div class="crumb">${crumbHTML}<span class="edit">${I.editpencil}</span></div>
+    <div class="crumb">${crumbHTML}${isHome?'':`<span class="edit">${I.editpencil}</span>`}</div>
     <div class="topbar__spacer"></div>
     <span class="bell">${I.bell}</span>
   </div>`;
