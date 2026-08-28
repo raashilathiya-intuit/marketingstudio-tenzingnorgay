@@ -753,6 +753,7 @@ scenes.home = (state={})=>{
           <div class="simMenu hidden" id="simMenu">
             <button class="simMenu__item" data-sim="rbCamp">Rollback within a campaign</button>
             <button class="simMenu__item" data-sim="rbExp">Rollback from experience search</button>
+            <button class="simMenu__item" data-sim="rbNo">Rollback not feasible</button>
           </div>
         </div>
       </div>
@@ -2777,8 +2778,9 @@ const RX_COLS = [
   {label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},
   {label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'},
 ];
-// rows with per-row version: v2 for indices in `rolled`, else v3; all stay Published
-const rxRows = (rolled)=>{ const u=new Set(rolled||[]); return RX_ROWS.map((r,i)=>({...r,status:'Published',ver:u.has(i)?'v2':'v3'})); };
+// rows with per-row version: v2 for indices in `rolled`, else v3. A rolled-back
+// experience moves to Draft and has to be published again.
+const rxRows = (rolled)=>{ const u=new Set(rolled||[]); return RX_ROWS.map((r,i)=>u.has(i)?{...r,status:'Draft',ver:'v2'}:{...r,status:'Published',ver:'v3'}); };
 
 // campaign search results — every campaign is Published (live)
 const RC_SEARCH_ROWS = [
@@ -2808,12 +2810,19 @@ const RB_REQ = ()=> userBubble(RB_PROMPT);
 // selection-thread context above a selection-scoped ask (divider + ↳ Selected n)
 const SELCTX_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 3v5.5A3.5 3.5 0 0 0 7.5 12H14" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round"/><path d="M10.8 8.4 14.4 12l-3.6 3.6" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} experience${n===1?'':'s'}</span></div>`;
-// feasibility confirmed → From/To version diff + confirm pill. In the campaign
-// scenario the card also notes no change is needed on the campaign object.
-const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rollback is feasible for all ${n} selected experiences.<div style="height:12px"></div>${ftBlk('Rolling back to the previous version:','v3','v2')}${inCamp?'No changes are needed on the campaign object.':''}<div class="bubble-q">Does this look ok? I'll then proceed.</div>${active?replyBtn('Yes, roll back','yesRollback'):recordedReply('Yes, roll back')}</div>`);
+// confirm-intent card: version diff + a notice that rolled-back experiences
+// move to Draft and have to be published again.
+// IDS triangle-exclamation-fill in Ui/Attention (#d94e00)
+const WARN_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M7.13 1.98a1 1 0 0 1 1.74 0l6.09 10.53a1 1 0 0 1-.87 1.5H1.91a1 1 0 0 1-.87-1.5L7.13 1.98Z" fill="#d94e00"/><rect x="7.25" y="5.6" width="1.5" height="4" rx="0.75" fill="#fff"/><circle cx="8" cy="11.4" r="0.9" fill="#fff"/></svg>`;
+const rbWarn = ()=>`<div class="warnNote">${WARN_ICON}<span>Rolled back experiences will be in Draft state. You will need to publish them again.</span></div>`;
+const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rolling back ${n} experiences to the previous version:${ftRows('v3','v2')}${rbWarn()}<div class="bubble-q">Does this look ok? I'll then proceed.</div>${active?replyBtn('Yes, roll back','yesRollback'):recordedReply('Yes, roll back')}</div>`);
+// rollback not possible: state the reason (placeholder in brackets) and stop —
+// no confirm pill, the flow ends here (flow map: "provide reason for not able
+// to roll back").
+const RB_INFEASIBLE = ()=> agentMsg(`<div class="chatBubble">I checked the version history, and these experiences can't be rolled back to the previous version. [&lt;previous version references a retired placement&gt;]</div>`);
 const RB_DONE = (n)=> agentMsg(
-  disclosure(`Rolled back ${n} experiences`,['Checked rollback feasibility',`Rolled back ${n} experiences`,'Refreshed the list'])
-  + `<div class="chatBubble">I've rolled back ${n} experiences to v2 and republished them. The new version is now showing in the experience details.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}</div>`);
+  disclosure(`Rolled back ${n} experiences`,['Checked the version history',`Rolled back ${n} experiences`,'Refreshed the list'])
+  + `<div class="chatBubble">I've rolled back ${n} experiences to v2. They are now in Draft and will need to be published again.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}</div>`);
 
 /* shared canvas chrome for the experience tables */
 function rxToolbar(){
@@ -2842,7 +2851,8 @@ function rbTail(state, inCamp){
   let t='';
   const n=(state.selected||[]).length;
   if(state.rb) t += selThread(state.rb==='done'?(state.rolled||[]).length:n) + RB_REQ();
-  if(state.rb==='checking') t += agentLoader('Checking rollback feasibility', state.tasks||[]);
+  if(state.rb==='checking') t += agentLoader('Reviewing your request', state.tasks||[]);
+  else if(state.rb==='infeasible') t += RB_INFEASIBLE();
   else if(state.rb==='confirm') t += RB_CONFIRM(n, inCamp, true);
   else if(state.rb==='working') t += RB_CONFIRM(n, inCamp, false) + agentLoader('Rolling back experiences', state.tasks||[]);
   else if(state.rb==='done') t += RB_CONFIRM((state.rolled||[]).length, inCamp, false) + RB_DONE((state.rolled||[]).length);
@@ -3045,19 +3055,20 @@ function runIntakeRC(){
 /* feasibility check: loader → confirm card (with From/To version diff) */
 function runRbCheck(scene, extra){
   const sel=[...(current.state.selected||[])];
-  const subs=['Reading your request','Checking version history','Validating rollback feasibility'];
+  const subs=['Reading your request','Checking the version history','Preparing the rollback'];
   const dur=2900;
   const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,rb:'checking',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
-  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,typed:true,rb:'confirm'}),dur));
+  // the not-feasible scenario ends here with the reason; otherwise → confirm card
+  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,typed:true,rb:scenario==='rbNo'?'infeasible':'confirm'}),dur));
 }
 /* rollback: loader → versions flip to v2, selection clears */
 function runRbRoll(scene){
   const extra = scene==='rcDetail' ? {tab:'experiences'} : {};
   const sel=[...(current.state.selected||[])];
-  const subs=[`Rolling back ${sel.length} experiences`,'Republishing the experiences','Refreshing the list'];
+  const subs=[`Rolling back ${sel.length} experiences`,'Updating experience statuses','Refreshing the list'];
   const dur=2900;
   const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,rb:'working',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
@@ -3124,7 +3135,13 @@ const STEPS_RB_CAMP = [
   ['rcDetail',{tab:'experiences',selected:[1,3,6],typed:true,rb:'confirm'}],
   ['rcDetail',{tab:'experiences',typed:true,rb:'done',rolled:[1,3,6]}],
 ];
-function FLOW_STEPS(){ return scenario==='rbCamp' ? STEPS_RB_CAMP : STEPS_RB_EXP; }
+const STEPS_RB_NO = [
+  ['home',{}],
+  ['rxSearch',{}],
+  ['rxSearch',{selected:[1,3,6],typed:true}],
+  ['rxSearch',{selected:[1,3,6],typed:true,rb:'infeasible'}],
+];
+function FLOW_STEPS(){ return scenario==='rbCamp' ? STEPS_RB_CAMP : scenario==='rbNo' ? STEPS_RB_NO : STEPS_RB_EXP; }
 // map the CURRENT scene+state onto a step index so arrows resume from anywhere
 function stepIndex(){
   const st=current.state||{};
@@ -3137,7 +3154,7 @@ function stepIndex(){
   }
   if(current.name==='rxSearch'){
     if(st.rb==='done') return 4;
-    if(st.rb) return 3;
+    if(st.rb) return 3;                       // checking / confirm / infeasible
     return (st.selected&&st.selected.length)?2:1;
   }
   return -1;

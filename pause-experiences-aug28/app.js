@@ -2258,12 +2258,12 @@ const trigger = {
   // ── UNPUBLISH triggers ──
   // composer SEND with a selection → confirm-intent card (impressions halt;
   // republish only from Campaign Manager)
-  pxSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); go('pxSearch',{selected:[...sel],typed:true,pz:'confirm',all:sel.length===UNPUB_TOTAL}); },
+  pxSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runPzCheck('pxSearch',{}); },
   // campaign search: View (n) / row click → drill into the campaign (skeleton flash)
   pcView:()=>{ clearTimers(); go('pcDetail',{tab:'experiences',loading:true}); timers.push(setTimeout(()=>{ render('pcDetail',{tab:'experiences'}); if(autopilot) scheduleAuto('pcDetail',{tab:'experiences'}); },1400)); },
   // detail SEND: selecting every row = the whole campaign (all 48) — that path
   // ends with the campaign moving to Draft.
-  pcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); go('pcDetail',{tab:'experiences',selected:[...sel],typed:true,pz:'confirm',all:sel.length===UNPUB_TOTAL}); },
+  pcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runPzCheck('pcDetail',{tab:'experiences'}); },
   // "Yes, unpublish n experiences" pill → records in place → unpublish
   pzConfirm:()=>{ const scene=current.name; const extra = scene==='pcDetail' ? {tab:'experiences',all:current.state.all} : {}; recordPillThen(()=>runUnpub(scene, extra)); },
   // change SEND (user click) — prompt already typed on campaign open; run planning loader → plan.
@@ -2733,12 +2733,19 @@ function wireSelAllPages(main, sel, frozen, apply){
   };
 }
 
-/* functional pager chevrons: page state carries the selection + flow state */
+/* functional pager chevrons: page state carries the selection + flow state.
+   Each flip flashes a table skeleton (~900ms) before the next page renders. */
 function wirePager(main, state, scene){
   const pages=Math.ceil(UNPUB_TOTAL/10), pg=state.pg||0;
+  const base={...state}; delete base.pgLoading;
+  const flip=(np)=>{
+    autopilot=false;
+    render(scene,{...base,pg:np,pgLoading:true});
+    timers.push(setTimeout(()=>render(scene,{...base,pg:np}),900));
+  };
   const prev=main.querySelector('[data-pgprev]'), next=main.querySelector('[data-pgnext]');
-  if(prev) prev.onclick=()=>{ autopilot=false; if(pg>0) render(scene,{...state,pg:pg-1}); };
-  if(next) next.onclick=()=>{ autopilot=false; if(pg<pages-1) render(scene,{...state,pg:pg+1}); };
+  if(prev) prev.onclick=()=>{ if(pg>0) flip(pg-1); };
+  if(next) next.onclick=()=>{ if(pg<pages-1) flip(pg+1); };
 }
 
 /* header checkbox tri-state: checked = all rows selected, indeterminate = some.
@@ -2863,16 +2870,16 @@ const WARN_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><
 const pzWarn = ()=>`<div class="warnNote">${WARN_ICON}<span>Unpublished experiences can only be republished from Campaign Manager.</span></div>`;
 // all-selected variant warns that the campaign itself moves to Draft
 const PAUSE_CONFIRM = (n, active, all)=> agentMsg(`<div class="chatBubble">${all
-    ? `You've selected all ${n} experiences to unpublish — impressions for them will stop immediately, and with no published experiences left the campaign status will change to Draft.`
-    : `You've selected ${n} experiences to unpublish — impressions for them will stop immediately.`}${pzWarn()}<div class="bubble-q">Are you sure you would like to unpublish these experiences?</div>${active?replyBtn(`Yes, unpublish ${n} experiences`,'yesUnpub'):recordedReply(`Yes, unpublish ${n} experiences`)}</div>`);
+    ? `You've selected all ${n} experiences to unpublish. Impressions for them will stop immediately, and with no published experiences left the campaign status will change to Draft.`
+    : `You've selected ${n} experiences to unpublish. Impressions for them will stop immediately.`}${pzWarn()}<div class="bubble-q">Are you sure you would like to unpublish these experiences?</div>${active?replyBtn(`Yes, unpublish ${n} experiences`,'yesUnpub'):recordedReply(`Yes, unpublish ${n} experiences`)}</div>`);
 const UNPUB_DONE = (n)=> agentMsg(
   disclosure(`Unpublished ${n} experiences`,['Read your request',`Unpublished ${n} experiences`,'Refreshed the list'])
-  + `<div class="chatBubble">I've unpublished ${n} selected experiences. The remaining ${UNPUB_TOTAL-n} experiences and the campaign continue to remain published.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
+  + `<div class="chatBubble">I've unpublished ${n} selected experiences. The remaining ${UNPUB_TOTAL-n} experiences and the campaign continue to remain published.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px;font-weight:400">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
 // all experiences unpublished → no published experiences remain, so the
 // campaign status changes to Draft (flow map: experiences under campaign = 0)
 const UNPUB_DONE_ALL = ()=> agentMsg(
   disclosure(`Unpublished ${UNPUB_TOTAL} experiences`,['Read your request',`Unpublished ${UNPUB_TOTAL} experiences`,'Updated the campaign status','Refreshed the list'])
-  + `<div class="chatBubble">I've unpublished all ${UNPUB_TOTAL} experiences. With no published experiences left, the campaign status has changed to Draft.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
+  + `<div class="chatBubble">I've unpublished all ${UNPUB_TOTAL} experiences. With no published experiences left, the campaign status has changed to Draft.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px;font-weight:400">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
 const PX_DONE = UNPUB_DONE;
 const PC_DONE = UNPUB_DONE;
 
@@ -2945,15 +2952,16 @@ scenes.pxSearch = (state={})=>{
     if(state.pz){
       const count = state.pz==='done' ? (state.unpubbed||[]).length : n;
       let tail = selThread(count) + UNPUB_REQ();
-      if(state.pz==='confirm') tail += PAUSE_CONFIRM(count, true, allSel);
+      if(state.pz==='checking') tail += agentLoader('Reviewing your request', state.tasks||[]);
+      else if(state.pz==='confirm') tail += PAUSE_CONFIRM(count, true, allSel);
       else if(state.pz==='working') tail += PAUSE_CONFIRM(count,false,allSel) + agentLoader('Unpublishing experiences', state.tasks||[]);
       else if(state.pz==='done') tail += PAUSE_CONFIRM(count,false,allSel) + (allSel ? UNPUB_DONE_ALL() : PX_DONE(count));
       // the selection-thread turn fills the panel viewport so the prior
       // conversation scrolls up and the thread starts at the top
       body += `<div class="convoTurn">${tail}</div>`;
     }
-    // while the unpublish executes, the canvas previews the refresh with a table skeleton
-    table = state.pz==='working' ? skeletonTable(PX_COLS,true) : tableHTML(PX_COLS,pageRows,{checkbox:true,select:true,selected:localSel});
+    // executing or flipping pages → the canvas previews with a table skeleton
+    table = (state.pz==='working'||state.pgLoading) ? skeletonTable(PX_COLS,true) : tableHTML(PX_COLS,pageRows,{checkbox:true,select:true,selected:localSel});
   }
   // experience drill-down replaces the canvas (row click); the panel keeps the conversation
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
@@ -3050,7 +3058,8 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
   let body = PC_SEARCH_CONV();
   if(state.pz){
     let tail = selThread(count) + UNPUB_REQ();
-    if(state.pz==='confirm') tail += PAUSE_CONFIRM(count, true, allSel);
+    if(state.pz==='checking') tail += agentLoader('Reviewing your request', state.tasks||[]);
+    else if(state.pz==='confirm') tail += PAUSE_CONFIRM(count, true, allSel);
     else if(state.pz==='working') tail += PAUSE_CONFIRM(count,false,allSel) + agentLoader('Unpublishing experiences', state.tasks||[]);
     else if(state.pz==='done') tail += PAUSE_CONFIRM(count,false,allSel) + (allSel ? UNPUB_DONE_ALL() : PC_DONE(count));
     body += `<div class="convoTurn">${tail}</div>`;
@@ -3063,8 +3072,8 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
   if(tab==='meta') mainInner = metaGrid({});
   else if(tab==='insights') mainInner = insightsPanel();
   else {
-    const skel = loading || state.pz==='working';   // executing → table skeleton
-    mainInner = `${pxToolbar()}${skel?skeletonTable(PX_COLS,true):tableHTML(PX_COLS,pageRows,{checkbox:true,select:true,selected:localSel})}${skel?'':pxPager(page,UNPUB_TOTAL)}`;
+    const skel = loading || state.pz==='working' || state.pgLoading;   // executing / page flip → table skeleton
+    mainInner = `${pxToolbar()}${skel?skeletonTable(PX_COLS,true):tableHTML(PX_COLS,pageRows,{checkbox:true,select:true,selected:localSel})}${(loading||state.pz==='working')?'':pxPager(page,UNPUB_TOTAL)}`;
   }
   const content = `<div class="content">
     ${topbar(PC_CRUMB)}
@@ -3125,6 +3134,18 @@ function runIntakePC(){
   const openAt=searchAt+searchDur;
   timers.push(setTimeout(()=>render('pcSearch',{loading:true,opening:true}),openAt));
   timers.push(setTimeout(()=>go('pcSearch',{}),openAt+2000));
+}
+/* pre-confirm check: short loader in the panel, then the confirm-intent card */
+function runPzCheck(scene, extra){
+  const sel=[...(current.state.selected||[])];
+  const all = sel.length===UNPUB_TOTAL;
+  const subs=['Reading your request','Checking the selected experiences'];
+  const dur=2400;
+  const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,pz:'checking',all,tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  tick(0);
+  const slot=(dur-600)/subs.length;
+  subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,typed:true,pz:'confirm',all}),dur));
 }
 /* unpublish runner shared by both scenes: loader → statuses flip, selection clears */
 function runUnpub(scene, extra){
