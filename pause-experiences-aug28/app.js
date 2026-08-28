@@ -2213,9 +2213,11 @@ function go(name, state={}){
 function scheduleAuto(name, state){
   const t=(fn,ms)=>timers.push(setTimeout(fn,ms));
   if(name==='home') t(()=>trigger.home(),900);
-  // unpublish from experience search: select 3 rows → send the unpublish ask
-  else if(name==='pxSearch' && !state.loading && !state.phase && !state.pz){
-    if(!(state.selected&&state.selected.length)){
+  // unpublish from experience search: select 3 rows → send → confirm the pill
+  else if(name==='pxSearch' && !state.loading && !state.phase){
+    if(state.pz==='confirm') t(()=>trigger.pzConfirm(),1600);
+    else if(state.pz){ /* working / done — end of the guided run */ }
+    else if(!(state.selected&&state.selected.length)){
       t(()=>{ render('pxSearch',{selected:[1,3,6]}); if(autopilot) timers.push(setTimeout(()=>trigger.pxSend(),2400)); },1200);
     }
     else t(()=>trigger.pxSend(),2400);
@@ -2225,8 +2227,10 @@ function scheduleAuto(name, state){
     if(!(state.selected&&state.selected.length)) t(()=>{ render('pcSearch',{selected:[0]}); if(autopilot) timers.push(setTimeout(()=>trigger.pcView(),1200)); },1200);
     else t(()=>trigger.pcView(),900);
   }
-  else if(name==='pcDetail' && !state.loading && !state.pz){
-    if(!(state.selected&&state.selected.length)){
+  else if(name==='pcDetail' && !state.loading){
+    if(state.pz==='confirm') t(()=>trigger.pzConfirm(),1600);
+    else if(state.pz){ /* working / done — end of the guided run */ }
+    else if(!(state.selected&&state.selected.length)){
       t(()=>{ render('pcDetail',{...state,selected:[1,3,6]}); if(autopilot) timers.push(setTimeout(()=>trigger.pcSend(),2400)); },1600);
     }
     else t(()=>trigger.pcSend(),2400);
@@ -2252,12 +2256,16 @@ const trigger = {
     else { if(inp) inp.textContent=FIND_PUBEXP_PROMPT; runIntakePX(); } },
   viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
   // ── UNPUBLISH triggers ──
-  // composer SEND with a selection → unpublish loader → statuses flip to Unpublished
-  pxSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runPxUnpub(); },
+  // composer SEND with a selection → confirm-intent card (impressions halt;
+  // republish only from Campaign Manager)
+  pxSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); go('pxSearch',{selected:[...sel],typed:true,pz:'confirm',all:sel.length===UNPUB_TOTAL}); },
   // campaign search: View (n) / row click → drill into the campaign (skeleton flash)
   pcView:()=>{ clearTimers(); go('pcDetail',{tab:'experiences',loading:true}); timers.push(setTimeout(()=>{ render('pcDetail',{tab:'experiences'}); if(autopilot) scheduleAuto('pcDetail',{tab:'experiences'}); },1400)); },
-  // detail composer SEND → unpublish loader → statuses flip; campaign stays live
-  pcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runPcUnpub(); },
+  // detail SEND: selecting every row = the whole campaign (all 48) — that path
+  // ends with the campaign moving to Draft.
+  pcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); go('pcDetail',{tab:'experiences',selected:[...sel],typed:true,pz:'confirm',all:sel.length===UNPUB_TOTAL}); },
+  // "Yes, unpublish n experiences" pill → records in place → unpublish
+  pzConfirm:()=>{ const scene=current.name; const extra = scene==='pcDetail' ? {tab:'experiences',all:current.state.all} : {}; recordPillThen(()=>runUnpub(scene, extra)); },
   // change SEND (user click) — prompt already typed on campaign open; run planning loader → plan.
   change:(state)=>{ clearTimers(); const inp=$('#composerInput'); if(inp) inp.textContent=CHANGE_PROMPT; runLoader('coIntent',LOADERS.planning,'coIntent',{view:state.view||'table'}); },
   // Pill clicks: the pill converts to a recorded reply IN PLACE (avatar + text)
@@ -2478,16 +2486,21 @@ function wire(name, state){
   //    to Unpublished. Selection is frozen once the ask is sent (state.pz set). ──
   if(name==='pxSearch' && !state.loading && !state.phase){
     const sel=new Set(state.selected||[]);
-    const toggle=(i)=>{ autopilot=false; sel.has(i)?sel.delete(i):sel.add(i); render('pxSearch',{...state, selected:[...sel]}); };
+    const pg=state.pg||0;
+    // row checkboxes carry LOCAL page indices; selection is stored globally
+    const toggle=(gi)=>{ autopilot=false; sel.has(gi)?sel.delete(gi):sel.add(gi); render('pxSearch',{...state, selected:[...sel]}); };
     main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
-      e.stopPropagation(); if(state.pz) return; toggle(+cb.dataset.selrow);
+      e.stopPropagation(); if(state.pz) return; toggle(pg*10 + +cb.dataset.selrow);
     });
-    wireSelAll(main, sel, !!state.pz, (s)=>render('pxSearch',{...state, selected:s}));
+    // header checkbox = ALL 48 across pages (indeterminate when partial)
+    wireSelAllPages(main, sel, !!state.pz, (s)=>render('pxSearch',{...state, selected:s}));
+    // pager: prev / next page, selection and flow state carried along
+    wirePager(main, state, 'pxSearch');
     // row click → experience drill-down (checkbox still selects)
     main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
       if(e.target.closest('[data-selrow]'))return;
       autopilot=false;
-      const i=+tr.dataset.selrowtr;
+      const i=pg*10 + +tr.dataset.selrowtr;
       go('pxSearch',{...state,expDrill:i,expDrillLoading:true});
       timers.push(setTimeout(()=>render('pxSearch',{...state,expDrill:i}),1100));
     });
@@ -2500,6 +2513,8 @@ function wire(name, state){
     if(!state.pz && sel.size && !state.typed) scheduleAskType('pxSearch', UNPUB_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.pxSend();};
+    const pill=main.querySelector('#yesUnpub');
+    if(pill) pill.onclick=()=>{autopilot=false;trigger.pzConfirm();};
   }
 
   // ── UNPUBLISH (campaign search): checkbox selects a campaign; the row or
@@ -2525,16 +2540,21 @@ function wire(name, state){
   if(name==='pcDetail' && !state.loading){
     const bk=main.querySelector('[data-back]'); if(bk) bk.onclick=()=>{autopilot=false;go('pcSearch',{})};
     const sel=new Set(state.selected||[]);
-    const toggle=(i)=>{ autopilot=false; sel.has(i)?sel.delete(i):sel.add(i); render('pcDetail',{...state, selected:[...sel]}); };
+    const pg=state.pg||0;
+    // row checkboxes carry LOCAL page indices; selection is stored globally
+    const toggle=(gi)=>{ autopilot=false; sel.has(gi)?sel.delete(gi):sel.add(gi); render('pcDetail',{...state, selected:[...sel]}); };
     main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
-      e.stopPropagation(); if(state.pz) return; toggle(+cb.dataset.selrow);
+      e.stopPropagation(); if(state.pz) return; toggle(pg*10 + +cb.dataset.selrow);
     });
-    wireSelAll(main, sel, !!state.pz, (s)=>render('pcDetail',{...state, selected:s}));
+    // header checkbox = ALL 48 across pages (indeterminate when partial)
+    wireSelAllPages(main, sel, !!state.pz, (s)=>render('pcDetail',{...state, selected:s}));
+    // pager: prev / next page, selection and flow state carried along
+    wirePager(main, state, 'pcDetail');
     // row click → experience drill-down (checkbox still selects)
     main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
       if(e.target.closest('[data-selrow]'))return;
       autopilot=false;
-      const i=+tr.dataset.selrowtr;
+      const i=pg*10 + +tr.dataset.selrowtr;
       go('pcDetail',{...state,expDrill:i,expDrillLoading:true});
       timers.push(setTimeout(()=>render('pcDetail',{...state,expDrill:i}),1100));
     });
@@ -2547,6 +2567,8 @@ function wire(name, state){
     if(!state.pz && sel.size && !state.typed) scheduleAskType('pcDetail', UNPUB_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.pcSend();};
+    const pill=main.querySelector('#yesUnpub');
+    if(pill) pill.onclick=()=>{autopilot=false;trigger.pzConfirm();};
   }
 
   // ── SEARCH: checkbox toggles selection; clicking the ROW opens that campaign
@@ -2695,6 +2717,30 @@ function scheduleAskType(scene, text){
   },700));
 }
 
+/* header checkbox across ALL pages: checked = all 48 selected, indeterminate
+   when only some are. Clicking selects every experience in the campaign (all
+   pages) or clears the whole selection. */
+function wireSelAllPages(main, sel, frozen, apply){
+  const hdr=main.querySelector('.tbl thead .cb');
+  if(!hdr) return;
+  hdr.checked = sel.size===UNPUB_TOTAL;
+  hdr.indeterminate = sel.size>0 && sel.size<UNPUB_TOTAL;
+  hdr.onclick=(e)=>{
+    e.stopPropagation();
+    if(frozen){ e.preventDefault(); return; }
+    autopilot=false;
+    apply(sel.size===UNPUB_TOTAL ? [] : [...Array(UNPUB_TOTAL).keys()]);
+  };
+}
+
+/* functional pager chevrons: page state carries the selection + flow state */
+function wirePager(main, state, scene){
+  const pages=Math.ceil(UNPUB_TOTAL/10), pg=state.pg||0;
+  const prev=main.querySelector('[data-pgprev]'), next=main.querySelector('[data-pgnext]');
+  if(prev) prev.onclick=()=>{ autopilot=false; if(pg>0) render(scene,{...state,pg:pg-1}); };
+  if(next) next.onclick=()=>{ autopilot=false; if(pg<pages-1) render(scene,{...state,pg:pg+1}); };
+}
+
 /* header checkbox tri-state: checked = all rows selected, indeterminate = some.
    Clicking selects all rows / clears the selection. frozen → selection is
    locked mid-flow, so the click is swallowed. */
@@ -2768,10 +2814,17 @@ const PX_COLS = [
   {label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},
   {label:'Created by',key:'by'},{label:'Last updated',key:'mod'},
 ];
-// rows with per-row status: Unpublished for indices in `unpubbed`, else Published
-const pxRows = (unpubbed)=>{ const u=new Set(unpubbed||[]); return PX_ROWS.map((r,i)=>({...r,status:u.has(i)?'Unpublished':'Published'})); };
-// the campaign holds 48 published experiences in total (page 1 of 5 shown)
+// the campaign holds 48 published experiences in total, paged 10 at a time.
+// The full 48 are generated from the 10 base rows — each page rotates the ELM
+// number so names stay distinct, and every row gets a unique ID prefix.
 const UNPUB_TOTAL = 48;
+const ELM_PAGE = ['9071','9684','4217','7856','3041'];
+const PX_ALL = Array.from({length:UNPUB_TOTAL},(_,i)=>{
+  const b = PX_ROWS[i%10], page = Math.floor(i/10);
+  return {...b, exp:b.exp.replace(/ELM\d{4}/,'ELM'+ELM_PAGE[page]), eid:(0x40+i).toString(16)+b.eid.slice(2)};
+});
+// rows with per-row status: Unpublished for GLOBAL indices in `unpubbed`
+const pxRows = (unpubbed)=>{ const u=new Set(unpubbed||[]); return PX_ALL.map((r,i)=>({...r,status:u.has(i)?'Unpublished':'Published'})); };
 
 // campaign search results — every campaign is Published (live)
 const PC_SEARCH_ROWS = [
@@ -2803,9 +2856,23 @@ const SELCTX_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"
 const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} experience${n===1?'':'s'}</span></div>`;
 // completion — the object card is the output artifact; the campaign-scenario copy
 // notes the campaign stays live (>1 experiences remain published, per the flow map).
+// confirm-intent card: unpublishing halts impressions, and republishing is only
+// possible from Campaign Manager — the user confirms via the pill.
+// IDS triangle-exclamation-fill in Ui/Attention (#d94e00)
+const WARN_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M7.13 1.98a1 1 0 0 1 1.74 0l6.09 10.53a1 1 0 0 1-.87 1.5H1.91a1 1 0 0 1-.87-1.5L7.13 1.98Z" fill="#d94e00"/><rect x="7.25" y="5.6" width="1.5" height="4" rx="0.75" fill="#fff"/><circle cx="8" cy="11.4" r="0.9" fill="#fff"/></svg>`;
+const pzWarn = ()=>`<div class="warnNote">${WARN_ICON}<span>Unpublished experiences can only be republished from Campaign Manager.</span></div>`;
+// all-selected variant warns that the campaign itself moves to Draft
+const PAUSE_CONFIRM = (n, active, all)=> agentMsg(`<div class="chatBubble">${all
+    ? `You've selected all ${n} experiences to unpublish — impressions for them will stop immediately, and with no published experiences left the campaign status will change to Draft.`
+    : `You've selected ${n} experiences to unpublish — impressions for them will stop immediately.`}${pzWarn()}<div class="bubble-q">Are you sure you would like to unpublish these experiences?</div>${active?replyBtn(`Yes, unpublish ${n} experiences`,'yesUnpub'):recordedReply(`Yes, unpublish ${n} experiences`)}</div>`);
 const UNPUB_DONE = (n)=> agentMsg(
   disclosure(`Unpublished ${n} experiences`,['Read your request',`Unpublished ${n} experiences`,'Refreshed the list'])
   + `<div class="chatBubble">I've unpublished ${n} selected experiences. The remaining ${UNPUB_TOTAL-n} experiences and the campaign continue to remain published.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
+// all experiences unpublished → no published experiences remain, so the
+// campaign status changes to Draft (flow map: experiences under campaign = 0)
+const UNPUB_DONE_ALL = ()=> agentMsg(
+  disclosure(`Unpublished ${UNPUB_TOTAL} experiences`,['Read your request',`Unpublished ${UNPUB_TOTAL} experiences`,'Updated the campaign status','Refreshed the list'])
+  + `<div class="chatBubble">I've unpublished all ${UNPUB_TOTAL} experiences. With no published experiences left, the campaign status has changed to Draft.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px">You can republish them from Campaign Manager.</div>${cmLink()}</div>`);
 const PX_DONE = UNPUB_DONE;
 const PC_DONE = UNPUB_DONE;
 
@@ -2826,10 +2893,14 @@ function pxSelbar(n,total){
       </div>
     </div>`;
 }
-const pxPager = (total)=>`<div class="pager">
-      <span>1-10 of ${total} items</span>
-      <span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of ${Math.ceil(total/10)}</span>${I.chevR}</span>
+// functional pager: prev/next move between the 5 pages, selection persists
+const pxPager = (page,total)=>{
+  const pages=Math.ceil(total/10), lo=page*10+1, hi=Math.min(total,(page+1)*10);
+  return `<div class="pager">
+      <span>${lo}-${hi} of ${total} items</span>
+      <span class="nav"><span data-pgprev style="display:inline-flex;cursor:pointer">${I.chevL}</span><span>Page</span><span class="box">${page+1}</span><span>of ${pages}</span><span data-pgnext style="display:inline-flex;cursor:pointer">${I.chevR}</span></span>
     </div>`;
+};
 
 /* ---- Scene: experience search results + unpublish conversation ----
    state: phase (intake) | loading | selected[] | typed | opening
@@ -2859,6 +2930,12 @@ scenes.pxSearch = (state={})=>{
       </div></div>
     </div>`;
   }
+  // pagination: state.pg (0-based). Selection indices are GLOBAL (0-47); the
+  // table on each page receives the local subset.
+  const page = state.pg||0;
+  const pageRows = rows.slice(page*10, page*10+10);
+  const localSel = [...sel].filter(i=>i>=page*10 && i<page*10+10).map(i=>i-page*10);
+  const allSel = state.all || n===UNPUB_TOTAL;
   let body, table;
   if(loading){
     body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching QB Payroll IPD experiences', state.tasks||[]);
@@ -2866,15 +2943,17 @@ scenes.pxSearch = (state={})=>{
   } else {
     body = PX_SEARCH_CONV();
     if(state.pz){
-      let tail = selThread(state.pz==='done'?(state.unpubbed||[]).length:n) + UNPUB_REQ();
-      if(state.pz==='working') tail += agentLoader('Unpublishing experiences', state.tasks||[]);
-      else if(state.pz==='done') tail += PX_DONE((state.unpubbed||[]).length);
+      const count = state.pz==='done' ? (state.unpubbed||[]).length : n;
+      let tail = selThread(count) + UNPUB_REQ();
+      if(state.pz==='confirm') tail += PAUSE_CONFIRM(count, true, allSel);
+      else if(state.pz==='working') tail += PAUSE_CONFIRM(count,false,allSel) + agentLoader('Unpublishing experiences', state.tasks||[]);
+      else if(state.pz==='done') tail += PAUSE_CONFIRM(count,false,allSel) + (allSel ? UNPUB_DONE_ALL() : PX_DONE(count));
       // the selection-thread turn fills the panel viewport so the prior
       // conversation scrolls up and the thread starts at the top
       body += `<div class="convoTurn">${tail}</div>`;
     }
     // while the unpublish executes, the canvas previews the refresh with a table skeleton
-    table = state.pz==='working' ? skeletonTable(PX_COLS,true) : tableHTML(PX_COLS,rows,{checkbox:true,select:true,selected:sel});
+    table = state.pz==='working' ? skeletonTable(PX_COLS,true) : tableHTML(PX_COLS,pageRows,{checkbox:true,select:true,selected:localSel});
   }
   // experience drill-down replaces the canvas (row click); the panel keeps the conversation
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
@@ -2886,7 +2965,7 @@ scenes.pxSearch = (state={})=>{
       <h2 class="page-h">Published QB Payroll live IPD experiences in the last 30 days</h2>
       ${pxToolbar()}
       ${table}
-      ${(loading||state.pz==='working')?'':pxPager(UNPUB_TOTAL)}
+      ${(loading||state.pz==='working')?'':pxPager(page,UNPUB_TOTAL)}
     </div></div>
     ${pxSelbar(n,UNPUB_TOTAL)}
   </div>`;
@@ -2960,11 +3039,20 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
   const sel = new Set(state.selected||[]);
   const n = sel.size;
   const rows = pxRows(state.unpubbed);
+  // pagination: state.pg (0-based); selection indices are GLOBAL (0-47)
+  const page = state.pg||0;
+  const pageRows = rows.slice(page*10, page*10+10);
+  const localSel = [...sel].filter(i=>i>=page*10 && i<page*10+10).map(i=>i-page*10);
+  // selecting EVERY experience is its own scenario: with none left published,
+  // the campaign itself moves to Draft after the unpublish.
+  const allSel = state.all || n===UNPUB_TOTAL;
+  const count = state.pz==='done' ? (state.unpubbed||[]).length : n;
   let body = PC_SEARCH_CONV();
   if(state.pz){
-    let tail = selThread(state.pz==='done'?(state.unpubbed||[]).length:n) + UNPUB_REQ();
-    if(state.pz==='working') tail += agentLoader('Unpublishing experiences', state.tasks||[]);
-    else if(state.pz==='done') tail += PC_DONE((state.unpubbed||[]).length);
+    let tail = selThread(count) + UNPUB_REQ();
+    if(state.pz==='confirm') tail += PAUSE_CONFIRM(count, true, allSel);
+    else if(state.pz==='working') tail += PAUSE_CONFIRM(count,false,allSel) + agentLoader('Unpublishing experiences', state.tasks||[]);
+    else if(state.pz==='done') tail += PAUSE_CONFIRM(count,false,allSel) + (allSel ? UNPUB_DONE_ALL() : PC_DONE(count));
     body += `<div class="convoTurn">${tail}</div>`;
   }
   // experience drill-down replaces the campaign-detail canvas (row click)
@@ -2976,7 +3064,7 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
   else if(tab==='insights') mainInner = insightsPanel();
   else {
     const skel = loading || state.pz==='working';   // executing → table skeleton
-    mainInner = `${pxToolbar()}${skel?skeletonTable(PX_COLS,true):tableHTML(PX_COLS,rows,{checkbox:true,select:true,selected:sel})}${skel?'':pxPager(UNPUB_TOTAL)}`;
+    mainInner = `${pxToolbar()}${skel?skeletonTable(PX_COLS,true):tableHTML(PX_COLS,pageRows,{checkbox:true,select:true,selected:localSel})}${skel?'':pxPager(page,UNPUB_TOTAL)}`;
   }
   const content = `<div class="content">
     ${topbar(PC_CRUMB)}
@@ -2986,7 +3074,7 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
           <span class="back" data-back>${I.back}</span>
           <span class="title">DIWM QB Live campaign</span>
           <span class="detail-vd"></span>
-          ${badge('Published')}
+          ${badge(state.pz==='done'&&allSel ? 'Draft' : 'Published')}
           <span class="detail-vd"></span>
           <span class="detail-sub" style="margin:0">Last updated:&nbsp; 1 min ago</span>
           <span class="verselect">v2 ${I.chev}</span>
@@ -3041,7 +3129,8 @@ function runIntakePC(){
 /* unpublish runner shared by both scenes: loader → statuses flip, selection clears */
 function runUnpub(scene, extra){
   const sel=[...(current.state.selected||[])];
-  const subs=['Reading your request',`Unpublishing ${sel.length} experiences`,'Refreshing the list'];
+  const eff = extra&&extra.all ? UNPUB_TOTAL : sel.length;   // all-selected = the whole campaign
+  const subs=['Reading your request',`Unpublishing ${eff} experiences`,'Refreshing the list'];
   const dur=2900;
   const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,pz:'working',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
@@ -3098,6 +3187,7 @@ const STEPS_PAUSE_EXP = [
   ['home',{}],
   ['pxSearch',{}],
   ['pxSearch',{selected:[1,3,6],typed:true}],
+  ['pxSearch',{selected:[1,3,6],typed:true,pz:'confirm'}],
   ['pxSearch',{typed:true,pz:'done',unpubbed:[1,3,6]}],
 ];
 const STEPS_PAUSE_CAMP = [
@@ -3106,6 +3196,7 @@ const STEPS_PAUSE_CAMP = [
   ['pcSearch',{selected:[0]}],
   ['pcDetail',{tab:'experiences'}],
   ['pcDetail',{tab:'experiences',selected:[1,3,6],typed:true}],
+  ['pcDetail',{tab:'experiences',selected:[1,3,6],typed:true,pz:'confirm'}],
   ['pcDetail',{tab:'experiences',typed:true,pz:'done',unpubbed:[1,3,6]}],
 ];
 function FLOW_STEPS(){ return scenario==='pauseCamp' ? STEPS_PAUSE_CAMP : STEPS_PAUSE_EXP; }
@@ -3115,10 +3206,12 @@ function stepIndex(){
   if(current.name==='home') return 0;
   if(current.name==='pcSearch') return (st.selected&&st.selected.length)?2:1;
   if(current.name==='pcDetail'){
+    if(st.pz==='done') return 6;
     if(st.pz) return 5;
     return (st.selected&&st.selected.length)?4:3;
   }
   if(current.name==='pxSearch'){
+    if(st.pz==='done') return 4;
     if(st.pz) return 3;
     return (st.selected&&st.selected.length)?2:1;
   }

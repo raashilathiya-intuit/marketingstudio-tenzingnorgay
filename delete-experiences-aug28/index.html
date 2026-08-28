@@ -379,11 +379,13 @@ button{font-family:inherit}
 
 /* selection-thread context: divider + "↳ Selected n experiences" above the
    user's ask whenever the prompt acts on a table selection */
-.selCtx{display:flex;align-items:center;gap:10px;margin:60px 0;border-top:1px solid var(--divider);padding-top:10px;font-size:14px;color:var(--text-strong)}
+.selCtx{display:flex;align-items:center;gap:10px;margin:0 0 60px;border-top:1px solid var(--divider);padding-top:10px;font-size:14px;color:var(--text-strong)}
 .selCtx svg{flex:none}
 /* a selection-thread turn fills the panel viewport, so the prior conversation
-   scrolls up out of view and the thread starts at the top */
-.convoTurn{min-height:100%}
+   (including its timestamp) scrolls fully under the fold and the thread starts
+   at the top. The 60px gap above the stroke is the turn's own padding, and the
+   extra 40px of min-height pushes the previous message out of the padding zone. */
+.convoTurn{min-height:calc(100% + 40px);padding-top:60px}
 
 /* tabs */
 /* tabs: underline stroke spans full content width (edge-to-edge via negative

@@ -2810,7 +2810,7 @@ const SELCTX_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"
 const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} experience${n===1?'':'s'}</span></div>`;
 // feasibility confirmed → From/To version diff + confirm pill. In the campaign
 // scenario the card also notes no change is needed on the campaign object.
-const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rollback is feasible for all ${n} selected experiences.${ftBlk('Rolling back to the previous version:','v3','v2')}${inCamp?'No changes are needed on the campaign object.':''}<div class="bubble-q">Does this look ok? I'll then proceed.</div>${active?replyBtn('Yes, roll back','yesRollback'):recordedReply('Yes, roll back')}</div>`);
+const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rollback is feasible for all ${n} selected experiences.<div style="height:12px"></div>${ftBlk('Rolling back to the previous version:','v3','v2')}${inCamp?'No changes are needed on the campaign object.':''}<div class="bubble-q">Does this look ok? I'll then proceed.</div>${active?replyBtn('Yes, roll back','yesRollback'):recordedReply('Yes, roll back')}</div>`);
 const RB_DONE = (n)=> agentMsg(
   disclosure(`Rolled back ${n} experiences`,['Checked rollback feasibility',`Rolled back ${n} experiences`,'Refreshed the list'])
   + `<div class="chatBubble">I've rolled back ${n} experiences to v2 and republished them. The new version is now showing in the experience details.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}</div>`);
