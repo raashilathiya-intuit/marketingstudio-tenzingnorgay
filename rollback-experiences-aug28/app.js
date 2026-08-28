@@ -2819,7 +2819,7 @@ const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rolli
 // rollback not possible: state the reason (placeholder in brackets) and stop —
 // no confirm pill, the flow ends here (flow map: "provide reason for not able
 // to roll back").
-const RB_INFEASIBLE = ()=> agentMsg(`<div class="chatBubble">I checked the version history, and these experiences can't be rolled back to the previous version. [&lt;previous version references a retired placement&gt;]</div>`);
+const RB_INFEASIBLE = ()=> agentMsg(`<div class="chatBubble">These experiences can't be rolled back to the previous version because &lt;reason goes here&gt;.<div style="margin-top:12px">Let me know if you'd like to make changes instead.</div></div>`);
 const RB_DONE = (n)=> agentMsg(
   disclosure(`Rolled back ${n} experiences`,['Checked the version history',`Rolled back ${n} experiences`,'Refreshed the list'])
   + `<div class="chatBubble">I've rolled back ${n} experiences to v2. They are now in Draft and will need to be published again.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}</div>`);
