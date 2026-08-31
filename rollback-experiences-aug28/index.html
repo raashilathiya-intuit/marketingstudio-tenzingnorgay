@@ -375,6 +375,13 @@ button{font-family:inherit}
 .warnNote{display:flex;align-items:flex-start;gap:8px;background:#ffffff;border:1px solid #c9500f;border-radius:8px;padding:16px;margin-top:12px;font-size:14px;font-weight:400;line-height:1.5;color:#6b6c72}
 .warnNote svg{flex:none;margin-top:2px}
 
+/* selection context row in the composer (Figma MS-Theme 2151:21118): full-bleed
+   container-background-secondary band across the top of the prompt box, Body/3
+   text-primary on the left, clear ✕ on the right. Negative margins escape the
+   composer padding (14px 16px) so the band reaches the border. */
+.selBar{display:flex;align-items:center;justify-content:space-between;font-size:14px;font-weight:400;line-height:1.5;color:#3a393d;background:#f4f5f8;margin:-14px -16px 6px;padding:10px 16px;border-radius:14.5px 14.5px 0 0}
+.selBar__x{display:flex;cursor:pointer;color:#6b6c72}
+
 /* selection-thread context: divider + "↳ Selected n experiences" above the
    user's ask whenever the prompt acts on a table selection */
 .selCtx{display:flex;align-items:center;gap:10px;margin:0 0 60px;border-top:1px solid var(--divider);padding-top:10px;font-size:14px;color:var(--text-strong)}
@@ -774,6 +781,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=14"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>

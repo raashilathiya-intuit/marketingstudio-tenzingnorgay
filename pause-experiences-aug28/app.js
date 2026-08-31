@@ -198,6 +198,7 @@ function aiPanel(opts){
     <div class="ai__composer">
       <div class="promptBox">
         <div class="promptBox__content">
+          ${opts.chip?`<div class="selBar"><span>${opts.chip}</span><span class="selBar__x" data-chipclear>${icon('close',14)}</span></div>`:''}
           <div class="promptBox__input${filled}" id="composerInput" data-ph="${opts.composer||'Ask Marketing Agent'}">${draft || `<span class="promptBox__ph">${opts.composer||'Ask Marketing Agent'}</span>`}</div>
           <div class="promptBox__actions">
             <button class="promptBox__ctrl">${icon('attach',20)}</button>
@@ -755,6 +756,7 @@ scenes.home = (state={})=>{
           <div class="simMenu hidden" id="simMenu">
             <button class="simMenu__item" data-sim="pauseCamp">Unpublish within a campaign</button>
             <button class="simMenu__item" data-sim="pauseExp">Unpublish from experience search</button>
+            <button class="simMenu__item" data-sim="pauseNo">User does not have permission to unpublish</button>
           </div>
         </div>
       </div>
@@ -2515,6 +2517,8 @@ function wire(name, state){
     if(!state.pz && sel.size && !state.typed) scheduleAskType('pxSearch', UNPUB_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.pxSend();};
+    const chipX=main.querySelector('[data-chipclear]');
+    if(chipX) chipX.onclick=()=>{ if(state.pz && state.pz!=='denied') return; autopilot=false; render('pxSearch',{...state, selected:[]}); };
     const pill=main.querySelector('#yesUnpub');
     if(pill) pill.onclick=()=>{autopilot=false;trigger.pzConfirm();};
   }
@@ -2569,6 +2573,8 @@ function wire(name, state){
     if(!state.pz && sel.size && !state.typed) scheduleAskType('pcDetail', UNPUB_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.pcSend();};
+    const chipX=main.querySelector('[data-chipclear]');
+    if(chipX) chipX.onclick=()=>{ if(state.pz) return; autopilot=false; render('pcDetail',{...state, selected:[]}); };
     const pill=main.querySelector('#yesUnpub');
     if(pill) pill.onclick=()=>{autopilot=false;trigger.pzConfirm();};
   }
@@ -2884,6 +2890,9 @@ const UNPUB_DONE_ALL = ()=> agentMsg(
   + `<div class="chatBubble">I've unpublished all ${UNPUB_TOTAL} experiences. With no published experiences left, the campaign status has changed to Draft.${objectCard('edit','Unpublish experiences - DIWM QB Li…')}<div style="margin-top:12px;font-weight:400">To publish them again, go to Campaign Manager.</div>${cmLink()}</div>`);
 const PX_DONE = UNPUB_DONE;
 const PC_DONE = UNPUB_DONE;
+// permission denied: same pattern as the delete flow — who to contact, plus a
+// request-permission link. The flow ends here.
+const PZ_DENIED = ()=> agentMsg(`<div class="chatBubble">You don't have permission to unpublish these experiences. Contact the creator, Stroupe, Kristin, or your team admin.<div class="link-cm">Request permission ${EXT_ICON}</div></div>`);
 
 /* shared canvas chrome for the experience tables */
 function pxToolbar(){
@@ -2952,9 +2961,10 @@ scenes.pxSearch = (state={})=>{
   } else {
     body = PX_SEARCH_CONV();
     if(state.pz){
-      const count = state.pz==='done' ? (state.unpubbed||[]).length : n;
+      const count = state.pz==='done' ? (state.unpubbed||[]).length : (state.asked||n);
       let tail = selThread(count) + UNPUB_REQ();
       if(state.pz==='checking') tail += agentLoader('Reviewing your request', state.tasks||[]);
+      else if(state.pz==='denied') tail += PZ_DENIED();
       else if(state.pz==='confirm') tail += PAUSE_CONFIRM(count, true, allSel);
       else if(state.pz==='working') tail += PAUSE_CONFIRM(count,false,allSel) + agentLoader('Unpublishing experiences', state.tasks||[]);
       else if(state.pz==='done') tail += PAUSE_CONFIRM(count,false,allSel) + (allSel ? UNPUB_DONE_ALL() : PX_DONE(count));
@@ -2967,7 +2977,7 @@ scenes.pxSearch = (state={})=>{
   }
   // experience drill-down replaces the canvas (row click); the panel keeps the conversation
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(PX_CRUMB, rows[state.expDrill], state) + aiPanel({body,draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
+    return expDrillCanvas(PX_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
   }
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar(PX_CRUMB)}
@@ -2979,7 +2989,7 @@ scenes.pxSearch = (state={})=>{
     </div></div>
     ${pxSelbar(n,UNPUB_TOTAL)}
   </div>`;
-  return content + aiPanel({body,opening:state.opening,draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
+  return content + aiPanel({body,opening:state.opening,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
 };
 
 /* ---- Scene: campaign search results (all Published) ----
@@ -3056,7 +3066,7 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
   // selecting EVERY experience is its own scenario: with none left published,
   // the campaign itself moves to Draft after the unpublish.
   const allSel = state.all || n===UNPUB_TOTAL;
-  const count = state.pz==='done' ? (state.unpubbed||[]).length : n;
+  const count = state.pz==='done' ? (state.unpubbed||[]).length : (state.asked||n);
   let body = PC_SEARCH_CONV();
   if(state.pz){
     let tail = selThread(count) + UNPUB_REQ();
@@ -3068,7 +3078,7 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
   }
   // experience drill-down replaces the campaign-detail canvas (row click)
   if(!loading && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(PC_CRUMB, rows[state.expDrill], state) + aiPanel({body,draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
+    return expDrillCanvas(PC_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
   }
   let mainInner;
   if(tab==='meta') mainInner = metaGrid({});
@@ -3100,7 +3110,7 @@ scenes.pcDetail = (state={tab:'experiences'})=>{
     </div></div>
     ${tab==='experiences'&&!loading?pxSelbar(n,UNPUB_TOTAL):''}
   </div>`;
-  return content + aiPanel({body,draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
+  return content + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.pz)?UNPUB_PROMPT:''});
 };
 
 /* intake (experience search): boot → staggered messages → searching loader → results */
@@ -3143,11 +3153,12 @@ function runPzCheck(scene, extra){
   const all = sel.length===UNPUB_TOTAL;
   const subs=['Reading your request','Checking the selected experiences'];
   const dur=2400;
-  const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,pz:'checking',all,tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  const tick=(idx)=>render(scene,{...extra,selected:sel,asked:sel.length,typed:true,pz:'checking',all,tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
-  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,typed:true,pz:'confirm',all}),dur));
+  // the no-permission scenario ends with the denied message; otherwise → confirm
+  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,asked:sel.length,typed:true,pz:scenario==='pauseNo'?'denied':'confirm',all}),dur));
 }
 /* unpublish runner shared by both scenes: loader → statuses flip, selection clears */
 function runUnpub(scene, extra){
@@ -3155,7 +3166,7 @@ function runUnpub(scene, extra){
   const eff = extra&&extra.all ? UNPUB_TOTAL : sel.length;   // all-selected = the whole campaign
   const subs=['Reading your request',`Unpublishing ${eff} experiences`,'Refreshing the list'];
   const dur=2900;
-  const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,pz:'working',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  const tick=(idx)=>render(scene,{...extra,selected:sel,asked:sel.length,typed:true,pz:'working',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
@@ -3222,7 +3233,13 @@ const STEPS_PAUSE_CAMP = [
   ['pcDetail',{tab:'experiences',selected:[1,3,6],typed:true,pz:'confirm'}],
   ['pcDetail',{tab:'experiences',typed:true,pz:'done',unpubbed:[1,3,6]}],
 ];
-function FLOW_STEPS(){ return scenario==='pauseCamp' ? STEPS_PAUSE_CAMP : STEPS_PAUSE_EXP; }
+const STEPS_PAUSE_NO = [
+  ['home',{}],
+  ['pxSearch',{}],
+  ['pxSearch',{selected:[1,3,6],typed:true}],
+  ['pxSearch',{selected:[1,3,6],typed:true,pz:'denied'}],
+];
+function FLOW_STEPS(){ return scenario==='pauseCamp' ? STEPS_PAUSE_CAMP : scenario==='pauseNo' ? STEPS_PAUSE_NO : STEPS_PAUSE_EXP; }
 // map the CURRENT scene+state onto a step index so arrows resume from anywhere
 function stepIndex(){
   const st=current.state||{};

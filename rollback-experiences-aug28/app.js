@@ -198,6 +198,7 @@ function aiPanel(opts){
     <div class="ai__composer">
       <div class="promptBox">
         <div class="promptBox__content">
+          ${opts.chip?`<div class="selBar"><span>${opts.chip}</span><span class="selBar__x" data-chipclear>${icon('close',14)}</span></div>`:''}
           <div class="promptBox__input${filled}" id="composerInput" data-ph="${opts.composer||'Ask Marketing Agent'}">${draft || `<span class="promptBox__ph">${opts.composer||'Ask Marketing Agent'}</span>`}</div>
           <div class="promptBox__actions">
             <button class="promptBox__ctrl">${icon('attach',20)}</button>
@@ -2508,6 +2509,8 @@ function wire(name, state){
     if(!state.rb && sel.size && !state.typed) scheduleAskType('rxSearch', RB_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.rxSend();};
+    const chipX=main.querySelector('[data-chipclear]');
+    if(chipX) chipX.onclick=()=>{ if(state.rb && state.rb!=='infeasible') return; autopilot=false; render('rxSearch',{...state, selected:[]}); };
     const pill=main.querySelector('#yesRollback');
     if(pill) pill.onclick=()=>{autopilot=false;trigger.rbConfirm();};
   }
@@ -2557,6 +2560,8 @@ function wire(name, state){
     if(!state.rb && sel.size && !state.typed) scheduleAskType('rcDetail', RB_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.rcSend();};
+    const chipX=main.querySelector('[data-chipclear]');
+    if(chipX) chipX.onclick=()=>{ if(state.rb) return; autopilot=false; render('rcDetail',{...state, selected:[]}); };
     const pill=main.querySelector('#yesRollback');
     if(pill) pill.onclick=()=>{autopilot=false;trigger.rbConfirm();};
   }
@@ -2852,11 +2857,12 @@ const rxPager = (total)=>`<div class="pager">
 function rbTail(state, inCamp){
   let t='';
   const n=(state.selected||[]).length;
-  if(state.rb) t += selThread(state.rb==='done'?(state.rolled||[]).length:n) + RB_REQ();
+  const count = state.rb==='done' ? (state.rolled||[]).length : (state.asked||n);
+  if(state.rb) t += selThread(count) + RB_REQ();
   if(state.rb==='checking') t += agentLoader('Reviewing your request', state.tasks||[]);
   else if(state.rb==='infeasible') t += RB_INFEASIBLE();
-  else if(state.rb==='confirm') t += RB_CONFIRM(n, inCamp, true);
-  else if(state.rb==='working') t += RB_CONFIRM(n, inCamp, false) + agentLoader('Rolling back experiences', state.tasks||[]);
+  else if(state.rb==='confirm') t += RB_CONFIRM(count, inCamp, true);
+  else if(state.rb==='working') t += RB_CONFIRM(count, inCamp, false) + agentLoader('Rolling back experiences', state.tasks||[]);
   else if(state.rb==='done') t += RB_CONFIRM((state.rolled||[]).length, inCamp, false) + RB_DONE((state.rolled||[]).length);
   // the selection-thread turn fills the panel viewport so the prior
   // conversation scrolls up and the thread starts at the top
@@ -2902,7 +2908,7 @@ scenes.rxSearch = (state={})=>{
   }
   // experience drill-down replaces the canvas (row click); the panel keeps the conversation
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(RX_CRUMB, rows[state.expDrill], state) + aiPanel({body,draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+    return expDrillCanvas(RX_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
   }
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar(RX_CRUMB)}
@@ -2914,7 +2920,7 @@ scenes.rxSearch = (state={})=>{
     </div></div>
     ${rxSelbar(n,rows.length)}
   </div>`;
-  return content + aiPanel({body,opening:state.opening,draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+  return content + aiPanel({body,opening:state.opening,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
 };
 
 /* ---- Scene: campaign search results (all Published) ---- */
@@ -2985,7 +2991,7 @@ scenes.rcDetail = (state={tab:'experiences'})=>{
   const body = RC_SEARCH_CONV() + rbTail(state,true);
   // experience drill-down replaces the campaign-detail canvas (row click)
   if(!loading && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(RC_CRUMB, rows[state.expDrill], state) + aiPanel({body,draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+    return expDrillCanvas(RC_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
   }
   let mainInner;
   if(tab==='meta') mainInner = metaGrid({});
@@ -3017,7 +3023,7 @@ scenes.rcDetail = (state={tab:'experiences'})=>{
     </div></div>
     ${tab==='experiences'&&!loading?rxSelbar(n,rows.length):''}
   </div>`;
-  return content + aiPanel({body,draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+  return content + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
 };
 
 /* intake (experience search): boot → staggered messages → searching loader → results */
@@ -3059,12 +3065,12 @@ function runRbCheck(scene, extra){
   const sel=[...(current.state.selected||[])];
   const subs=['Reading your request','Checking the version history','Preparing the rollback'];
   const dur=2900;
-  const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,rb:'checking',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  const tick=(idx)=>render(scene,{...extra,selected:sel,asked:sel.length,typed:true,rb:'checking',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
   // the not-feasible scenario ends here with the reason; otherwise → confirm card
-  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,typed:true,rb:scenario==='rbNo'?'infeasible':'confirm'}),dur));
+  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,asked:sel.length,typed:true,rb:scenario==='rbNo'?'infeasible':'confirm'}),dur));
 }
 /* rollback: loader → versions flip to v2, selection clears */
 function runRbRoll(scene){
@@ -3072,7 +3078,7 @@ function runRbRoll(scene){
   const sel=[...(current.state.selected||[])];
   const subs=[`Rolling back ${sel.length} experiences`,'Updating experience statuses','Refreshing the list'];
   const dur=2900;
-  const tick=(idx)=>render(scene,{...extra,selected:sel,typed:true,rb:'working',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  const tick=(idx)=>render(scene,{...extra,selected:sel,asked:sel.length,typed:true,rb:'working',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));

@@ -198,6 +198,7 @@ function aiPanel(opts){
     <div class="ai__composer">
       <div class="promptBox">
         <div class="promptBox__content">
+          ${opts.chip?`<div class="selBar"><span>${opts.chip}</span><span class="selBar__x" data-chipclear>${icon('close',14)}</span></div>`:''}
           <div class="promptBox__input${filled}" id="composerInput" data-ph="${opts.composer||'Ask Marketing Agent'}">${draft || `<span class="promptBox__ph">${opts.composer||'Ask Marketing Agent'}</span>`}</div>
           <div class="promptBox__actions">
             <button class="promptBox__ctrl">${icon('attach',20)}</button>
@@ -2490,6 +2491,8 @@ function wire(name, state){
     if(!state.del && sel.size && !state.typed) scheduleAskType('delSearch', DELETE_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.delSend();};
+    const chipX=main.querySelector('[data-chipclear]');
+    if(chipX) chipX.onclick=()=>{ if(state.del && state.del!=='denied') return; autopilot=false; render('delSearch',{...state, selected:[]}); };
     const pill=main.querySelector('#yesDelete');
     if(pill) pill.onclick=()=>{autopilot=false;trigger.delConfirm();};
   }
@@ -2773,7 +2776,7 @@ scenes.delSearch = (state={})=>{
   } else {
     body = DEL_SEARCH_CONV();
     if(state.del){
-      let tail = selThread(state.del==='done'?deleted.size:n) + DEL_REQ();
+      let tail = selThread(state.del==='done'?deleted.size:(state.asked||n)) + DEL_REQ();
       if(state.del==='checking') tail += agentLoader('Checking your permission', state.tasks||[]);
       else if(state.del==='denied') tail += DEL_DENIED();
       else if(state.del==='confirm') tail += DEL_CONFIRM(n,true);
@@ -2788,7 +2791,7 @@ scenes.delSearch = (state={})=>{
   }
   // experience drill-down replaces the canvas (row click); the panel keeps the conversation
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(DEL_CRUMB, rows[state.expDrill], state) + aiPanel({body,draft:(state.typed&&!state.del)?DELETE_PROMPT:''});
+    return expDrillCanvas(DEL_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.del)?DELETE_PROMPT:''});
   }
   const total = rows.length;
   const act = (ic,label)=>`<span class="act ${n?'act--on':'act--off'}">${ic} ${label} (${n})</span>`;
@@ -2815,7 +2818,7 @@ scenes.delSearch = (state={})=>{
       </div>
     </div>
   </div>`;
-  return content + aiPanel({body,opening:state.opening,draft:(state.typed&&!state.del)?DELETE_PROMPT:''});
+  return content + aiPanel({body,opening:state.opening,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.del)?DELETE_PROMPT:''});
 };
 
 /* intake: full-screen boot → staggered messages → searching loader → results.
@@ -2840,18 +2843,18 @@ function runDelCheck(){
   const sel=[...(current.state.selected||[])];
   const subs=['Reading your request','Checking your permission'];
   const dur=2400;
-  const tick=(idx)=>render('delSearch',{selected:sel,typed:true,del:'checking',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  const tick=(idx)=>render('delSearch',{selected:sel,asked:sel.length,typed:true,del:'checking',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
-  timers.push(setTimeout(()=>go('delSearch',{selected:sel,typed:true,del:scenario==='delNo'?'denied':'confirm'}),dur));
+  timers.push(setTimeout(()=>go('delSearch',{selected:sel,asked:sel.length,typed:true,del:scenario==='delNo'?'denied':'confirm'}),dur));
 }
 /* hard delete: loader → refreshed list with the selected rows removed */
 function runDelDelete(){
   const sel=[...(current.state.selected||[])];
   const subs=[`Deleting ${sel.length} experiences`,'Updating the campaign','Refreshing the list'];
   const dur=2900;
-  const tick=(idx)=>render('delSearch',{selected:sel,typed:true,del:'deleting',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  const tick=(idx)=>render('delSearch',{selected:sel,asked:sel.length,typed:true,del:'deleting',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
