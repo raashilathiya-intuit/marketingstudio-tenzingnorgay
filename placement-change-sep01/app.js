@@ -2743,7 +2743,7 @@ function wire(name, state){
 
 /* ============================================================
    PLACEMENT CHANGE FLOW (1 Sep)
-   Find QB Payroll experiences on the Banking - hellobox placement →
+   Find QB Payroll IPD experiences on the Banking - hellobox placement →
    single-select one → ask to change its template to hellobox image →
    AI states what it understood AND that it carries over the values
    from the previous template → "Looks good" → AI asks for the extra
@@ -2751,7 +2751,7 @@ function wire(name, state){
    plan of 2 reviews: the updated placement, then the newly created
    experience (drill-down view, no back button).
    ============================================================ */
-const FIND_EXP_PROMPT = 'Find all QB Payroll experiences using Banking - hellobox placement.';
+const FIND_EXP_PROMPT = 'Find all QB Payroll IPD experiences using Banking - hellobox placement.';
 const CHANGE_TMPL_PROMPT = 'Change placement to Batch save - hellobox and template to hellobox - text.';
 const NEW_TEMPLATE = 'helloboxText';
 const OLD_TEMPLATE = 'helloboxThirdParty';
@@ -2862,7 +2862,7 @@ function newFieldDetail(view, opts){
     <div class="cd-row" style="margin-top:16px">${cdPair('FOOTNOTE',foot,hl)}${cdPair('',' ',false)}</div>`;
 }
 
-// QB Payroll experiences on the Banking - hellobox placement (the search filter).
+// QB Payroll IPD experiences on the Banking - hellobox placement (the search filter).
 const PC_ROWS = [
   ['ELM9684-IPD-QBPayroll-Banking-MedPS…','4d738ef0-9505-11f1-86ec-a3e65…'],
   ['ELM9684-IPD-QBPayroll-Banking-HighPS…','5a12bc41-9505-11f1-86ec-a3e65…'],
@@ -2882,14 +2882,14 @@ const PC_COLS = [
   {label:'Created by',key:'by'},{label:'Last updated',key:'mod'},
 ];
 
-const PC_PROJECT = 'QB Payroll experiences - Banking hellobox';
+const PC_PROJECT = 'QB Payroll IPD experiences - Banking hellobox';
 const PC_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${PC_PROJECT}</span>`;
 const PC_SEARCH_CONV = ()=>
   userBubble(FIND_EXP_PROMPT)
   + agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">${PC_PROJECT}</span>" project for you.</div>`,'')
   + agentMsg(
-      disclosure(`Searched and found ${PC_ROWS.length} experiences`,['Reading your request','Searching QB Payroll experiences','Compiling results'])
-      + `<div class="chatBubble">Search results${objectCard('search','QB Payroll experiences - Banking …')}</div>`);
+      disclosure(`Searched and found ${PC_ROWS.length} experiences`,['Reading your request','Searching QB Payroll IPD experiences','Compiling results'])
+      + `<div class="chatBubble">Search results${objectCard('search','QB Payroll IPD experiences - Banki…')}</div>`);
 const PC_REQ = ()=> userBubble(CHANGE_TMPL_PROMPT);
 // selection-thread context above a selection-scoped ask (divider + ↳ Selected n)
 const SELCTX_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 3v5.5A3.5 3.5 0 0 0 7.5 12H14" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round"/><path d="M10.8 8.4 14.4 12l-3.6 3.6" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
@@ -3006,7 +3006,7 @@ scenes.pcSearch = (state={})=>{
   if(phase==='msg-prompt' || phase==='msg-created' || phase==='msg-search'){
     let centeredBody = uPrompt;
     if(phase==='msg-created' || phase==='msg-search') centeredBody += agentMsg(createdBubble);
-    if(phase==='msg-search') centeredBody += agentLoader('Searching QB Payroll experiences', state.tasks||[]);
+    if(phase==='msg-search') centeredBody += agentLoader('Searching QB Payroll IPD experiences', state.tasks||[]);
     return `<div class="content content--centered">
       ${topbar(PC_CRUMB)}
       <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${centeredBody}</div>
@@ -3016,7 +3016,7 @@ scenes.pcSearch = (state={})=>{
   }
   let body, table;
   if(loading){
-    body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching QB Payroll experiences', state.tasks||[]);
+    body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching QB Payroll IPD experiences', state.tasks||[]);
     table = skeletonTable(PC_COLS,true);
   } else {
     body = PC_SEARCH_CONV();
@@ -3160,7 +3160,7 @@ scenes.pcSearch = (state={})=>{
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar(PC_CRUMB)}
     <div class="scroll"><div class="pad">
-      <h2 class="page-h">QB Payroll experiences using Banking - hellobox placement</h2>
+      <h2 class="page-h">QB Payroll IPD experiences using Banking - hellobox placement</h2>
       <div class="toolbar">
         <div class="search">${I.search}<span>Search</span></div>
         <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
@@ -3181,7 +3181,7 @@ scenes.pcSearch = (state={})=>{
 
 /* intake: full-screen boot → staggered messages → searching loader → results. */
 function runIntakePC(){
-  const searchTasks=['Reading your brief','Searching QB Payroll experiences','Compiling results'];
+  const searchTasks=['Reading your brief','Searching QB Payroll IPD experiences','Compiling results'];
   const tick=(a)=>render('pcSearch',{phase:'msg-search',tasks:searchTasks.map((label,j)=>({label,state:j<a?'done':j===a?'active':'idle'}))});
   render('pcSearch',{phase:'bootfull'});
   const promptAt=2400, createdAt=promptAt+600, searchAt=createdAt+900;
