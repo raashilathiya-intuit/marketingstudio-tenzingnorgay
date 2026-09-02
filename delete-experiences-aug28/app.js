@@ -495,7 +495,7 @@ function kvGrid(pairs){
 // raw copydata fields for a leaf offer (the content's Data tab)
 function rawFields(o){
   return kvGrid([
-    ['TEMPLATE',o.template],['OIDAMIMAGE','multitasking.svg'],['OBILLOFFERID',o.billing],
+    ['TEMPLATE',o.template],['OIDAMIMAGE','multitasking.svg'],
     ['BODYTITLE','Get 50% off Payroll for the next 3 months*'],
     ['BODYMESSAGE',"Limited-time offer–claim before your trial ends. We'll calculate, file, and pay your payroll taxes automatically."],
     ['PRIMARYBTNTEXT','Claim 50% off offer'],['PRICINGCATEGORY','Targeted Only'],['ROUTE','homepage'],
@@ -507,7 +507,7 @@ let treeDataTab = new Set();
 // expanded leaf (rich): full-dimension panel + content card w/ working Preview|Data tabs
 function richLeafExtra(o, leafId){
   const dims = kvGrid([
-    ['SEGMENT',o.segment],['TREATMENT',o.treatment],['EXPERIMENT',o.experiment],['BILLING OFFER ID',o.billing],
+    ['SEGMENT',o.segment],['TREATMENT',o.treatment],['EXPERIMENT',o.experiment],
     ['FEATURE SET',FEATURE_SET[o.billing]||'—'],['PLACEMENT',o.placement],['UI PATTERN',o.uipattern],['TEMPLATE',o.template],
   ]);
   const data = treeDataTab.has(leafId);
@@ -1806,7 +1806,7 @@ scenes.crExperiment = (state={})=>{
   let canvas;
   if(state.drill!==undefined && state.drill!==null){
     const drillBody = state.drillLoading
-      ? skeletonTable([{label:'Treatment name'},{label:'Allocation'},{label:'Billing Offer ID'},{label:'Offers'}],false)
+      ? skeletonTable([{label:'Treatment name'},{label:'Allocation'}],false)
       : `${metaGrid2([['START DATE','March 12, 2026'],['END DATE','April 22, 2026'],['TYPE','A/B/N (3-cell)']])}
       <div style="height:12px"></div>${treatmentsTable()}`;
     canvas = `<div class="detail-h"><span class="back" data-crback="crExperiment">${I.back}</span><span class="title">IPD High Price Sensitivity · IXP 321931</span><span class="detail-vd"></span>${badge('Verified')}<span class="detail-vd"></span>
@@ -1821,14 +1821,15 @@ scenes.crExperiment = (state={})=>{
   const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
   return content + aiPanel({step:'4.  Parse and validate experiments',body,stepLoading:loading});
 };
+// IPD is cartesian: NO billing offers anywhere, so treatments carry only the
+// name + allocation (no Billing Offer ID / Offers columns).
 function treatmentsTable(){
-  const cols=[{label:'Treatment name'},{label:'Allocation',info:1},{label:'Billing Offer ID'},{label:'Offers'}];
   const rows=[
-    {tn:'Treatment1-ELM9071_Med_70pct',al:'~30%',bo:'20059622',of:'8'},
-    {tn:'Treatment2-ELM9071_Med_90pct',al:'~30%',bo:'20059622',of:'8'},
-    {tn:'Control-ELM9071_Med_30dFree',al:'~30%',bo:'20059622',of:'8'},
+    {tn:'Treatment1-ELM9071_Med_70pct',al:'~30%'},
+    {tn:'Treatment2-ELM9071_Med_90pct',al:'~30%'},
+    {tn:'Control-ELM9071_Med_30dFree',al:'~30%'},
   ];
-  const cs=[{label:'Treatment name',key:'tn'},{label:'Allocation',key:'al',info:1},{label:'Billing Offer ID',key:'bo'},{label:'Offers',key:'of'}];
+  const cs=[{label:'Treatment name',key:'tn'},{label:'Allocation',key:'al',info:1}];
   return tableHTML(cs, rows);
 }
 
