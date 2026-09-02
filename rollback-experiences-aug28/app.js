@@ -227,7 +227,7 @@ const DL_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xml
 const dlLink = ()=>`<span class="link-dl">Download change summary ${DL_ICON}</span>`;
 // "View in Campaign Manager" external link (Figma 5356:78474) — sits 12px under an object card
 const EXT_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.5 3.5H4.5C3.39543 3.5 2.5 4.39543 2.5 5.5V11.5C2.5 12.6046 3.39543 13.5 4.5 13.5H10.5C11.6046 13.5 12.5 12.6046 12.5 11.5V9.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9.5 2.5H13.5V6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.2 2.8L8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
-const cmLink = ()=>`<div class="link-cm">View in Campaign Manager ${EXT_ICON}</div>`;
+const cmLink = ()=>`<div class="link-cm">View in Campaign Manager</div>`;
 // copy glyph for the experience-detail ID readout (Figma 1:38730)
 const COPY_ICON = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-2px"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" stroke="#6b6c72"/><path d="M10.5 3.5V3.5C10.5 2.39543 9.60457 1.5 8.5 1.5H4.5C2.84315 1.5 1.5 2.84315 1.5 4.5V8.5C1.5 9.60457 2.39543 10.5 3.5 10.5V10.5" stroke="#6b6c72"/></svg>`;
 
@@ -2821,7 +2821,10 @@ const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} ex
 // confirm-intent card: version diff + a notice that rolled-back experiences
 // move to Draft and have to be published again.
 // IDS triangle-exclamation-fill in Ui/Attention (#d94e00)
-const WARN_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M7.13 1.98a1 1 0 0 1 1.74 0l6.09 10.53a1 1 0 0 1-.87 1.5H1.91a1 1 0 0 1-.87-1.5L7.13 1.98Z" fill="#d94e00"/><rect x="7.25" y="5.6" width="1.5" height="4" rx="0.75" fill="#fff"/><circle cx="8" cy="11.4" r="0.9" fill="#fff"/></svg>`;
+// IDS info circle in Ui/Info (#6f5ade), filled, white glyph — same as the
+// placement-change build's info note. A rollback is reversible, so this is
+// informational rather than a warning.
+const WARN_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#6f5ade"/><rect x="8.25" y="7.6" width="1.5" height="5" rx="0.75" fill="#fff"/><circle cx="9" cy="5.4" r="0.95" fill="#fff"/></svg>`;
 const rbWarn = ()=>`<div class="warnNote">${WARN_ICON}<span>Rolled back experiences will be in Draft state. You will need to publish them again.</span></div>`;
 const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rolling back ${n} experiences to the previous version:${ftRows('v3','v2')}${rbWarn()}<div class="bubble-q">Does this look ok? I'll then proceed.</div>${active?replyBtn('Yes, roll back','yesRollback'):recordedReply('Yes, roll back')}</div>`);
 // rollback not possible: state the reason (placeholder in brackets) and stop —

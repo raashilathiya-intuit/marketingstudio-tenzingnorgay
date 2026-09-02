@@ -2978,7 +2978,7 @@ const PC_BODYFIX = (active)=> agentMsg(`<div class="chatBubble">I've updated the
 const PC_EXPERIENCE = (active)=> agentMsg(`<div class="chatBubble">Here's the new experience with the values carried over and the new fields applied.${objectCard('edit','ELM9684-IPD-QBPayroll-BatchSaveHel…')}<div class="bubble-q">Does this look ok?</div>${active?replyBtn('Approve','pcApproveExp'):recordedReply('Approve')}</div>`);
 const PC_DONE = ()=> agentMsg(
   disclosure('Applied the placement change',['Updated the placement and template','Carried over the creative values','Created the new experience'])
-  + `<div class="chatBubble">I've applied the placement change. The new experience is in Draft. To make it live, publish it from Campaign Manager.<div class="link-cm">Go to Campaign Manager ${EXT_ICON}</div></div>`);
+  + `<div class="chatBubble">I've applied the placement change. The new experience is in Draft. To make it live, publish it from Campaign Manager.<div class="link-cm">Go to Campaign Manager</div></div>`);
 
 const PC_NEW_EID  = 'e3ab45da-9505-11f1-86ec-a3e651c6bc02';
 

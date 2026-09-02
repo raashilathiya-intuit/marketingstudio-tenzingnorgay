@@ -2735,7 +2735,7 @@ const delWarn = ()=>`<div class="warnNote">${WARN_ICON}<span>Deleted experiences
 const DEL_CONFIRM = (n, active)=> agentMsg(`<div class="chatBubble">You've selected ${n} draft experiences to delete.${delWarn()}<div class="bubble-q">Are you sure you would like to delete these experiences?</div>${active?replyBtn('Yes, I want to delete','yesDelete'):recordedReply('Yes, I want to delete')}</div>`);
 // permission denied — instruct the user to contact the creator / team admin (Figma),
 // with a link to request permission.
-const DEL_DENIED = ()=> agentMsg(`<div class="chatBubble">You don't have permission to delete these experiences. Contact the creator, Stroupe, Kristin, or your team admin.<div class="link-cm">Request permission ${EXT_ICON}</div></div>`);
+const DEL_DENIED = ()=> agentMsg(`<div class="chatBubble">You don't have permission to delete these experiences.<div class="link-cm">Request permission ${EXT_ICON}</div></div>`);
 const DEL_DONE = (n)=> agentMsg(
   disclosure(`Deleted ${n} experiences`,['Checked your permission',`Deleted ${n} experiences`,'Refreshed the list'])
   + `<div class="chatBubble">I've deleted ${n} experiences. Here's the updated list of QB Payroll experiences.${objectCard('search','QB Payroll experiences - Banking …')}</div>`);

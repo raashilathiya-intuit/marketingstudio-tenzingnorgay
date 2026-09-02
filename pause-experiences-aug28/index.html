@@ -372,7 +372,10 @@ button{font-family:inherit}
 .badge--neutral{background:#eeeeef;color:#515154}    /* Neutral */
 
 /* warning note — IDS Page Message / Warning, tertiary (Figma 6902:128913) */
-.warnNote{display:flex;align-items:flex-start;gap:8px;background:#ffffff;border:1px solid #c9500f;border-radius:8px;padding:16px;margin-top:12px;font-size:14px;font-weight:400;line-height:1.5;color:#6b6c72}
+/* informational, not a warning: nothing is lost by unpublishing, it just has
+   to be republished from Campaign Manager. No border, purple info icon
+   (matches .infoNote in the placement-change build). */
+.warnNote{display:flex;align-items:flex-start;gap:8px;background:#ffffff;border-radius:8px;padding:16px;margin-top:12px;font-size:14px;font-weight:400;line-height:1.5;color:#6b6c72}
 .warnNote svg{flex:none;margin-top:2px}
 
 /* selection context row in the composer (Figma MS-Theme 2151:21118): full-bleed
@@ -781,6 +784,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=21"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>
