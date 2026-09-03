@@ -2989,21 +2989,21 @@ function rb1Canvas(state){
     tabBody = `<div class="cd-head" style="margin:0 0 12px"><span class="cd-head__t">AUD_AUDIENCE2-QBO_HighPriceSensitivity</span></div>
       <div class="cd-sub" style="margin:0 0 28px">${AUDIENCES[1].desc}</div>${audienceBuilder()}`;
   } else if(t==='creative'){
-    // after the rollback the restored CTA values are the changed ones
-    const rolled = !!state.rolled;
-    const f = (i)=> RB1_FIELDS[i][rolled?2:1];
-    const mark = (v,changed)=> (rolled && changed && hl) ? `<span class="cd-hl">${v}</span>` : v;
+    // v3 shows the live values; after the rollback v4 shows the restored ones.
+    // No highlight either way — this tab is the current state, not a diff. The
+    // comparison view (state.cmp) is where changed fields are marked.
+    const f = (i)=> RB1_FIELDS[i][state.rolled?2:1];
     tabBody = `<div class="cd-head"><span class="cd-head__t">&lt;Name of creative&gt;</span>
         <div class="cvtoggle" data-cvtoggle>
           <button data-cv="detail" class="${view==='detail'?'active':''}">${DETAIL_ICON} Detail</button>
           <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
         </div></div>
       ${view==='preview'
-        ? `<div class="creativeCenter">${helloboxCreative(false,{head:f(0),body:f(1),cta:f(2),terms:f(6),ctaHl:rolled&&hl})}</div>`
+        ? `<div class="creativeCenter">${helloboxCreative(false,{head:f(0),body:f(1),cta:f(2),terms:f(6)})}</div>`
         : `<div class="cd-row">${cdPair('HEADLINE',f(0),false)}<div class="cd-pair"><div class="cd-pair__k">BODY</div><span class="cd-pair__v">${f(1)}</span></div></div>
-      <div class="cd-row" style="margin-top:16px"><div class="cd-pair"><div class="cd-pair__k">CTA TEXT</div><span class="cd-pair__v">${mark(f(2),true)}</span></div><div class="cd-pair"><div class="cd-pair__k">CTA URL</div><span class="cd-pair__v">${mark(f(3),true)}</span></div></div>
+      <div class="cd-row" style="margin-top:16px"><div class="cd-pair"><div class="cd-pair__k">CTA TEXT</div><span class="cd-pair__v">${f(2)}</span></div><div class="cd-pair"><div class="cd-pair__k">CTA URL</div><span class="cd-pair__v">${f(3)}</span></div></div>
       <div class="cd-row" style="margin-top:16px">${cdPair('IMAGE',f(5),false,true)}${cdPair('TERMS',f(6),false)}</div>`}
-      ${rolled?hlBar(hl):''}`;
+      `;
   } else if(t==='experiment'){
     tabBody = `<div class="cd-head"><span class="cd-head__t">IPD High Price Sensitivity · IXP 321931</span></div>${metaGrid2([['START DATE','March 12, 2026'],['END DATE','April 22, 2026'],['TYPE','A/B/N (3-cell)']])}<div style="height:12px"></div>${treatmentsTable()}`;
   } else {
