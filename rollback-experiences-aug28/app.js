@@ -754,6 +754,7 @@ scenes.home = (state={})=>{
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
+            <button class="simMenu__item" data-sim="rbOne">Rollback a single experience by ID</button>
             <button class="simMenu__item" data-sim="rbCamp">Rollback within a campaign</button>
             <button class="simMenu__item" data-sim="rbExp">Rollback from experience search</button>
             <button class="simMenu__item" data-sim="rbNo">Rollback not feasible</button>
@@ -1285,19 +1286,26 @@ function contentDetail(hl=false){
 }
 // PREVIEW view: 9 creative cards rendering the actual creative. No edit
 // highlights in the create flow.
-function helloboxCreative(hl=false){
+function helloboxCreative(hl=false, opts={}){
+  // opts lets a caller preview a DIFFERENT creative's copy (o.head/body/cta/
+  // terms) and mark individual fields as changed (o.ctaHl)
+  const head = opts.head || CREATIVE_HEADLINE;
+  const body = opts.body || CREATIVE_BODY;
+  const cta  = opts.cta  || CREATIVE_CTA;
+  const terms= opts.terms|| 'Offer valid for new paid subscriptions only.';
+  const ctaCls = opts.ctaHl ? ' cd-hl-border' : '';
   return `<div class="preview-wrap preview-wrap--wide">
         <div class="hellobox">
           <div class="art${hl?' cd-hl-border':''}">${I.tag}</div>
           <div class="body">
             <span class="lt">limited time</span>
-            <h4><span class="${hl?'cd-hl':''}">${CREATIVE_HEADLINE}</span></h4>
-            <p>${CREATIVE_BODY}</p>
-            <span class="cta">${CREATIVE_CTA}</span>
-            <div class="fine">Offer valid for new paid subscriptions only. <a href="#">Terms apply</a></div>
+            <h4><span class="${hl?'cd-hl':''}">${head}</span></h4>
+            <p>${body}</p>
+            <span class="cta${ctaCls}">${cta}</span>
+            <div class="fine">${terms} <a href="#">Terms apply</a></div>
           </div>
         </div>
-        <div class="preview-cap">Preview · helloboxThirdParty · SBSEG QBO Hellobox AppAccountsettings</div>
+        <div class="preview-cap">Preview · ${opts.tmpl||'helloboxThirdParty'} · SBSEG QBO Hellobox AppAccountsettings</div>
       </div>`;
 }
 function contentPreview(hl=false){
@@ -2141,7 +2149,7 @@ function render(scene, state){
    ============================================================ */
 // Two scenarios share the app. 'rbExp' = rollback from an experience search;
 // 'rbCamp' = browse into a campaign, then roll back selected experiences.
-let scenario = 'rbExp';
+let scenario = 'rbOne';   // the single-experience rollback leads the sim menu
 const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','changeMeta','campaignObject','campaignTree'];
 const FLOW_WORKBOOK = ['home','coIntentWB','ipdContent','campaignObjectWB','campaignTreeWB'];
 const FLOW_PROMPTCO = ['home','p2Intent','p2Ipd','p2Review','p2Tree'];
@@ -2149,7 +2157,11 @@ const FLOW_CREATE   = ['home','crIntent','crMeta','crAudience','crCreative','crE
 // active FLOW switches with the scenario
 const FLOW_RB_EXP  = ['home','rxSearch'];
 const FLOW_RB_CAMP = ['home','rcSearch','rcDetail'];
-function FLOW_ARR(){ return scenario==='rbCamp' ? FLOW_RB_CAMP : FLOW_RB_EXP; }
+const FLOW_RB_ONE  = ['home','rb1'];
+function FLOW_ARR(){
+  if(scenario==='rbOne') return FLOW_RB_ONE;
+  return scenario==='rbCamp' ? FLOW_RB_CAMP : FLOW_RB_EXP;
+}
 const FLOW = FLOW_PROMPT; // back-comaptible alias (prompt-flow arrow-nav default)
 const TYPE_MS = 18;                    // per-char typing speed (source)
 // auto-type prompts + delays before typing starts (source: ChangeOrder.tsx)
@@ -2257,7 +2269,8 @@ const trigger = {
   // Home SEND (user click) — prompt is already typed by the 2s auto-type; just run
   // the INTAKE sequence: boot loader → "created project" bubble → search + skeleton → results.
   home:()=>{ clearTimers(); const inp=$('#homeInput');
-    if(scenario==='rbCamp'){ if(inp) inp.textContent=FIND_CAMP_PROMPT; runIntakeRC(); }
+    if(scenario==='rbOne'){ if(inp) inp.textContent=RB1_FIND_PROMPT; runIntakeRB1(); }
+    else if(scenario==='rbCamp'){ if(inp) inp.textContent=FIND_CAMP_PROMPT; runIntakeRC(); }
     else { if(inp) inp.textContent=FIND_PUBEXP_PROMPT; runIntakeRX(); } },
   viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
   // ── ROLLBACK triggers ──
@@ -2268,6 +2281,12 @@ const trigger = {
   rcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runRbCheck('rcDetail',{tab:'experiences'}); },
   // "Yes, roll back" pill → records in place → rollback → versions flip to v2
   rbConfirm:()=>{ const scene=current.name; recordPillThen(()=>runRbRoll(scene)); },
+  // ── scenario 4: a single experience fetched by ID ──
+  rb1Send:()=>{ clearTimers(); runRB1Understand(); },
+  rb1Direct:()=>{ recordPillThen(()=>runRB1Direct()); },
+  rb1Compare:()=>{ recordPillThen(()=>runRB1Plan()); },
+  rb1ApprovePlan:()=>{ recordPillThen(()=>runRB1Compare()); },
+  rb1ApproveCmp:()=>{ recordPillThen(()=>runRB1Roll()); },
   // change SEND (user click) — prompt already typed on campaign open; run planning loader → plan.
   change:(state)=>{ clearTimers(); const inp=$('#composerInput'); if(inp) inp.textContent=CHANGE_PROMPT; runLoader('coIntent',LOADERS.planning,'coIntent',{view:state.view||'table'}); },
   // Pill clicks: the pill converts to a recorded reply IN PLACE (avatar + text)
@@ -2477,10 +2496,41 @@ function wire(name, state){
         scenario = b.dataset.sim;
         // within-a-campaign starts from a campaign search; the other starts
         // straight from a published-experience search.
-        go('home',{autotype: scenario==='rbCamp' ? FIND_CAMP_PROMPT : FIND_PUBEXP_PROMPT});
+        go('home',{autotype: scenario==='rbOne' ? RB1_FIND_PROMPT
+                 : scenario==='rbCamp' ? FIND_CAMP_PROMPT : FIND_PUBEXP_PROMPT});
       });
       document.addEventListener('click',()=>menu.classList.add('hidden'),{once:true});
     }
+  }
+
+  // ── scenario 4: one experience on the canvas. No selection to make, so the
+  //    rollback ask auto-types as soon as it opens; Send runs the intent check;
+  //    the two route pills branch to a direct rollback or the compare plan. ──
+  if(name==='rb1' && !state.phase && !state.canvasLoading){
+    if(!state.r1 && !state.typed) scheduleAskType('rb1', RB1_ASK_PROMPT);
+    const send=main.querySelector('#composerSend');
+    if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.rb1Send();};
+    [['#rb1Compare','rb1Compare'],['#rb1Direct','rb1Direct'],
+     ['#rb1ApprovePlan','rb1ApprovePlan'],['#rb1ApproveCmp','rb1ApproveCmp']]
+      .forEach(([sel,fn])=>{ const b=main.querySelector(sel); if(b) b.onclick=()=>{autopilot=false;trigger[fn]();}; });
+    main.querySelectorAll('[data-exptab]').forEach(tb=>tb.onclick=()=>{ autopilot=false; go('rb1',{...state,expTab:tb.dataset.exptab}); });
+    wireCreativeToggle(main,'rb1',state);
+    // version history: the chevron opens the list; picking a row is a no-op in
+    // the demo (the canvas always shows the current version) but closes it.
+    const vt=main.querySelector('[data-vertoggle]');
+    if(vt) vt.onclick=(e)=>{
+      if(e.target.closest('[data-verpick]')) return;      // handled below
+      e.stopPropagation(); autopilot=false;
+      render('rb1',{...state,verOpen:!state.verOpen});
+    };
+    main.querySelectorAll('[data-verpick]').forEach(r=>r.onclick=(e)=>{
+      e.stopPropagation(); autopilot=false;
+      render('rb1',{...state,verOpen:false});
+    });
+    // clicking anywhere else dismisses the menu
+    if(state.verOpen) document.addEventListener('click',()=>{
+      if(current.name==='rb1' && current.state.verOpen) render('rb1',{...current.state,verOpen:false});
+    },{once:true});
   }
 
   // ── ROLLBACK (experience search): checkbox/row toggles selection; once rows
@@ -2835,6 +2885,220 @@ const RB_DONE = (n)=> agentMsg(
   disclosure(`Rolled back ${n} experiences`,['Checked the version history',`Rolled back ${n} experiences`,'Refreshed the list'])
   + `<div class="chatBubble">I've rolled back ${n} experiences to v2. They are now in Draft and will need to be published again.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}${cmLink()}</div>`);
 
+/* ============================================================
+   SCENARIO 4 — ROLL BACK A SINGLE EXPERIENCE, FETCHED BY ID
+   The user names one experience by GUID; it opens straight in the
+   canvas at v3 / Published. Asking to roll back to v2 cannot overwrite
+   a published version, so it forks a NEW v4 in Draft. The user picks
+   whether to compare first or roll back outright.
+   ============================================================ */
+const RB1_EID  = '0c1f0179-6e06-4aeb-8e18-254d8395e5ce';
+const RB1_NAME = 'ELM9071-IPD-HelloChartAcc-US-QBL-QBLAST-NAQL-XSLL';
+const RB1_FIND_PROMPT = `show me ${RB1_EID} experience`;
+const RB1_ASK_PROMPT  = 'I want to rollback to v2.';
+const RB1_PROJECT = 'QB Payroll Targeted offers';
+const RB1_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${RB1_PROJECT}</span>`;
+// the one experience this scenario operates on
+const RB1_EXP = {exp:RB1_NAME, eid:RB1_EID, status:'Published', ver:'v3',
+  ap:'Chart of Accounts -hellobox', tmpl:'helloboxThirdParty', prio:'13.0',
+  by:'Stroupe, Kristin', mod:'06/30 18:30PST'};
+
+/* the creative fields, v3 (live) vs v4 (v2's content restored). Only the two
+   CTA fields differ — a rollback restores v2's CTA, everything else matched. */
+const RB1_FIELDS = [
+  ['Headline','All the extras for a month, at no added cost.','All the extras for a month, at no added cost.'],
+  ['Body','Growing teams come with more moving parts. Get deeper reporting, stramline onboarding, and manage yout growing team with fewer manual steps. Try Elite features for next 30 days at no additional cost.',
+          'Growing teams come with more moving parts. Get deeper reporting, stramline onboarding, and manage yout growing team with fewer manual steps. Try Elite features for next 30 days at no additional cost.'],
+  ['CTA text','Try now','Approve'],
+  ['CTA URL','/app/obillupgrade?product-=PAYROLL&p_prioritycode=ELM9533_QBModalInter_upgradeonus_upgradeonus',
+             '/app/obillupgrade?product-=PAYROLL&p_prioritycode=ELM9533_QBModalInter_upgradeonus_2clickupgradeonus'],
+  ['Secondary CTA','Learn more','Learn more'],
+  ['Image','multitasking.svg','multitasking.svg'],
+  ['Terms','Terms apply. Upgrade charged after 30 days.','Terms apply. Upgrade charged after 30 days.'],
+];
+/* comparison table. A field whose value changes carries the yellow highlight in
+   the NEW-draft column only, so the eye lands on what the rollback will alter. */
+function rb1CmpTable(hl=true){
+  const rows = RB1_FIELDS.map(([k,cur,next])=>{
+    const changed = cur!==next;
+    const mark = (changed && hl) ? `<span class="cd-hl">${next}</span>` : next;
+    return `<tr><td>${k}</td><td>${cur}</td><td>${mark}</td></tr>`;
+  }).join('');
+  return `<div class="cmpTbl-wrap"><table class="cmpTbl"><colgroup><col class="cmp-k"><col><col></colgroup>
+    <thead><tr><th>Fields</th><th>Version 3 (current)</th><th>Version 4 (new draft)</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+/* version history for this one experience. After the rollback a v4 draft tops
+   the list; before it, v3 is the live version. Dates and author are fixed demo
+   data — every version here was authored by the signed-in user. */
+const RB1_AUTHOR = 'Raashi Lathiya';
+function rb1Versions(rolled){
+  const list = [
+    {v:'v3', status:'Published',   date:'9/3/2026'},
+    {v:'v2', status:'Unpublished', date:'9/3/2026'},
+    {v:'v1', status:'Unpublished', date:'9/2/2026'},
+  ];
+  if(rolled) list.unshift({v:'v4', status:'Draft', date:'9/3/2026'});
+  return list;
+}
+/* the version selector, with a real menu. `open` renders it expanded; the
+   current version is the one the canvas is showing. */
+function rb1VerSelect(state){
+  const rolled = !!state.rolled;
+  const vers = rb1Versions(rolled);
+  const cur = rolled ? 'v4' : 'v3';
+  const curStatus = rolled ? 'Draft' : 'Published';
+  const rows = vers.map(x=>`<div class="verRow${x.v===cur?' verRow--active':''}" data-verpick="${x.v}">
+      <div class="verRow__top"><span class="verRow__v">${x.v}</span>${badge(x.status)}</div>
+      <div class="verRow__date">${x.date}</div>
+      <div class="verRow__by"><img src="figma/avatar.png" alt="">by ${RB1_AUTHOR}</div>
+    </div>`).join('');
+  return `<span class="verselect verselect--live" data-vertoggle>${cur} ${I.chev}
+    <div class="verMenu${state.verOpen?'':' hidden'}">${rows}</div></span>`;
+}
+/* Preview view of the comparison: the two versions rendered side by side,
+   same column order and labels as the table. */
+function rb1CmpPreview(hl=true){
+  const f=(i,col)=>RB1_FIELDS[i][col];
+  const card=(label,col,mark)=>`<div class="cmpPrev__col">
+      <div class="cmpPrev__h">${label}</div>
+      ${helloboxCreative(false,{head:f(0,col),body:f(1,col),cta:f(2,col),terms:f(6,col),ctaHl:mark})}
+    </div>`;
+  return `<div class="cmpPrev">${card('Version 3 (current)',1,false)}${card('Version 4 (new draft)',2,hl)}</div>`;
+}
+/* the experience canvas for this scenario: same drill-down chrome, no back
+   button (it was opened by name, not navigated into), version + status driven
+   by state so the same canvas serves v3/Published and v4/Draft. */
+function rb1Canvas(state){
+  const ver = state.rolled ? 'v4' : 'v3';
+  const status = state.rolled ? 'Draft' : 'Published';
+  const t = state.expTab || 'creative';
+  const view = state.creativeView==='preview' ? 'preview' : 'detail';
+  const hl = state.hl!==false;
+  let tabBody;
+  if(state.canvasLoading){
+    tabBody = kvSkeleton(6,2);
+  } else if(state.cmp){
+    // task 1: the side-by-side comparison
+    tabBody = `<div class="cd-head"><span class="cd-head__t">&lt;Name of creative&gt;</span>
+        <div class="cvtoggle" data-cvtoggle>
+          <button data-cv="detail" class="${view==='detail'?'active':''}">${DETAIL_ICON} Detail</button>
+          <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
+        </div></div>${view==='preview' ? rb1CmpPreview(hl) : rb1CmpTable(hl)}${hlBar(hl)}`;
+  } else if(t==='audience'){
+    tabBody = `<div class="cd-head" style="margin:0 0 12px"><span class="cd-head__t">AUD_AUDIENCE2-QBO_HighPriceSensitivity</span></div>
+      <div class="cd-sub" style="margin:0 0 28px">${AUDIENCES[1].desc}</div>${audienceBuilder()}`;
+  } else if(t==='creative'){
+    // after the rollback the restored CTA values are the changed ones
+    const rolled = !!state.rolled;
+    const f = (i)=> RB1_FIELDS[i][rolled?2:1];
+    const mark = (v,changed)=> (rolled && changed && hl) ? `<span class="cd-hl">${v}</span>` : v;
+    tabBody = `<div class="cd-head"><span class="cd-head__t">&lt;Name of creative&gt;</span>
+        <div class="cvtoggle" data-cvtoggle>
+          <button data-cv="detail" class="${view==='detail'?'active':''}">${DETAIL_ICON} Detail</button>
+          <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
+        </div></div>
+      ${view==='preview'
+        ? `<div class="creativeCenter">${helloboxCreative(false,{head:f(0),body:f(1),cta:f(2),terms:f(6),ctaHl:rolled&&hl})}</div>`
+        : `<div class="cd-row">${cdPair('HEADLINE',f(0),false)}<div class="cd-pair"><div class="cd-pair__k">BODY</div><span class="cd-pair__v">${f(1)}</span></div></div>
+      <div class="cd-row" style="margin-top:16px"><div class="cd-pair"><div class="cd-pair__k">CTA TEXT</div><span class="cd-pair__v">${mark(f(2),true)}</span></div><div class="cd-pair"><div class="cd-pair__k">CTA URL</div><span class="cd-pair__v">${mark(f(3),true)}</span></div></div>
+      <div class="cd-row" style="margin-top:16px">${cdPair('IMAGE',f(5),false,true)}${cdPair('TERMS',f(6),false)}</div>`}
+      ${rolled?hlBar(hl):''}`;
+  } else if(t==='experiment'){
+    tabBody = `<div class="cd-head"><span class="cd-head__t">IPD High Price Sensitivity · IXP 321931</span></div>${metaGrid2([['START DATE','March 12, 2026'],['END DATE','April 22, 2026'],['TYPE','A/B/N (3-cell)']])}<div style="height:12px"></div>${treatmentsTable()}`;
+  } else {
+    tabBody = metaGrid2([['PRIORITY',RB1_EXP.prio],['CREATED BY',RB1_EXP.by],['START DATE','January 28, 2026'],['END DATE','April 22, 2026']]);
+  }
+  const expTabs = [['creative','Creative'],['meta','Experience meta'],['audience','Audience'],['billing','Billing offer'],['experiment','Experiment']]
+    .map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-exptab="${k}">${l}</span>`).join('');
+  return `<div class="content">${topbar(RB1_CRUMB)}<div class="scroll"><div class="pad">
+    <div class="detail-sticky"><div class="detail-h"><span class="title">${RB1_NAME}</span><span class="detail-vd"></span>${state.cmp?'':badge(status)+'<span class="detail-vd"></span>'}<span class="detail-sub" style="margin:0">ID:&nbsp; ${RB1_EID} ${COPY_ICON}</span>${state.cmp?'':rb1VerSelect(state)}</div>
+    <div class="tabs tabs--insticky tabs--exp">${expTabs}</div></div>
+    ${tabBody}</div></div></div>`;
+}
+
+/* ---- conversation for scenario 4 ---- */
+const RB1_OPENED = ()=> agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">${RB1_PROJECT}</span>" project for you.</div>`,'')
+  + agentMsg(disclosure('Read your brief, created a summary',['Reading your request','Fetching the experience','Compiling results'])
+  + `<div class="chatBubble">Search results${objectCard('search','QBO Payroll Targeted offer campaig…')}</div>`);
+// A published version can't be overwritten, so the rollback forks a new draft.
+const rb1Note = ()=>`<div class="warnNote">${WARN_ICON}<span>Version 3 is currently published, so rolling back creates a new Version 4 in Draft. Version 3 stays live until you publish it.</span></div>`;
+/* what each route actually does, so the choice is informed rather than a guess */
+const RB1_OPTS = `<ol class="optList">
+  <li><b>1. Compare the versions, then roll back.</b> I'll show you Version 3 against the Version 4 draft field by field, so you can see what changes before anything is saved.</li>
+  <li><b>2. Roll back.</b> I'll create the Version 4 draft straight away with the Version 2 content restored. You can still review it afterwards.</li>
+</ol>`;
+/* intent + the two ways to proceed. active=true → live pills. */
+const RB1_CONFIRM = (active)=> agentMsg(`<div class="chatBubble">Rolling back this experience to the previous version:${ftRows('v3','v2')}${rb1Note()}<div class="bubble-q">How would you like to go about this change?</div>${RB1_OPTS}${active
+    ? `<div class="replyRow">${replyBtn('Compare and roll back','rb1Compare')}${replyBtn('Roll back','rb1Direct')}</div>`
+    : recordedReply('Compare and roll back')}</div>`);
+// the recorded form when the user chose the DIRECT path
+const RB1_CONFIRM_DIRECT = ()=> agentMsg(`<div class="chatBubble">Rolling back this experience to the previous version:${ftRows('v3','v2')}${rb1Note()}<div class="bubble-q">How would you like to go about this change?</div>${RB1_OPTS}${recordedReply('Roll back')}</div>`);
+/* compare path: a 2-task plan */
+const RB1_PLAN_TASKS = ['Review the comparison','Review the rolled back experience'];
+function rb1PlanRows(done=0, loading=-1){
+  const marker=(i)=>{
+    if(i<done) return `<span class="planNum planNum--done"><span class="ico-invert">${I.check}</span></span>`;
+    if(i===loading) return `<span class="planNum planNum--loading"><img class="spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"></span>`;
+    return `<span class="planNum">${i+1}</span>`;
+  };
+  return RB1_PLAN_TASKS.map((w,i)=>`<div class="planTable__row">${marker(i)}<span>${w}</span></div>`).join('');
+}
+const RB1_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
+  `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${rb1PlanRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${active?replyBtn('Looks good','rb1ApprovePlan'):recordedReply('Looks good')}</div>`);
+// task 1: the comparison is on the canvas
+const RB1_CMP = (active)=> agentMsg(`<div class="chatBubble">Here's Version 3 against the Version 4 draft. Only the CTA text and CTA URL change.${objectCard('edit','Compare versions - ELM9071-IPD-Hell…')}<div class="bubble-q">Does this look ok? I'll then roll it back.</div>${active?replyBtn('Approve','rb1ApproveCmp'):recordedReply('Approve')}</div>`);
+// end state, both paths
+const RB1_DONE = ()=> agentMsg(
+  disclosure('Rolled back the experience',['Checked the version history','Restored the Version 2 content','Created Version 4'])
+  + `<div class="chatBubble">I've rolled back this experience. Version 4 carries the Version 2 content and is in Draft. To make it live, publish it from Campaign Manager.${objectCard('edit','Rollback experience - ELM9071-IPD-H…')}${cmLink()}</div>`);
+
+/* ---- Scene: one experience, fetched by ID, rolled back ----
+   state: phase (intake) | canvasLoading | typed
+          r1: 'reading' | 'confirm' | 'working' | 'planning' | 'plan'
+              | 'comparing' | 'cmp' | 'rolling' | 'done'
+          cmp (canvas shows the comparison) | rolled (canvas is v4/Draft) */
+scenes.rb1 = (state={})=>{
+  const p = state.r1;
+  const uPrompt = userBubble(RB1_FIND_PROMPT);
+  if(state.phase==='bootfull'){
+    return `<div class="content">
+      ${topbar('<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:200px;height:14px;display:inline-block"></span>')}
+      <div class="scroll scroll--center">${bootCanvas()}</div></div>`;
+  }
+  if(state.phase==='msg-prompt' || state.phase==='msg-created' || state.phase==='msg-fetch'){
+    let body = uPrompt;
+    if(state.phase!=='msg-prompt') body += agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">${RB1_PROJECT}</span>" project for you.</div>`,'');
+    if(state.phase==='msg-fetch') body += agentLoader('Fetching the experience', state.tasks||[]);
+    return `<div class="content content--centered">${topbar(RB1_CRUMB)}
+      <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${body}</div>
+      ${expandedComposer()}</div></div></div>`;
+  }
+  // cumulative transcript
+  let body = uPrompt + RB1_OPENED();
+  const direct = state.path==='direct';
+  if(p){
+    let tail = userBubble(RB1_ASK_PROMPT);
+    if(p==='reading')        tail += agentLoader('Reviewing your request', state.tasks||[]);
+    else if(p==='confirm')   tail += RB1_CONFIRM(true);
+    else if(p==='working')   tail += RB1_CONFIRM_DIRECT() + agentLoader('Rolling back the experience', state.tasks||[]);
+    else if(p==='planning')  tail += RB1_CONFIRM(false) + agentLoader('Creating a plan', state.tasks||[]);
+    else if(p==='plan')      tail += RB1_CONFIRM(false) + RB1_PLAN(0,-1,true);
+    else if(p==='comparing') tail += RB1_CONFIRM(false) + RB1_PLAN(0,0) + agentLoader('Comparing the versions', state.tasks||[]);
+    else if(p==='cmp')       tail += RB1_CONFIRM(false) + RB1_PLAN(0,-1) + RB1_CMP(true);
+    else if(p==='rolling')   tail += RB1_CONFIRM(false) + RB1_PLAN(1,1) + RB1_CMP(false) + agentLoader('Rolling back the experience', state.tasks||[]);
+    else if(p==='done')      tail += (direct ? RB1_CONFIRM_DIRECT() : RB1_CONFIRM(false) + RB1_PLAN(2,-1) + RB1_CMP(false)) + RB1_DONE();
+    body += `<div class="convoTurn">${tail}</div>`;
+  }
+  // the task tracker only runs on the compare path
+  const STEP = {comparing:['1.  Review the comparison',true], cmp:['1.  Review the comparison',false],
+                rolling:['2.  Review the rolled back experience',true]};
+  if(p==='done' && !direct) STEP.done=['2.  Review the rolled back experience',false];
+  const st = STEP[p];
+  const draft = (state.typed && !p) ? RB1_ASK_PROMPT : '';
+  return rb1Canvas(state) + aiPanel({body, draft, ...(st?{step:st[0],stepLoading:st[1]}:{})});
+};
+
 /* shared canvas chrome for the experience tables */
 function rxToolbar(){
   return `<div class="toolbar">
@@ -3089,6 +3353,66 @@ function runRbRoll(scene){
   timers.push(setTimeout(()=>go(scene,{...extra,typed:true,rb:'done',rolled:sel}),dur));
 }
 
+/* ---- scenario 4 runners ---- */
+function rb1Base(){
+  const st=current.state||{};
+  const b={typed:true};
+  if(st.path) b.path=st.path;
+  if(st.hl!==undefined) b.hl=st.hl;
+  if(st.expTab) b.expTab=st.expTab;
+  if(st.creativeView) b.creativeView=st.creativeView;
+  return b;
+}
+function rb1Step(base, subs, dur, next){
+  const tick=(i)=>render('rb1',{...base,tasks:subs.map((l,j)=>({label:l,state:j<i?'done':j===i?'active':'idle'}))});
+  tick(0);
+  const slot=(dur-600)/subs.length;
+  subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>go('rb1',next),dur));
+}
+/* intake: boot → messages → fetch loader → the experience on the canvas */
+function runIntakeRB1(){
+  const subs=['Reading your request','Fetching the experience','Compiling results'];
+  const tick=(a)=>render('rb1',{phase:'msg-fetch',tasks:subs.map((l,j)=>({label:l,state:j<a?'done':j===a?'active':'idle'}))});
+  render('rb1',{phase:'bootfull'});
+  const promptAt=2400, createdAt=promptAt+600, fetchAt=createdAt+900, dur=4200;
+  timers.push(setTimeout(()=>render('rb1',{phase:'msg-prompt'}),promptAt));
+  timers.push(setTimeout(()=>render('rb1',{phase:'msg-created'}),createdAt));
+  timers.push(setTimeout(()=>tick(0),fetchAt));
+  const slot=(dur-600)/subs.length;
+  subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),fetchAt+Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>render('rb1',{canvasLoading:true}),fetchAt+dur));
+  timers.push(setTimeout(()=>go('rb1',{}),fetchAt+dur+1100));
+}
+/* the ask → AI confirms intent and offers the two routes */
+function runRB1Understand(){
+  const base={...rb1Base(),r1:'reading'};
+  rb1Step(base,['Reading your request','Checking the version history','Checking the published state'],2400,{...base,r1:'confirm'});
+}
+/* "Roll back" → canvas + panel both load → v4 / Draft */
+function runRB1Direct(){
+  const base={...rb1Base(),path:'direct',r1:'working',canvasLoading:true};
+  rb1Step(base,['Restoring the Version 2 content','Creating Version 4','Refreshing the experience'],2900,
+    {...rb1Base(),path:'direct',r1:'done',rolled:true});
+}
+/* "Compare and roll back" → plan */
+function runRB1Plan(){
+  const base={...rb1Base(),path:'compare',r1:'planning'};
+  rb1Step(base,['Reading your request','Mapping the version diff','Ordering the tasks'],3400,{...base,r1:'plan'});
+}
+/* plan approved → task 1: the comparison */
+function runRB1Compare(){
+  const base={...rb1Base(),path:'compare',r1:'comparing',canvasLoading:true};
+  rb1Step(base,['Loading Version 3','Building the Version 4 draft','Comparing the fields'],2900,
+    {...rb1Base(),path:'compare',r1:'cmp',cmp:true});
+}
+/* comparison approved → task 2: the rollback itself */
+function runRB1Roll(){
+  const base={...rb1Base(),path:'compare',r1:'rolling',cmp:true,canvasLoading:true};
+  rb1Step(base,['Restoring the Version 2 content','Creating Version 4','Refreshing the experience'],2900,
+    {...rb1Base(),path:'compare',r1:'done',rolled:true});
+}
+
 /* boot */
 renderRail();
 go('home',{});
@@ -3153,7 +3477,19 @@ const STEPS_RB_NO = [
   ['rxSearch',{selected:[1,3,6],typed:true}],
   ['rxSearch',{selected:[1,3,6],typed:true,rb:'infeasible'}],
 ];
-function FLOW_STEPS(){ return scenario==='rbCamp' ? STEPS_RB_CAMP : scenario==='rbNo' ? STEPS_RB_NO : STEPS_RB_EXP; }
+/* scenario 4 walks the compare path by default; the direct path is 3 steps */
+const STEPS_RB_ONE = [
+  ['home',{}],
+  ['rb1',{}],
+  ['rb1',{typed:true,r1:'confirm'}],
+  ['rb1',{typed:true,path:'compare',r1:'plan'}],
+  ['rb1',{typed:true,path:'compare',r1:'cmp',cmp:true}],
+  ['rb1',{typed:true,path:'compare',r1:'done',rolled:true}],
+];
+function FLOW_STEPS(){
+  if(scenario==='rbOne') return STEPS_RB_ONE;
+  return scenario==='rbCamp' ? STEPS_RB_CAMP : scenario==='rbNo' ? STEPS_RB_NO : STEPS_RB_EXP;
+}
 // map the CURRENT scene+state onto a step index so arrows resume from anywhere
 function stepIndex(){
   const st=current.state||{};
@@ -3168,6 +3504,10 @@ function stepIndex(){
     if(st.rb==='done') return 4;
     if(st.rb) return 3;                       // checking / confirm / infeasible
     return (st.selected&&st.selected.length)?2:1;
+  }
+  if(current.name==='rb1'){
+    const map={reading:2,confirm:2,working:5,planning:3,plan:3,comparing:4,cmp:4,rolling:5,done:5};
+    return st.r1 ? map[st.r1] : 1;
   }
   return -1;
 }

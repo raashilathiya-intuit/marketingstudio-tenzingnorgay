@@ -306,6 +306,42 @@ button{font-family:inherit}
 .ico-invert img{filter:brightness(0) invert(1)}
 
 /* reply pill + recorded reply — purple accent (Approve / Looks good) */
+/* two choices offered side by side (compare-then-rollback vs straight rollback) */
+/* stacked choices: each pill on its own row, left-aligned and hugging its text */
+.replyRow{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:8px}
+.replyRow .cardReplyBtn{margin-top:0}
+/* numbered options listed above the pills */
+.optList{margin:8px 0 0;padding:0;list-style:none;font-size:14px;font-weight:400;line-height:1.5;color:var(--text-primary);display:flex;flex-direction:column;gap:10px}
+.optList b{font-weight:500}
+/* version comparison table (Fields | current | new draft) */
+/* wrapper carries the outline + radius, same as .tbl-wrap on every other table */
+/* version history dropdown — only the single-experience rollback scenario has
+   a real version list, so this menu is wired there alone */
+.verselect{position:relative}
+.verselect--live{cursor:pointer}
+.verMenu{position:absolute;top:calc(100% + 6px);right:0;z-index:40;min-width:340px;background:#fff;border:1px solid #e9e9ec;border-radius:12px;box-shadow:0 8px 24px rgba(16,17,32,.12);padding:8px;cursor:default;display:flex;flex-direction:column;gap:6px}
+.verMenu.hidden{display:none}
+.verRow{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:12px;border-radius:8px;cursor:pointer}
+.verRow--active{background:#f6f7f9}   /* surface-subtle: the current version, kept light */
+/* hover comes AFTER active so it wins on the current row too */
+.verRow:hover{background:#eef0f3}
+.verRow__top{display:flex;align-items:center;gap:8px;min-width:0}
+.verRow__v{font-size:14px;font-weight:500;color:var(--text-primary);white-space:nowrap}
+.verRow__date{font-size:14px;font-weight:400;color:#6b6c72;white-space:nowrap;align-self:center}
+.verRow__by{grid-column:1;display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;color:#6b6c72}
+.verRow__by img{width:18px;height:18px;border-radius:50%;flex:none}
+/* comparison in Preview: two rendered creatives, one per version */
+.cmpPrev{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
+.cmpPrev__col{min-width:0}
+.cmpPrev__h{font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:12px}
+.cmpPrev .preview-wrap{margin:0;max-width:none;width:100%}
+.cmpTbl-wrap{margin-top:16px;background:#fff;border:1px solid #e9e9ec;border-radius:12px;overflow:hidden}
+.cmpTbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px;line-height:1.5}
+.cmpTbl th{background:#f6f7f9;text-align:left;padding:14px 16px;font-size:14px;font-weight:500;color:var(--text-primary);border-bottom:1px solid var(--divider)}
+.cmpTbl td{padding:14px 16px;vertical-align:top;border-bottom:1px solid var(--divider);color:var(--text-primary);font-weight:400;word-break:break-word}
+.cmpTbl td:first-child{color:#787e94}
+.cmpTbl tr:last-child td{border-bottom:0}
+.cmpTbl col.cmp-k{width:16%}
 .cardReplyBtn{display:inline-flex;align-self:flex-start;width:fit-content;align-items:center;margin-top:8px;padding:7px 16px;border-radius:999px;border:1px solid #7b61ff;background:#fff;color:#7b61ff;font-family:inherit;font-size:14px;font-weight:500;line-height:1.4;cursor:pointer;transition:background .12s ease}
 /* inside the summary card the flex gap (12) already separates — net 8px above the pill */
 .summaryCard .cardReplyBtn{margin-top:-4px}
@@ -784,6 +820,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>
