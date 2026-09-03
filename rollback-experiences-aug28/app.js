@@ -755,9 +755,9 @@ scenes.home = (state={})=>{
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
             <button class="simMenu__item" data-sim="rbOne">Rollback a single experience by ID</button>
-            <button class="simMenu__item" data-sim="rbCamp">Rollback within a campaign</button>
-            <button class="simMenu__item" data-sim="rbExp">Rollback from experience search</button>
-            <button class="simMenu__item" data-sim="rbNo">Rollback not feasible</button>
+            <button class="simMenu__item simMenu__item--muted" data-sim="rbCamp">Rollback within a campaign</button>
+            <button class="simMenu__item simMenu__item--muted" data-sim="rbExp">Rollback from experience search</button>
+            <button class="simMenu__item simMenu__item--muted" data-sim="rbNo">Rollback not feasible</button>
           </div>
         </div>
       </div>
