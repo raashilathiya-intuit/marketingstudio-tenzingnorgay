@@ -3129,8 +3129,9 @@ const RBI_VER_END   = '12/15';     // the restored version runs past that ceilin
 const RBI_NEW_END   = '10/15';     // the user's fix: an experience date inside the window
 const RBI_OLD_IXP   = 'IXP123456';
 const RBI_NEW_IXP   = 'IXP345678';
-const RBI_EXP       = 'ELM9071-IPD-HelloExpenses-MedPS';
-const RBI_DATE_PROMPT = `Set the experience end date to ${RBI_NEW_END}.`;
+const RBI_DATE_EXP  = 'ELM9071-IPD-HelloChartAcc-MedPS';   // issue 1: outruns its campaign
+const RBI_EXP       = 'ELM9071-IPD-HelloExpenses-MedPS';   // issue 2: moved to another offer
+const RBI_DATE_PROMPT = `Set the end date for ${RBI_DATE_EXP} to ${RBI_NEW_END}.`;
 /* the two issues, played back as a numbered list. The agent names both up
    front so the user knows the size of the problem before answering the first. */
 /* the issues are ONE list; the count in the disclosure and in the sentence are
@@ -3139,7 +3140,7 @@ const RBI_DATE_PROMPT = `Set the experience end date to ${RBI_NEW_END}.`;
    rollback would restore, and why the two cannot both hold. A flat statement
    ("the end date is 7/31") makes the reader work out why it matters. */
 const RBI_LIST = [
-  `${RBI_EXP} runs under a campaign that ends ${RBI_CAMP_END}. The version you're rolling back to runs to ${RBI_VER_END}, so it would be cut short.`,
+  `${RBI_DATE_EXP} runs under a campaign that ends ${RBI_CAMP_END}. The version you're rolling back to runs to ${RBI_VER_END}, so it would be cut short.`,
   `${RBI_EXP} now sits under ${RBI_NEW_IXP}. The version you're rolling back to points at ${RBI_OLD_IXP}.`,
 ];
 const rbiN = ()=> `${RBI_LIST.length} issue${RBI_LIST.length===1?'':'s'}`;
@@ -3148,7 +3149,7 @@ const RBI_ISSUES = ()=> agentMsg(
 /* issue 1 answered: confirm it, then move straight to issue 2. */
 const RBI_DATE_DONE = ()=> agentMsg(
   disclosure('Updated the end date',['Reading your request','Checking the campaign window','Updating the experience'])
-  + `<div class="chatBubble">I've set the experience to end ${RBI_NEW_END}, inside the campaign's ${RBI_CAMP_END} window. Issue 1 is clear.${objectCard('edit','Change end date - ELM9071-IPD-HelloExpenses-MedPS')}<div class="bubble-q">Now issue 2: ${RBI_EXP} still sits under ${RBI_NEW_IXP}.</div></div>`);
+  + `<div class="chatBubble">I've set ${RBI_DATE_EXP} to end ${RBI_NEW_END}, inside the campaign's ${RBI_CAMP_END} window. Issue 1 is clear.${objectCard('edit',`Change end date - ${RBI_DATE_EXP}`)}<div class="bubble-q">Now issue 2: ${RBI_EXP} still sits under ${RBI_NEW_IXP}.</div></div>`);
 /* issue 2 is a linkage error this workflow cannot resolve, so nothing rolls
    back. The flow ends by naming what has to happen elsewhere. */
 const RBI_BLOCKED = ()=> agentMsg(
