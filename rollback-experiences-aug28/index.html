@@ -413,6 +413,10 @@ button{font-family:inherit}
    (matches .infoNote in the placement-change build). */
 .warnNote{display:flex;align-items:flex-start;gap:8px;background:#ffffff;border-radius:8px;padding:16px;margin-top:12px;font-size:14px;font-weight:400;line-height:1.5;color:#6b6c72}
 .warnNote svg{flex:none;margin-top:2px}
+/* two-line note (mixed rollback): the published rule and the draft rule sit as
+   separate lines, so the contrast between them reads at a glance. */
+.rmNote{display:flex;flex-direction:column;gap:12px}
+.rmNote__l b{font-weight:500;color:#3a393d}
 
 /* selection context row in the composer (Figma MS-Theme 2151:21118): full-bleed
    container-background-secondary band across the top of the prompt box, Body/3
@@ -493,7 +497,7 @@ button{font-family:inherit}
 
 /* ---------- creatives drill-down (Figma 5236-166780 / 5323-102736) ---------- */
 /* ACCESS POINT / TEMPLATE attribute row */
-.cd-attr{display:grid;grid-template-columns:1fr 1fr;gap:20px;background:#f6f7f9;border-radius:12px;padding:16px 16px 16px 23px;margin-bottom:20px;max-width:1305px}
+.cd-attr{display:grid;grid-template-columns:1fr 1fr;gap:20px;background:#f6f7f9;border-radius:12px;padding:16px 16px 16px 23px;margin-bottom:20px}
 .cd-attr__k{font-size:12px;font-weight:600;letter-spacing:.8px;color:#787e94;text-transform:uppercase;margin-bottom:5px}
 .cd-attr__v{font-size:16px;color:#000729}
 /* Creatives section header + Detail/Preview toggle (same chrome as .viewtoggle) */
@@ -532,6 +536,9 @@ button{font-family:inherit}
    header fill #F4F5F8; rows #FFFFFF; hover #EFF1F5; zebra band #F6F7F9;
    row divider #F1F1F3; outline stroke #E9E9EC; checkbox filled #7B61FF. */
 .tbl-wrap{overflow-x:auto;overflow-y:hidden;background:#fff;border:1px solid #e9e9ec;border-radius:12px}
+/* when a pager follows, the table and the pager are ONE container: square the
+   joint so the rounded corners only appear at the very top and bottom */
+.tbl-wrap:has(+ .pager){border-radius:12px 12px 0 0}
 table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
 .tbl thead th{
   background:#f4f5f8;text-align:left;font-weight:400;color:#656a81;
@@ -564,9 +571,22 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
 .groupby{display:flex;align-items:center;gap:8px;border:1px solid #e5e5ec;border-radius:10px;padding:8px 14px;font-size:14px;color:var(--text-strong);cursor:pointer}
 
 /* pagination — page box radius 8, muted text */
-.pager{display:flex;align-items:center;justify-content:flex-end;gap:14px;font-size:14px;color:#6b6c72;margin-top:16px}
-.pager .box{border:1px solid #cccccc;border-radius:8px;padding:4px 12px;color:var(--text-strong)}
+/* Table pagination row — IDS MS Theme 1.2.0, node 3044:63872.
+   The pager is the table's FOOTER: it sits inside the table container on the
+   same shaded ground as the header (#f4f5f8), not floating below it. Text is
+   14px; only the CURRENT page number is bold (#3a393d), the rest is secondary
+   (#6b6c72). A chevron with nowhere to go drops to 40% opacity. */
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:16px;
+  font-size:14px;line-height:1.3;color:#6b6c72;
+  background:#f4f5f8;border:1px solid #e9e9ec;border-top:0;
+  border-radius:0 0 12px 12px;padding:12px 20px;margin-top:-1px}
 .pager .nav{display:flex;align-items:center;gap:4px}
+.pager .count{display:flex;align-items:center;gap:4px}
+.pager .count b{font-weight:600;color:#3a393d}      /* current page */
+.pager .count .of{font-weight:600}                   /* "of" */
+.pager .count .tot{font-weight:500}                  /* total pages */
+.pager [data-pgprev],.pager [data-pgnext]{border-radius:4px;padding:2px}
+.pager .is-off{opacity:.4;pointer-events:none}
 
 /* selection footer — bar white, top border #d8d8df; actions = bordered boxes,
    disabled cluster at 40% opacity (Figma node 2875:22078) */
@@ -824,6 +844,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=36"></script>
+<script src="app.js?v=111"></script>
 </body>
 </html>

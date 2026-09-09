@@ -25,6 +25,12 @@ const ICONS = {
   refreshSelected:{src:'icon-refresh-selected.svg',inset:[12.5,12.45,12.5,12.47]},
   gridTile:{src:'icon-grid-tile.svg',inset:[8.33,8.33,8.33,8.33]},
   thumbnail:{src:'icon-thumbnail.svg',inset:[8.33,8.33,8.33,8.33]},
+  /* document-with-lines (IDS): a CHANGE action, not a search. The SVG is
+     CROPPED to its artwork (viewBox 2.5 2.5 15 15) the same way icon-search is,
+     so this inset only nudges it — matching search's ~8% makes the two render
+     at the same size in an object card. Do NOT re-add a 12.5% inset here: the
+     crop already removed that padding, and insetting again shrinks it twice. */
+  changeDoc:{src:'icon-change-doc.svg',inset:[7.9,8.2,8.2,7.9]},
   chartBar:{src:'icon-chart-bar.svg',inset:[8.33,8.33,8.33,8.33]},
   personThree:{src:'icon-person-three.svg',inset:[8.33,4.35,8.33,4.35]},
   commentPencil:{src:'icon-comment-pencil.svg',inset:[8.33,8.33,8.33,8.33]},
@@ -754,7 +760,9 @@ scenes.home = (state={})=>{
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
-            <button class="simMenu__item" data-sim="rbOne">Rollback a single experience by ID</button>
+            <!-- the two ACTIVE scenarios lead the menu; the muted ones follow -->
+            <button class="simMenu__item" data-sim="rbOne">Rollback a single experience</button>
+            <button class="simMenu__item" data-sim="rbMix">Rollback multiple experiences</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="rbCamp">Rollback within a campaign</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="rbExp">Rollback from experience search</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="rbNo">Rollback not feasible</button>
@@ -967,7 +975,7 @@ scenes.searchMultiple = (state={})=>{
   const act = (icon,label)=>`<span class="act ${n?'act--on':'act--off'}">${icon} ${label} (${n})</span>`;
   const pager = loading ? '' : `<div class="pager">
         <span>1-10 of 22 items</span>
-        <span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span>
+        <span class="nav"><span class="is-off" style="display:inline-flex">${I.chevL}</span><span>Page</span><span class="count"><b>1</b><span class="of">of</span><span class="tot">3</span></span><span style="display:inline-flex">${I.chevR}</span></span>
       </div>`;
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar('<span>Home</span> <span class="sep">/</span> <span>QBO IPD campaigns</span>')}
@@ -975,7 +983,7 @@ scenes.searchMultiple = (state={})=>{
       <h2 class="page-h">QBO IPD campaigns in the last 3 months</h2>
       <div class="toolbar">
         <div class="search">${I.search}<span>Search</span></div>
-        <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+        <span class="iconbtn">${I.sliders}</span>
       </div>
       ${table}
       ${pager}
@@ -1004,7 +1012,7 @@ function experiencesPanel(opts={}){
   const rows = Array(10).fill(0).map((_,i)=>{const ed=opts.allEdited||hi.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed && hlOn,eid:'4d738ef0-9505-11f1-86ec-a3e65…',status:ed?'Edited':status,ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
   const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Experience ID',key:'eid'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
   const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true,drillrow:opts.drillrow});
-  const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
+  const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav"><span class="is-off" style="display:inline-flex">${I.chevL}</span><span>Page</span><span class="count"><b>1</b><span class="of">of</span><span class="tot">3</span></span><span style="display:inline-flex">${I.chevR}</span></span></div>`;
   // bottom action bar (Figma 919:48089): 0 selected → all actions disabled
   const selbar = loading ? '' : `<div class="selbar">0 of n selected${opts.hlToggle?`<span class="selbar__vd"></span><label class="hlToggle"><input type="checkbox" data-hlchanges${hlOn?' checked':''}> Highlight changes</label>`:''}
       <div class="acts">
@@ -2231,6 +2239,16 @@ function scheduleAuto(name, state){
   const t=(fn,ms)=>timers.push(setTimeout(fn,ms));
   if(name==='home') t(()=>trigger.home(),900);
   // rollback from experience search: select 3 rows → send the ask → confirm the pill
+  // mixed rollback: same beats as rxSearch, but the demo selection deliberately
+  // spans both statuses and the confirm pill is the mixed one
+  else if(name==='rxMixed' && !state.loading && !state.phase){
+    if(state.rb==='confirm') t(()=>trigger.rmConfirm(),1600);
+    else if(state.rb){ /* working / done — end of the guided run */ }
+    else if(!(state.selected&&state.selected.length)){
+      t(()=>{ render('rxMixed',{selected:[...RM_SEL]}); if(autopilot) timers.push(setTimeout(()=>trigger.rmSend(),2400)); },1200);
+    }
+    else t(()=>trigger.rmSend(),2400);
+  }
   else if(name==='rxSearch' && !state.loading && !state.phase){
     if(state.rb==='confirm') t(()=>trigger.rbConfirm(),1600);
     else if(state.rb){ /* working / done — end of the guided run */ }
@@ -2271,6 +2289,7 @@ const trigger = {
   home:()=>{ clearTimers(); const inp=$('#homeInput');
     if(scenario==='rbOne'){ if(inp) inp.textContent=RB1_FIND_PROMPT; runIntakeRB1(); }
     else if(scenario==='rbCamp'){ if(inp) inp.textContent=FIND_CAMP_PROMPT; runIntakeRC(); }
+    else if(scenario==='rbMix'){ if(inp) inp.textContent=RM_FIND_PROMPT; runIntakeRX('rxMixed'); }
     else { if(inp) inp.textContent=FIND_PUBEXP_PROMPT; runIntakeRX(); } },
   viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
   // ── ROLLBACK triggers ──
@@ -2281,6 +2300,13 @@ const trigger = {
   rcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runRbCheck('rcDetail',{tab:'experiences'}); },
   // "Yes, roll back" pill → records in place → rollback → versions flip to v2
   rbConfirm:()=>{ const scene=current.name; recordPillThen(()=>runRbRoll(scene)); },
+  // ── scenario 5: a MIXED draft + published selection ──
+  // the split is captured here so the note and the done copy keep describing
+  // the real selection even after the rows change status
+  rmSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers();
+    const sp=rmSplit(sel); runRbCheck('rxMixed',{pubN:sp.pub,drfN:sp.drf}); },
+  rmConfirm:()=>{ const st=current.state;
+    recordPillThen(()=>runRbRoll('rxMixed',{pubN:st.pubN,drfN:st.drfN})); },
   // ── scenario 4: a single experience fetched by ID ──
   rb1Send:()=>{ clearTimers(); runRB1Understand(); },
   rb1Direct:()=>{ recordPillThen(()=>runRB1Direct()); },
@@ -2494,10 +2520,12 @@ function wire(name, state){
       menu.querySelectorAll('[data-sim]').forEach(b=>b.onclick=(e)=>{
         e.stopPropagation(); autopilot=false;
         scenario = b.dataset.sim;
-        // within-a-campaign starts from a campaign search; the other starts
-        // straight from a published-experience search.
+        // within-a-campaign starts from a campaign search; bulk rollback asks
+        // for ALL experiences (its results mix Draft and Published, so it must
+        // not ask for published only); the rest start from a published search.
         go('home',{autotype: scenario==='rbOne' ? RB1_FIND_PROMPT
-                 : scenario==='rbCamp' ? FIND_CAMP_PROMPT : FIND_PUBEXP_PROMPT});
+                 : scenario==='rbCamp' ? FIND_CAMP_PROMPT
+                 : scenario==='rbMix' ? RM_FIND_PROMPT : FIND_PUBEXP_PROMPT});
       });
       document.addEventListener('click',()=>menu.classList.add('hidden'),{once:true});
     }
@@ -2536,34 +2564,49 @@ function wire(name, state){
   // ── ROLLBACK (experience search): checkbox/row toggles selection; once rows
   //    are selected the rollback ask auto-types; Send runs the feasibility check;
   //    the confirm pill rolls back. Selection is frozen once sent (state.rb set). ──
-  if(name==='rxSearch' && !state.loading && !state.phase){
+  // rxSearch (uniform) and rxMixed (mixed draft+published) share this wiring:
+  // same table, same selection rules, different rows and confirm card.
+  if((name==='rxSearch'||name==='rxMixed') && !state.loading && !state.phase){
+    const SC=name;                       // the scene we are wiring
     const sel=new Set(state.selected||[]);
-    const toggle=(i)=>{ autopilot=false; sel.has(i)?sel.delete(i):sel.add(i); render('rxSearch',{...state, selected:[...sel]}); };
+    /* rxMixed is PAGINATED: checkboxes carry LOCAL page indices while the
+       selection is stored GLOBALLY, so picks survive page flips. rxSearch is a
+       single page, where the two are the same thing (off=0). */
+    const paged = SC==='rxMixed';
+    const off = paged ? (state.pg||0)*RM_PER_PAGE : 0;
+    const toggle=(i)=>{ autopilot=false; sel.has(i)?sel.delete(i):sel.add(i); render(SC,{...state, selected:[...sel]}); };
     main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
-      e.stopPropagation(); if(state.rb) return; toggle(+cb.dataset.selrow);
+      e.stopPropagation(); if(state.rb) return; toggle(off + +cb.dataset.selrow);
     });
-    wireSelAll(main, sel, !!state.rb, (s)=>render('rxSearch',{...state, selected:s}));
+    // header checkbox: every row across ALL pages for the paginated scene
+    if(paged) wireSelAllRM(main, sel, !!state.rb, (s)=>render(SC,{...state, selected:s}));
+    else wireSelAll(main, sel, !!state.rb, (s)=>render(SC,{...state, selected:s}));
+    if(paged) wireRMPager(main, state);
     // row click → experience drill-down (checkbox still selects)
     main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
       if(e.target.closest('[data-selrow]'))return;
       autopilot=false;
-      const i=+tr.dataset.selrowtr;
-      go('rxSearch',{...state,expDrill:i,expDrillLoading:true});
-      timers.push(setTimeout(()=>render('rxSearch',{...state,expDrill:i}),1100));
+      // after the rollback the list IS the rolled rows, so the row index is
+      // already an index into what is displayed; before it, add the page offset
+      const i=(state.rb==='done'? 0 : off) + +tr.dataset.selrowtr;
+      go(SC,{...state,expDrill:i,expDrillLoading:true});
+      timers.push(setTimeout(()=>render(SC,{...state,expDrill:i}),1100));
     });
     if(state.expDrill!==undefined && state.expDrill!==null){
       const bk=main.querySelector('[data-expback]');
-      if(bk) bk.onclick=()=>{ autopilot=false; const s={...state}; delete s.expDrill; delete s.expDrillLoading; delete s.expTab; delete s.creativeView; go('rxSearch',s); };
-      main.querySelectorAll('[data-exptab]').forEach(tb=>tb.onclick=()=>{ autopilot=false; go('rxSearch',{...state,expDrillLoading:false,expTab:tb.dataset.exptab}); });
-      wireCreativeToggle(main,'rxSearch',state);
+      if(bk) bk.onclick=()=>{ autopilot=false; const s={...state}; delete s.expDrill; delete s.expDrillLoading; delete s.expTab; delete s.creativeView; go(SC,s); };
+      main.querySelectorAll('[data-exptab]').forEach(tb=>tb.onclick=()=>{ autopilot=false; go(SC,{...state,expDrillLoading:false,expTab:tb.dataset.exptab}); });
+      wireCreativeToggle(main,SC,state);
     }
-    if(!state.rb && sel.size && !state.typed) scheduleAskType('rxSearch', RB_PROMPT);
+    if(!state.rb && sel.size && !state.typed) scheduleAskType(SC, SC==='rxMixed'?RM_PROMPT:RB_PROMPT);
     const send=main.querySelector('#composerSend');
-    if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;trigger.rxSend();};
+    if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;SC==='rxMixed'?trigger.rmSend():trigger.rxSend();};
     const chipX=main.querySelector('[data-chipclear]');
-    if(chipX) chipX.onclick=()=>{ if(state.rb && state.rb!=='infeasible') return; autopilot=false; render('rxSearch',{...state, selected:[]}); };
+    if(chipX) chipX.onclick=()=>{ if(state.rb && state.rb!=='infeasible') return; autopilot=false; render(SC,{...state, selected:[]}); };
     const pill=main.querySelector('#yesRollback');
     if(pill) pill.onclick=()=>{autopilot=false;trigger.rbConfirm();};
+    const mpill=main.querySelector('#rmApprove');
+    if(mpill) mpill.onclick=()=>{autopilot=false;trigger.rmConfirm();};
   }
 
   // ── ROLLBACK (campaign search): checkbox selects a campaign; the row or
@@ -2763,6 +2806,40 @@ function scheduleAskType(scene, text){
   },700));
 }
 
+/* Header checkbox across ALL PAGES of the mixed rollback list: checked when
+   every experience is selected, indeterminate when only some are. Clicking
+   selects the whole list (all pages) or clears it. */
+function wireSelAllRM(main, sel, frozen, apply){
+  const hdr=main.querySelector('.tbl thead .cb');
+  if(!hdr) return;
+  hdr.checked = sel.size===RM_TOTAL;
+  hdr.indeterminate = sel.size>0 && sel.size<RM_TOTAL;
+  hdr.onclick=(e)=>{
+    e.stopPropagation();
+    if(frozen){ e.preventDefault(); return; }
+    autopilot=false;
+    apply(sel.size===RM_TOTAL ? [] : [...Array(RM_TOTAL).keys()]);
+  };
+}
+/* Pager chevrons for the mixed rollback list. The page flip carries the
+   selection and flow state, and flashes a table skeleton (~900ms) so the flip
+   reads as a load rather than a jump. */
+function wireRMPager(main, state){
+  const done = state.rb==='done';
+  const total = done ? (state.rolled||[]).length : RM_TOTAL;
+  const pages = Math.max(1, Math.ceil(total/RM_PER_PAGE));
+  const pg = Math.min(state.pg||0, pages-1);
+  const base={...state}; delete base.pgLoading;
+  const flip=(np)=>{
+    autopilot=false;
+    render('rxMixed',{...base,pg:np,pgLoading:true});
+    timers.push(setTimeout(()=>render('rxMixed',{...base,pg:np}),900));
+  };
+  const prev=main.querySelector('[data-pgprev]'), next=main.querySelector('[data-pgnext]');
+  if(prev) prev.onclick=()=>{ if(pg>0) flip(pg-1); };
+  if(next) next.onclick=()=>{ if(pg<pages-1) flip(pg+1); };
+}
+
 /* header checkbox tri-state: checked = all rows selected, indeterminate = some.
    Clicking selects all rows / clears the selection. frozen → selection is
    locked mid-flow, so the click is swallowed. */
@@ -2876,6 +2953,136 @@ const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} ex
 // informational rather than a warning.
 const WARN_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#6f5ade"/><rect x="8.25" y="7.6" width="1.5" height="5" rx="0.75" fill="#fff"/><circle cx="9" cy="5.4" r="0.95" fill="#fff"/></svg>`;
 const rbWarn = ()=>`<div class="warnNote">${WARN_ICON}<span>Rolled back experiences will be in Draft state. You will need to publish them again.</span></div>`;
+
+/* ============================================================
+   SCENARIO 5 — ROLL BACK A MIXED SELECTION (Draft + Published)
+   The other scenarios roll back experiences that are all the same status.
+   Here the selection deliberately SPANS both, because the two behave
+   differently and the user has to understand that before approving:
+
+     Published vN → forks a NEW v(N+1) in DRAFT holding v(N-1)'s content.
+                    A live version can't be overwritten, so the version that
+                    is live now stays live until the new draft is published.
+                    (Same model as scenario 4's single-experience rollback.)
+     Draft vN     → stays vN. Nothing is live, so v(N-1)'s content simply
+                    OVERRIDES what is in the draft.
+
+   Both end in Draft, so nothing silently goes live.
+   ============================================================ */
+const RM_PROMPT = 'I want to rollback these experiences.';
+/* The search that produces this list must NOT ask for published only — the
+   whole scenario is that the results MIX Draft and Published. The original
+   scenario's FIND_PUBEXP_PROMPT ("Find all published…") contradicted its own
+   table, so scenario 5 has its own prompt and its own search conversation. */
+const RM_FIND_PROMPT = 'Find all QB Payroll IPD experiences created in the last 30 days.';
+/* NOT `RX_PROJECT` ("QB Payroll **live** IPD experiences"): "live" means
+   published, so it cannot describe a list that is half Draft. Scenario 3 keeps
+   that name because its rows really are all published. */
+const RM_PROJECT = 'QB Payroll IPD experiences';
+const RM_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${RM_PROJECT}</span>`;
+const RM_SEARCH_CONV = ()=>
+  userBubble(RM_FIND_PROMPT)
+  + agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">${RM_PROJECT}</span>" project for you.</div>`,'')
+  + agentMsg(
+      disclosure('Looked at your brief, created a summary',['Looked at your brief','Searching QB Payroll IPD experiences','Compiling results'])
+      + `<div class="chatBubble">Search results${objectCard('search',RM_PROJECT)}</div>`);
+const RM_STAMP  = '09/07 08:30PST';
+// version helpers: 'v3' → 3, and back
+const vNum = (v)=>parseInt(String(v).replace(/^v/,''),10)||1;
+const vStr = (n)=>'v'+n;
+/* The mixed list. Unlike RX_ROWS (uniformly Published, version applied by
+   rxRows), these carry their OWN status and version so a selection can span
+   both kinds. */
+const RM_ROWS = [
+  ['ELM9071-IPD-HelloChartAcc-MedPS…','4d738ef0-9505-11f1-86ec-a3e65…','Chart of Accounts -hellobox','15.0','v3','Published'],
+  ['ELM9071-IPD-HelloChartAcc-HighPS…','5a12bc41-9505-11f1-86ec-a3e65…','Chart of Accounts -hellobox','15.0','v2','Draft'],
+  ['ELM9071-IPD-HelloExpenses-MedPS…','6b23cd52-9505-11f1-86ec-a3e65…','Expenses -hellobox','14.0','v4','Published'],
+  ['ELM9071-IPD-HelloExpenses-HighPS…','7c34de63-9505-11f1-86ec-a3e65…','Expenses -hellobox','14.0','v3','Draft'],
+  ['ELM9071-IPD-HelloBanking-MedPS…','8d45ef74-9505-11f1-86ec-a3e65…','Banking -hellobox','13.0','v4','Published'],
+  ['ELM9071-IPD-HelloBanking-HighPS…','9e56f085-9505-11f1-86ec-a3e65…','Banking -hellobox','13.0','v3','Published'],
+  ['ELM9071-IPD-HelloPayDeposit-MedPS…','af670196-9505-11f1-86ec-a3e65…','Payments Deposit -hellobox','12.0','v2','Draft'],
+  ['ELM9071-IPD-HelloVendors-MedPS…','b07812a7-9505-11f1-86ec-a3e65…','Vendors -hellobox','12.0','v4','Published'],
+  ['ELM9071-IPD-BannerShell-AllPS…','c18923b8-9505-11f1-86ec-a3e65…','Banner - Shell','11.0','v3','Draft'],
+  ['ELM9071-IPD-BannerShell-NoPS…','d29a34c9-9505-11f1-86ec-a3e65…','Banner - Shell','11.0','v3','Published'],
+].map(([exp,eid,ap,prio,ver,status])=>({exp,eid,ap,prio,ver,status,tmpl:'helloboxThirdParty',by:'Stroupe, Kristin',mod:'06/30 18:30PST'}));
+/* The list runs to several PAGES so the user can select across them. The base
+   10 rows are repeated with a different ELM number and ID per page, and the
+   version/status pattern is shifted so every page carries its own mix of Draft
+   and Published (a page of all-one-kind would hide the point of the flow).
+   Selection indices are GLOBAL (0..RM_TOTAL-1), the same convention as the
+   pause build. */
+const RM_PER_PAGE = 10;
+const RM_PAGES = 4;
+const RM_TOTAL = RM_PER_PAGE * RM_PAGES;
+const RM_ELM_PAGE = ['9071','9684','9533','4217'];
+const RM_ALL = Array.from({length:RM_TOTAL},(_,i)=>{
+  const base = RM_ROWS[i % RM_PER_PAGE];
+  const page = Math.floor(i / RM_PER_PAGE);
+  // rotate status/version by page so each page mixes both kinds differently
+  const shifted = RM_ROWS[(i + page*3) % RM_PER_PAGE];
+  return {
+    ...base,
+    exp: base.exp.replace(/ELM\d{4}/, 'ELM'+RM_ELM_PAGE[page]),
+    eid: (0x40+i).toString(16) + base.eid.slice(2),
+    ver: shifted.ver,
+    status: shifted.status,
+  };
+});
+/* What a rollback does to ONE row, by its status. */
+function rmRolledRow(r){
+  const n = vNum(r.ver);
+  return (r.status==='Published')
+    ? {...r, ver:vStr(n+1), status:'Draft', mod:RM_STAMP}   // fork a new draft
+    : {...r, ver:vStr(n),   status:'Draft', mod:RM_STAMP};  // overridden in place
+}
+/* Once the rollback runs, the list shows ONLY the rolled-back experiences —
+   the search results they came from are no longer the subject. Before that it
+   is the full multi-page list. Global indices index into RM_ALL. */
+const rmRows = (rolled)=>{
+  const u=[...new Set(rolled||[])].sort((a,b)=>a-b);
+  return u.length ? u.map(i=>rmRolledRow(RM_ALL[i])) : RM_ALL;
+};
+const rmSplit = (selArr)=>({
+  pub:(selArr||[]).filter(i=>RM_ALL[i] && RM_ALL[i].status==='Published').length,
+  drf:(selArr||[]).filter(i=>RM_ALL[i] && RM_ALL[i].status==='Draft').length,
+});
+/* The note carries the ONE thing the user can't read off the table: the two
+   statuses roll back differently. Two labelled lines, not a paragraph, because
+   the contrast IS the message. Reuses .warnNote, which in this build is already
+   the white container with the purple i. */
+const rmNote = (pub,drf)=>{
+  const L=[];
+  if(pub) L.push(`<div class="rmNote__l"><b>${pub} published</b> ${pub===1?'experience':'experiences'} will get a new version in Draft. The version that is live now stays live until you publish the new one.</div>`);
+  if(drf) L.push(`<div class="rmNote__l"><b>${drf} draft</b> ${drf===1?'experience':'experiences'} will keep the same version. The content from the previous version replaces what is in the draft now.</div>`);
+  return `<div class="warnNote">${WARN_ICON}<div class="rmNote">${L.join('')}</div></div>`;
+};
+/* Intent confirmation. NO From/To pair here: with a mixed selection every row
+   rolls to its own previous version, so a single v3→v2 pair (as the other
+   scenarios show) would misrepresent it. The per-row detail is in the table. */
+/* The object card names the thing this action produced. A rollback is a CHANGE
+   action, so the tile carries the document icon, NOT the search glass the search
+   result cards use. The label is CSS-ellipsised in the card's ~177px slot, so no
+   hand-typed "…" here. */
+/* Pager with working chevrons (the plain rxPager has none). Sizes to whatever
+   the list currently holds, so after the rollback it reads "1-5 of 5 items". */
+const rmPager = (page,total,pages)=>{
+  const lo=total?page*RM_PER_PAGE+1:0, hi=Math.min(total,(page+1)*RM_PER_PAGE);
+  return `<div class="pager">
+      <span>${lo}-${hi} of ${total} items</span>
+      <span class="nav"><span data-pgprev class="${page<=0?'is-off':''}" style="display:inline-flex;cursor:pointer">${I.chevL}</span><span>Page</span><span class="count"><b>${page+1}</b><span class="of">of</span><span class="tot">${pages}</span></span><span data-pgnext class="${page>=pages-1?'is-off':''}" style="display:inline-flex;cursor:pointer">${I.chevR}</span></span>
+    </div>`;
+};
+const RM_CARD_NAME = `Rollback experiences - ${RM_PROJECT}`;
+const RM_CONFIRM = (n, pub, drf, active)=> agentMsg(`<div class="chatBubble">I'll roll back ${n===1?'this experience':`these ${n} experiences`} to the previous version.${rmNote(pub,drf)}<div class="bubble-q">Does this look right? I'll roll back once you approve.</div>${active?replyBtn('Approve','rmApprove'):recordedReply('Approve')}</div>`);
+const RM_DONE = (n)=> agentMsg(
+  disclosure(`Rolled back ${n} experience${n===1?'':'s'}`,['Reading the selected experiences','Restoring the previous content','Updating the versions'])
+  /* Short on purpose. The published/draft rules were ALREADY stated on the
+     confirm card the user just approved, and the table below shows the new
+     Version and Status per row, so repeating them here is noise. All that is
+     left to say is what to do next. */
+  + `<div class="chatBubble">I've rolled back ${n===1?'the experience':`all ${n} experiences`}.${objectCard('changeDoc',RM_CARD_NAME)}<div class="bubble-q">To make ${n===1?'it':'them'} live, publish ${n===1?'it':'them'} from Campaign Manager.</div>${cmLink()}</div>`);
+const RM_REQ = ()=> userBubble(RM_PROMPT);
+
 const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rolling back ${n} experiences to the previous version:${ftRows('v3','v2')}${rbWarn()}<div class="bubble-q">Does this look ok? I'll then proceed.</div>${active?replyBtn('Yes, roll back','yesRollback'):recordedReply('Yes, roll back')}</div>`);
 // rollback not possible: state the reason (placeholder in brackets) and stop —
 // no confirm pill, the flow ends here (flow map: "provide reason for not able
@@ -3103,7 +3310,7 @@ scenes.rb1 = (state={})=>{
 function rxToolbar(){
   return `<div class="toolbar">
       <div class="search">${I.search}<span>Search</span></div>
-      <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+      <span class="iconbtn">${I.sliders}</span>
     </div>`;
 }
 function rxSelbar(n,total){
@@ -3118,7 +3325,7 @@ function rxSelbar(n,total){
 }
 const rxPager = (total)=>`<div class="pager">
       <span>1-${total} of ${total} items</span>
-      <span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 1</span>${I.chevR}</span>
+      <span class="nav"><span class="is-off" style="display:inline-flex">${I.chevL}</span><span>Page</span><span class="count"><b>1</b><span class="of">of</span><span class="tot">1</span></span><span class="is-off" style="display:inline-flex">${I.chevR}</span></span>
     </div>`;
 
 /* conversation tail shared by both rollback scenes */
@@ -3191,6 +3398,93 @@ scenes.rxSearch = (state={})=>{
   return content + aiPanel({body,opening:state.opening,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
 };
 
+/* ---- Scene: mixed Draft + Published rollback (scenario 5) ----
+   Same shape as rxSearch, but the rows carry their own status/version and the
+   conversation uses the mixed-selection confirm. The rolled rows change IN
+   PLACE: no new view, so the heading and crumb stay put and the user watches
+   Status and Version update on the rows they picked.
+   state: phase (intake) | loading | selected[] | typed | opening
+          rb: 'checking' | 'confirm' | 'working' | 'done'
+          rolled[] (indices), pubN/drfN (the split, captured at confirm) */
+scenes.rxMixed = (state={})=>{
+  const phase = state.phase;
+  const loading = state.loading;
+  const sel = new Set(state.selected||[]);
+  const n = sel.size;
+  const rows = rmRows(state.rolled);
+  const uPrompt = userBubble(RM_FIND_PROMPT);   // not the published-only ask
+  const createdBubble = `<div class="chatBubble">I have created "<span class="chatBubble__name">${RM_PROJECT}</span>" project for you.</div>`;
+  if(phase==='bootfull'){
+    return `<div class="content">
+      ${topbar('<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:220px;height:14px;display:inline-block"></span>')}
+      <div class="scroll scroll--center">${bootCanvas()}</div>
+    </div>`;
+  }
+  if(phase==='msg-prompt' || phase==='msg-created' || phase==='msg-search'){
+    let centeredBody = uPrompt;
+    if(phase==='msg-created' || phase==='msg-search') centeredBody += agentMsg(createdBubble);
+    if(phase==='msg-search') centeredBody += agentLoader('Searching QB Payroll IPD experiences', state.tasks||[]);
+    return `<div class="content content--centered">
+      ${topbar(RM_CRUMB)}
+      <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${centeredBody}</div>
+        ${expandedComposer()}
+      </div></div>
+    </div>`;
+  }
+  // the split drives the note and the done copy; captured on state at confirm
+  // so it keeps describing the real selection across re-renders
+  const live = rmSplit([...sel]);
+  const pub = state.pubN!==undefined ? state.pubN : live.pub;
+  const drf = state.drfN!==undefined ? state.drfN : live.drf;
+  /* Pagination. Selection indices are GLOBAL (0..RM_TOTAL-1) so a selection
+     survives page flips; the table on each page gets the LOCAL subset. Once
+     the rollback is done `rows` is just the rolled experiences, so the list
+     collapses to those and the pager sizes to them. */
+  const done = state.rb==='done';
+  const total = done ? rows.length : RM_TOTAL;
+  const pages = Math.max(1, Math.ceil(total/RM_PER_PAGE));
+  const page = Math.min(state.pg||0, pages-1);
+  const pageRows = rows.slice(page*RM_PER_PAGE, page*RM_PER_PAGE+RM_PER_PAGE);
+  // after the rollback nothing is selected (the list is a result, not a picker)
+  const localSel = done ? [] :
+    [...sel].filter(i=>i>=page*RM_PER_PAGE && i<page*RM_PER_PAGE+RM_PER_PAGE)
+            .map(i=>i-page*RM_PER_PAGE);
+  let body, table;
+  if(loading){
+    body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching QB Payroll IPD experiences', state.tasks||[]);
+    table = skeletonTable(RX_COLS,true);
+  } else {
+    const count = state.rb==='done' ? (state.rolled||[]).length : (state.asked||n);
+    let t='';
+    if(state.rb) t += selThread(count) + RM_REQ();
+    if(state.rb==='checking')     t += agentLoader('Reviewing your request', state.tasks||[]);
+    else if(state.rb==='confirm') t += RM_CONFIRM(count,pub,drf,true);
+    else if(state.rb==='working') t += RM_CONFIRM(count,pub,drf,false) + agentLoader('Rolling back experiences', state.tasks||[]);
+    else if(state.rb==='done')    t += RM_CONFIRM(count,pub,drf,false) + RM_DONE(count);
+    body = RM_SEARCH_CONV() + (t?`<div class="convoTurn">${t}</div>`:'');
+    // while the rollback executes, the canvas previews the refresh with a skeleton
+    table = (state.rb==='working'||state.pgLoading)
+      ? skeletonTable(RX_COLS,true)
+      : tableHTML(RX_COLS,pageRows,{checkbox:true,select:true,selected:localSel});
+  }
+  // the chip belongs to the picking phase; once the rows ARE the result it goes
+  const panelOpts = {body, chip:(n&&!done)?n+' experience'+(n===1?'':'s')+' selected':'', draft:(state.typed&&!state.rb)?RM_PROMPT:''};
+  if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
+    return expDrillCanvas(RM_CRUMB, rows[state.expDrill], state) + aiPanel(panelOpts);
+  }
+  const content = `<div class="content${state.opening?' content--opening':''}">
+    ${topbar(RM_CRUMB)}
+    <div class="scroll"><div class="pad">
+      <h2 class="page-h">${done?`Rolled back experiences - ${RM_PROJECT}`:'QB Payroll IPD experiences in the last 30 days'}</h2>
+      ${rxToolbar()}
+      ${table}
+      ${(loading||state.rb==='working')?'':rmPager(page,total,pages)}
+    </div></div>
+    ${rxSelbar(done?0:n,total)}
+  </div>`;
+  return content + aiPanel({...panelOpts, opening:state.opening});
+};
+
 /* ---- Scene: campaign search results (all Published) ---- */
 scenes.rcSearch = (state={})=>{
   const phase = state.phase;
@@ -3227,7 +3521,7 @@ scenes.rcSearch = (state={})=>{
   const act = (ic,label)=>`<span class="act ${n?'act--on':'act--off'}">${ic} ${label} (${n})</span>`;
   const pager = loading ? '' : `<div class="pager">
         <span>1-10 of 22 items</span>
-        <span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span>
+        <span class="nav"><span class="is-off" style="display:inline-flex">${I.chevL}</span><span>Page</span><span class="count"><b>1</b><span class="of">of</span><span class="tot">3</span></span><span style="display:inline-flex">${I.chevR}</span></span>
       </div>`;
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar(RC_CRUMB)}
@@ -3295,21 +3589,21 @@ scenes.rcDetail = (state={tab:'experiences'})=>{
 };
 
 /* intake (experience search): boot → staggered messages → searching loader → results */
-function runIntakeRX(){
-
+function runIntakeRX(sceneName){
+  const SC = sceneName || 'rxSearch';    // scenario 5 reuses this with rxMixed
   const searchTasks=['Reading your brief','Searching QB Payroll IPD experiences','Compiling results'];
-  const tick=(a)=>render('rxSearch',{phase:'msg-search',tasks:searchTasks.map((label,j)=>({label,state:j<a?'done':j===a?'active':'idle'}))});
-  render('rxSearch',{phase:'bootfull'});
+  const tick=(a)=>render(SC,{phase:'msg-search',tasks:searchTasks.map((label,j)=>({label,state:j<a?'done':j===a?'active':'idle'}))});
+  render(SC,{phase:'bootfull'});
   const promptAt=2400, createdAt=promptAt+600, searchAt=createdAt+900;
-  timers.push(setTimeout(()=>render('rxSearch',{phase:'msg-prompt'}),promptAt));
-  timers.push(setTimeout(()=>render('rxSearch',{phase:'msg-created'}),createdAt));
+  timers.push(setTimeout(()=>render(SC,{phase:'msg-prompt'}),promptAt));
+  timers.push(setTimeout(()=>render(SC,{phase:'msg-created'}),createdAt));
   const searchDur=5400;
   timers.push(setTimeout(()=>tick(0),searchAt));
   const slot=(searchDur-600)/searchTasks.length;
   searchTasks.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),searchAt+Math.round(slot*(i+1)))));
   const openAt=searchAt+searchDur;
-  timers.push(setTimeout(()=>render('rxSearch',{loading:true,opening:true}),openAt));
-  timers.push(setTimeout(()=>go('rxSearch',{}),openAt+2000));
+  timers.push(setTimeout(()=>render(SC,{loading:true,opening:true}),openAt));
+  timers.push(setTimeout(()=>go(SC,{}),openAt+2000));
 }
 /* intake (campaign search) */
 function runIntakeRC(){
@@ -3341,8 +3635,8 @@ function runRbCheck(scene, extra){
   timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,asked:sel.length,typed:true,rb:scenario==='rbNo'?'infeasible':'confirm'}),dur));
 }
 /* rollback: loader → versions flip to v2, selection clears */
-function runRbRoll(scene){
-  const extra = scene==='rcDetail' ? {tab:'experiences'} : {};
+function runRbRoll(scene, carry){
+  const extra = scene==='rcDetail' ? {tab:'experiences'} : {...(carry||{})};
   const sel=[...(current.state.selected||[])];
   const subs=[`Rolling back ${sel.length} experiences`,'Updating experience statuses','Refreshing the list'];
   const dur=2900;
@@ -3486,7 +3780,21 @@ const STEPS_RB_ONE = [
   ['rb1',{typed:true,path:'compare',r1:'cmp',cmp:true}],
   ['rb1',{typed:true,path:'compare',r1:'done',rolled:true}],
 ];
+/* scenario 5: the demo selection MUST span both statuses (the mix is the point)
+   AND more than one PAGE (cross-page selection is the other point). Indices are
+   global, so 0-9 are page 1 and 12,15 sit on page 2. */
+const RM_SEL = [0,1,2,12,15];
+const RM_SPLIT = rmSplit(RM_SEL);
+const RM_S = (rb,extra={})=>['rxMixed',{selected:[...RM_SEL],asked:RM_SEL.length,typed:true,pubN:RM_SPLIT.pub,drfN:RM_SPLIT.drf,rb,...extra}];
+const STEPS_RB_MIX = [
+  ['home',{}],
+  ['rxMixed',{}],
+  ['rxMixed',{selected:[...RM_SEL],typed:true}],
+  RM_S('confirm'),
+  RM_S('done',{rolled:[...RM_SEL]}),
+];
 function FLOW_STEPS(){
+  if(scenario==='rbMix') return STEPS_RB_MIX;
   if(scenario==='rbOne') return STEPS_RB_ONE;
   return scenario==='rbCamp' ? STEPS_RB_CAMP : scenario==='rbNo' ? STEPS_RB_NO : STEPS_RB_EXP;
 }
@@ -3499,6 +3807,11 @@ function stepIndex(){
     if(st.rb==='done') return 6;
     if(st.rb) return 5;
     return (st.selected&&st.selected.length)?4:3;
+  }
+  if(current.name==='rxMixed'){
+    if(st.rb==='done') return 4;
+    if(st.rb) return 3;                       // checking / confirm
+    return (st.selected&&st.selected.length)?2:1;
   }
   if(current.name==='rxSearch'){
     if(st.rb==='done') return 4;
