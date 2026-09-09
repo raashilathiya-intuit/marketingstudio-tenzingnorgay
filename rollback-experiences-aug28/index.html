@@ -415,6 +415,19 @@ button{font-family:inherit}
 .warnNote svg{flex:none;margin-top:2px}
 /* two-line note (mixed rollback): the published rule and the draft rule sit as
    separate lines, so the contrast between them reads at a glance. */
+/* numbered issue list inside a bubble: the agent names every blocker before
+   working the first one, so the count has to be legible at a glance. */
+/* the issue COUNT is red, the rest of the card is not: the message is a request
+   for input, not a dead end, so it must not read like the blocked ending.
+   Same rule as the clone build's .issueCount. */
+.issueCount{color:#d52b1e}
+.issueList{margin:12px 0 0;padding-left:22px;font-weight:400;line-height:1.5}
+.issueList li{margin-top:6px}
+.issueList li::marker{color:#6b6c72}
+/* a real blocker, not the informational .warnNote: red icon + tinted ground,
+   matching the validation-error treatment in the clone build. */
+.errNote{display:flex;align-items:flex-start;gap:8px;background:#fdf3f2;border-radius:8px;padding:16px;margin-top:12px;font-size:14px;font-weight:400;line-height:1.5;color:#3a393d}
+.errNote svg{flex:none;margin-top:2px;color:#d52b1e}
 .rmNote{display:flex;flex-direction:column;gap:12px}
 .rmNote__l b{font-weight:500;color:#3a393d}
 
@@ -844,6 +857,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=111"></script>
+<script src="app.js?v=124"></script>
 </body>
 </html>

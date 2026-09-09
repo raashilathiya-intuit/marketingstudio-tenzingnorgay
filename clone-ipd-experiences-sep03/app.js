@@ -785,7 +785,8 @@ scenes.home = (state={})=>{
           <div class="simMenu hidden" id="simMenu">
             <!-- the two ACTIVE scenarios lead; the earlier drafts are muted below -->
             <button class="simMenu__item" data-sim="cl3">Clone experiences, choose whether to change the placement</button>
-            <button class="simMenu__item" data-sim="cl4">Clone experiences across several placements</button>
+            <button class="simMenu__item" data-sim="cl4">Mixed placements, group and retarget each one</button>
+            <button class="simMenu__item" data-sim="cl5">Mixed placements, one placement at a time</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="pc">Clone experiences, same placement, no changes</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="cl2">Clone experiences and change the placement</button>
           </div>
@@ -2297,6 +2298,10 @@ function scheduleAuto(name, state){
       // executing states just wait
       return;
     }
+    /* scenario 5 is terminal: once `mixed` is on screen there is nothing to
+       advance to, so autopilot just stops. MUST return — falling through
+       reaches the bare `else` that re-fires the clone ask. */
+    if(state.cl5!==undefined) return;
     // scenario 3: take the CHANGE branch, then approve each step
     const c3=state.cl3;
     if(c3!==undefined){
@@ -2354,7 +2359,7 @@ const trigger = {
   // Home SEND (user click) — prompt is already typed by the 2s auto-type; just run
   // the INTAKE sequence: boot loader → "created project" bubble → search + skeleton → results.
   home:()=>{ clearTimers(); const inp=$('#homeInput');
-    if(scenario==='cl4' && inp) inp.textContent=CL4_FIND_PROMPT;
+    if((scenario==='cl4'||scenario==='cl5') && inp) inp.textContent=CL4_FIND_PROMPT;
     if(inp) inp.textContent=FIND_EXP_PROMPT; runIntakePC(); },
   viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
   // ── CLONE triggers (scenario 1) ──
@@ -2364,6 +2369,22 @@ const trigger = {
     if(scenario==='cl2') runCl2Understand();
     else if(scenario==='cl3') runCl3Understand();
     else if(scenario==='cl4') runCl4Understand();
+    /* Scenario 5 sends TWICE. The first send hits the guardrail. The second
+       comes after the user regrouped and re-picked, so it re-tests the new
+       selection: still spanning placements → the guardrail again; down to one
+       placement → SCENARIO 3's choice card, because a plain clone ask always
+       means the agent asks whether to change the placement first and the
+       answer drives the rest. (Routing it into scenario 1 hardcoded "no
+       changes" and skipped that question — wrong, caught 2026-09-09.)
+       cl5Prior keeps the guardrail's own counts so it can be replayed as
+       history once state.cl5 is gone. */
+    else if(scenario==='cl5'){
+      const G = cl4Groups(sel);
+      if(G.length>1) runCl5Understand();
+      else {
+        runCl3Understand({cl5Prior: current.state.cl5Prior});
+      }
+    }
     else runPCUnderstand(); },
   // "Looks good" on the confirmation → clone them (the flow's only execution step)
   pcLooksGood:()=>{ recordPillThen(()=>runClone()); },
@@ -2633,7 +2654,7 @@ function wire(name, state){
         e.stopPropagation(); autopilot=false;
         scenario = b.dataset.sim;
         // scenario 4 searches ACROSS placements, so it opens with its own ask
-        go('home',{autotype: scenario==='cl4' ? CL4_FIND_PROMPT : FIND_EXP_PROMPT});
+        go('home',{autotype: (scenario==='cl4'||scenario==='cl5') ? CL4_FIND_PROMPT : FIND_EXP_PROMPT});
       });
       document.addEventListener('click',()=>menu.classList.add('hidden'),{once:true});
     }
@@ -2650,7 +2671,24 @@ function wire(name, state){
     const apply=(arr)=>{ autopilot=false; render('pcSearch',{...state, selected: arr}); };
     const toggle=(i)=>{ const s=new Set(sel); s.has(i)?s.delete(i):s.add(i); apply([...s].sort((a,b)=>a-b)); };
     main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
-      e.stopPropagation(); if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined) return; toggle(+cb.dataset.selrow);
+      /* cl5 deliberately does NOT freeze: the guardrail asks the user to
+         re-pick, so the checkboxes must stay live. `reading` still freezes
+         (a loader is running) but `mixed` does not. */
+      e.stopPropagation(); if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl5==='reading') return; toggle(+cb.dataset.selrow);
+    });
+    /* Group-by dropdown. Only scenario 5 makes it interactive: the guardrail
+       asks the user to narrow to one placement, and regrouping the table is
+       how they do it. Picking Placement CLEARS the selection (it spanned
+       several placements, which is what the guardrail objected to) so the user
+       starts clean inside one group. */
+    const gb = main.querySelector('[data-groupby]');
+    if(gb && state.cl5==='mixed') gb.onclick=(e)=>{
+      e.stopPropagation(); autopilot=false;
+      render('pcSearch',{...state, groupByOpen: !state.groupByOpen});
+    };
+    main.querySelectorAll('[data-groupopt]').forEach(b=>b.onclick=(e)=>{
+      e.stopPropagation(); autopilot=false;
+      render('pcSearch',{...state, groupBy:b.dataset.groupopt, groupByOpen:false, selected:[], retyped:false});
     });
     // tri-state header checkbox: select all / none, frozen once the flow starts.
     // On the clone-results view nothing is selected (the rows are copies, not a
@@ -2659,7 +2697,7 @@ function wire(name, state){
       || state.cl3==='done3a' || ['clonesErr','fixingAll','verified'].includes(state.cl3)
       || ['doneall','allrev','done'].includes(state.cl4);
     wireSelAll(main, onCloneList ? new Set() : sel,
-      state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined, apply);
+      state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl5==='reading', apply);
     // row click → experience drill-down (checkbox still selects)
     main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
       if(e.target.closest('[data-selrow]'))return;
@@ -2693,6 +2731,12 @@ function wire(name, state){
     // ask depends on the scenario
     if(state.pc===undefined && state.cl2===undefined && state.cl3===undefined && sel.size && !state.typed)
       scheduleAskType('pcSearch', scenario==='cl2' ? CLONE2_PROMPT : CLONE_PROMPT);
+    /* Scenario 5's SECOND ask. After the guardrail the user regroups and
+       re-picks, so the clone ask has to type itself again — but `typed` is
+       already true from the first ask, so it needs its own flag (`retyped`),
+       cleared whenever the selection is emptied by the regroup. */
+    if(state.cl5==='mixed' && sel.size && !state.retyped)
+      scheduleAskType('pcSearch', CLONE_PROMPT, 'retyped');
     // the scenario-4 grouping object is a tree: bind its chevrons
     if(state.cl4!==undefined) wireTreeChevrons(main);
     // scenario 3's two typed replies auto-type in turn
@@ -2717,7 +2761,7 @@ function wire(name, state){
       else trigger.pcSend();
     };
     const chipX=main.querySelector('[data-chipclear]');
-    if(chipX) chipX.onclick=()=>{ if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined) return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
+    if(chipX) chipX.onclick=()=>{ if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl5==='reading') return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
     // ── name card: arrives prefilled with the AI's proposal (no typing
     //    animation). Editing it keeps the value on state; emptying it disables
     //    Proceed, since a new experience has to be called something. ──
@@ -3052,6 +3096,28 @@ const cl4Groups = (selArr)=>{
 // each group is retargeted to a different destination, cycling this list
 const CL4_DEST = ['Batch save -hellobox','Invoice -hellobox','Reports -hellobox','Payroll -hellobox','Bills -hellobox','Shell - Banner'];
 const cl4Dest = (g)=>CL4_DEST[g % CL4_DEST.length];
+
+/* ============================================================
+   SCENARIO 5: the GUARDRAIL. Same input as scenario 4 (a selection spanning
+   several placements) but the opposite answer: instead of grouping and
+   retargeting, the agent declines the batch and asks the user to narrow the
+   selection to ONE placement. Kept alongside cl4 deliberately — the two are
+   alternative design directions for the same situation, so they can be shown
+   side by side. Reuses CL4_ROWS / CL4_APS / cl4Groups wholesale.
+   TERMINAL: the flow ends at the message. There is no continuation, because
+   the point is the guardrail itself, not what the user does next. */
+/* The message carries the COUNT ONLY, never a list of placement names. Naming
+   them does not scale (six in the demo data, and a real selection could span
+   twenty), and a CAPPED list is worse still because it hides exactly the
+   placements the user needs in order to act. The breakdown belongs in the
+   table, which sorts and stays legible at any size — and the table does NOT
+   regroup here, per this build's rule that the canvas updates when the agent
+   produces an artifact, not when it asks a question. Both calls were the
+   user's, 2026-09-09. */
+const CL5_MIXED = (nSel, G)=> agentMsg(
+  disclosure('Checked the selected experiences',
+    ['Reading your request','Checking the selected experiences','Comparing their placements'])
+  + `<div class="chatBubble">Cloning runs one placement at a time, and the ${nSel} experiences you selected are across ${G.length} placements.<div class="bubble-q">Select experiences that share a placement and I'll clone those together.</div></div>`);
 /* the grouped canvas lists the PLACEMENT column but not Validation: nothing
    is flagged in this flow (the template never changes) */
 const PC_COLS_AP = [
@@ -3067,9 +3133,30 @@ const PC_COLS_AP = [
    "Group by: Placements", so the control reflects the view rather than
    inviting a choice already made. Every table in the clone flows carries it.
    Named groupByCtl because `groupBy` is already a local in the tree builder. */
-const groupByCtl = (by='')=>`<div class="groupBy${by?' groupBy--on':''}">
+/* The dropdown's options, matching the real product's list. Only Placement is
+   wired: it is the only field the row data actually carries, and it is the one
+   this flow is about. The rest are listed (so the control looks like the real
+   thing) but inert — no data behind them, and inventing some would add four
+   columns this flow never uses. `by` is the label the control shows once set;
+   `on` is what makes it clickable. */
+const GROUP_BY_OPTS = [
+  {label:'Placement',      by:'Placements', on:true},
+  {label:'Audience Set',   on:false},
+  {label:'Status',         on:false},
+  {label:'Promotion Offer',on:false},
+  {label:'Experiment ID',  on:false},
+  {label:'Treatment ID',   on:false},
+];
+const groupByCtl = (by='', open=false)=>`<div class="groupByWrap">
+      <div class="groupBy${by?' groupBy--on':''}" data-groupby>
       <span class="groupBy__label">${by?`Group by: ${by}`:'Group by'}</span>
       <span class="groupBy__chev">${I.chev}</span>
+      </div>
+      ${open?`<div class="groupByMenu">
+        ${GROUP_BY_OPTS.map(o=>o.on
+          ? `<button class="groupByMenu__item" data-groupopt="${o.by}">${o.label}</button>`
+          : `<button class="groupByMenu__item">${o.label}</button>`).join('')}
+      </div>`:''}
     </div>`;
 const rxToolbarCl4 = (by='')=>`<div class="toolbar">
       <div class="search">${I.search}<span>Search</span></div>
@@ -3597,8 +3684,13 @@ scenes.pcSearch = (state={})=>{
   /* Scenario 4 searches ACROSS placements, so it has its own result set.
      Everything downstream (grouping, cloning, the table) reads SRC. */
   const isCl4 = state.cl4!==undefined || scenario==='cl4';
-  const SRC = isCl4 ? CL4_ROWS : PC_ROWS;
-  const cl4G = isCl4 ? cl4Groups([...sel]) : [];
+  /* scenario 5 needs the SAME multi-placement data as scenario 4 (a selection
+     has to be able to span placements for the guardrail to fire at all), so it
+     shares CL4_ROWS and cl4Groups. It never clones, so nothing below the
+     transcript branch has to know about it. */
+  const isCl5 = state.cl5!==undefined || state.cl5Prior!==undefined || scenario==='cl5';
+  const SRC = (isCl4||isCl5) ? CL4_ROWS : PC_ROWS;
+  const cl4G = (isCl4||isCl5) ? cl4Groups([...sel]) : [];
   // in 4b each group goes to its OWN destination, so the clone's ap depends on
   // which group its source row fell into
   const cl4DestFor = (i)=>{ const g = cl4G.findIndex(x=>x.idx.includes(i)); return g<0?null:cl4Dest(g); };
@@ -3638,8 +3730,8 @@ scenes.pcSearch = (state={})=>{
   const rows = onCloneResults ? cloneRows : SRC;
   const n = sel.size;
   const pick = rows[[...sel][0]] || rows[1];
-  const uPrompt = userBubble(isCl4 ? CL4_FIND_PROMPT : FIND_EXP_PROMPT);
-  const createdBubble = `<div class="chatBubble">I have created "<span class="chatBubble__name">${isCl4?CL4_PROJECT:PC_PROJECT}</span>" project for you.</div>`;
+  const uPrompt = userBubble((isCl4||isCl5) ? CL4_FIND_PROMPT : FIND_EXP_PROMPT);
+  const createdBubble = `<div class="chatBubble">I have created "<span class="chatBubble__name">${(isCl4||isCl5)?CL4_PROJECT:PC_PROJECT}</span>" project for you.</div>`;
   if(phase==='bootfull'){
     return `<div class="content">
       ${topbar('<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:220px;height:14px;display:inline-block"></span>')}
@@ -3662,7 +3754,7 @@ scenes.pcSearch = (state={})=>{
     body = uPrompt + agentMsg(createdBubble) + agentLoader('Searching QB Payroll IPD experiences', state.tasks||[]);
     table = skeletonTable(PC_COLS,true);
   } else {
-    body = isCl4 ? CL4_SEARCH_CONV() : PC_SEARCH_CONV();
+    body = (isCl4||isCl5) ? CL4_SEARCH_CONV() : PC_SEARCH_CONV();
     if(state.pc){
       const p = state.pc;
       const f = state.fields||{};
@@ -3700,6 +3792,29 @@ scenes.pcSearch = (state={})=>{
                4b: g{i}ask | g{i}map | g{i}int | g{i}wcl | g{i}done, then done
        The group index lives IN the state string, so one branch renders every
        group's turn no matter how many groups the selection produced. */
+    /* ── Scenario 5: the guardrail. The agent checks the placements and asks
+       the user to narrow to one. NOT terminal: the user regroups the table
+       from the Group by dropdown, re-picks inside one group, and the flow
+       carries on into scenario 3's choice. Once that happens `state.cl5` is
+       gone but `cl5Prior` remains, and the cl3 branch replays this turn as
+       history via cl5Prelude() — otherwise the guardrail vanished from the
+       conversation the moment the user continued (a real bug, caught by the
+       user 2026-09-09). ── */
+    else if(state.cl5!==undefined){
+      /* Read the counts off the STAMP, never off the live selection. The
+         message is a record of what the agent said at the time; regrouping
+         CLEARS the selection, so recomputing rewrote the sentence to
+         "spans 0 placements" while the user was picking new rows (bug caught
+         2026-09-09). Falls back to the live selection for the loader state,
+         which runs before the stamp is on screen. */
+      const P = state.cl5Prior;
+      const nSel = P ? P.n : (state.asked || n || 1);
+      const G = P ? {length:P.g} : (cl4G.length ? cl4G : cl4Groups([...sel]));
+      let tail = selThread(nSel) + PC_REQ();
+      if(state.cl5==='reading') tail += agentLoader('Checking the experiences', state.tasks||[]);
+      else if(state.cl5==='mixed') tail += CL5_MIXED(nSel,G);
+      body += `<div class="convoTurn">${tail}</div>`;
+    }
     else if(state.cl4!==undefined){
       const c = state.cl4;
       const nSel = state.asked || n || 1;
@@ -3773,6 +3888,13 @@ scenes.pcSearch = (state={})=>{
     else if(state.cl3!==undefined){
       const c = state.cl3;
       const nSel = state.asked || n || 1;
+      /* Came from scenario 5's guardrail? Replay that turn first, with the
+         count it had at the time (cl5Prior holds the spanning selection's
+         numbers — the live selection is now narrowed to one placement, so
+         recomputing would show "spans 1 placements"). */
+      const cl5Prelude = ()=> state.cl5Prior
+        ? `<div class="convoTurn">${selThread(state.cl5Prior.n)}${PC_REQ()}${CL5_MIXED(state.cl5Prior.n,{length:state.cl5Prior.g})}</div>`
+        : '';
       // the pill the user actually pressed, so the recorded reply matches it
       const chose3 = state.path==='direct' ? 'Clone as they are' : 'Change the placement';
       const CHOICE = ()=> CL3_CHOICE(false, chose3);
@@ -3789,6 +3911,9 @@ scenes.pcSearch = (state={})=>{
       const cloneName = (i)=> (cloneRows[i]||{}).exp || 'the clone';
       const allNames = cloneRows.map(r=>r.exp);
       const FIXALL = ()=> userBubble(cl3FixBubble(allNames));
+      // the guardrail turn (if this run came through scenario 5) sits ABOVE
+      // the new selection thread, as the history it is
+      body += cl5Prelude();
       let tail = selThread(nSel) + PC_REQ();
       if(c==='reading')         tail += agentLoader('Reading your request', state.tasks||[]);
       else if(c==='choice')     tail += CL3_CHOICE(true);
@@ -3860,13 +3985,18 @@ scenes.pcSearch = (state={})=>{
       || state.pc==='cloning' || state.cl4==='wall4';
     table = canvasBusy
       ? skeletonTable(anyFlagged&&onCloneResults?PC_COLS_QA:PC_COLS,true)
-      : tableHTML(anyFlagged&&onCloneResults?PC_COLS_QA:PC_COLS,rows,{checkbox:true,select:true,selected:onCloneResults?new Set():sel});
+      : tableHTML(anyFlagged&&onCloneResults?PC_COLS_QA:PC_COLS,rows,{checkbox:true,select:true,selected:onCloneResults?new Set():sel,
+          /* scenario 5 only, and only after the USER picks Placement from the
+             dropdown. cl4Groups gives {ap,idx} with GLOBAL row indices, which
+             is exactly the shape tableHTML's group bands want. */
+          ...(state.groupBy && isCl5 && !onCloneResults ? {groups: cl4Groups([...Array(SRC.length).keys()]).map(g=>({label:g.ap, idx:g.idx}))} : {})});
   }
   // The chip belongs to the search selection. Once the copies exist the canvas
   // has moved to its own view and that selection is spent, so the chip goes.
   const chip = (n && !onCloneResults) ? n+' experience'+(n===1?'':'s')+' selected' : '';
   // scenario 1's ask, scenario 2's ask, or the body-copy fix auto-typed on the error
-  const draft = (state.typed && state.pc===undefined && state.cl2===undefined && state.cl3===undefined && state.cl4===undefined)
+  const draft = (state.cl5==='mixed' && state.retyped) ? CLONE_PROMPT
+      : (state.typed && state.pc===undefined && state.cl2===undefined && state.cl3===undefined && state.cl4===undefined && state.cl5===undefined)
       ? (scenario==='cl2' ? CLONE2_PROMPT : CLONE_PROMPT)
       : (state.cl2==='t0err' && state.fixTyped) ? USE_BODY_PROMPT
       // scenario 3: the target placement, then the body copy, auto-type in turn
@@ -4022,13 +4152,18 @@ scenes.pcSearch = (state={})=>{
   // scenario 2 moved the copies to a new placement, so the view is named for THAT
   const heading = onCloneResults
     ? (isCl4 ? 'Cloned experiences' : isCl2 ? CL2_VIEW_NAME : isCl3b ? CL3_VIEW_NAME : CLONE_VIEW_NAME)
-    : (isCl4 ? 'QB Payroll IPD experiences' : 'QB Payroll IPD experiences using Banking - hellobox placement');
-  const crumb = isCl4 ? CL4_CRUMB : (onCloneResults ? CLONE_CRUMB : PC_CRUMB);
+    : ((isCl4||isCl5) ? 'QB Payroll IPD experiences' : 'QB Payroll IPD experiences using Banking - hellobox placement');
+  const crumb = (isCl4||isCl5) ? CL4_CRUMB : (onCloneResults ? CLONE_CRUMB : PC_CRUMB);
   /* This scene's table is always FLAT — scenario 4's grouping lives on the
      cl4Display canvas (the final accordion), not on the search results — so
      the control shows the unset placeholder here. It is a string, not a
      boolean, so a future grouped view on this table just names its key. */
-  const pcGroupedBy = '';
+  /* Scenario 5 is the one flow where the USER sets the grouping: the guardrail
+     message tells them their selection spans several placements, and they
+     regroup the table themselves from this dropdown. The agent never regroups
+     it (the canvas changes only when the agent PRODUCES something), so the
+     label is driven by state.groupBy, which only a click sets. */
+  const pcGroupedBy = state.groupBy || '';
   const selCount = onCloneResults ? 0 : n;
   const actN = (ic,label)=>`<span class="act ${selCount?'act--on':'act--off'}">${ic} ${label} (${selCount})</span>`;
   const content = `<div class="content${state.opening?' content--opening':''}">
@@ -4038,7 +4173,7 @@ scenes.pcSearch = (state={})=>{
       <div class="toolbar">
         <div class="search">${I.search}<span>Search</span></div>
         <span class="iconbtn">${I.sliders}</span>
-        ${groupByCtl(pcGroupedBy)}
+        ${groupByCtl(pcGroupedBy, !!state.groupByOpen)}
       </div>
       ${table}
       ${pager}
@@ -4170,11 +4305,17 @@ function cl3Base(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
   if(st.path) b.path=st.path;
+  // carried through every cl3 state so scenario 5's guardrail stays in the
+  // transcript for the whole run, not just the first step after it
+  if(st.cl5Prior) b.cl5Prior=st.cl5Prior;
+  // the USER chose this grouping; it must not silently reset when the flow
+  // continues into the clone conversation
+  if(st.groupBy) b.groupBy=st.groupBy;
   return b;
 }
 /* the plain clone ask → AI comes back with the CHOICE */
-function runCl3Understand(){
-  const base={...cl3Base(),cl3:'reading'};
+function runCl3Understand(extra={}){
+  const base={...cl3Base(),...extra,cl3:'reading'};
   runPCStep(base,'Reading your request',
     ['Reading your request','Checking the selected experiences','Checking their placements'],2600,
     {...base,cl3:'choice'});
@@ -4245,6 +4386,19 @@ function cl4Base(){
   return b;
 }
 const cl4NGroups = ()=> cl4Groups([...(current.state.selected||[])]).length;
+/* scenario 5: the clone ask → the agent checks the placements and declines.
+   No cloning runner follows: `mixed` is the end of the flow. */
+function runCl5Understand(){
+  const st=current.state||{}, sel=[...(st.selected||[])];
+  /* Stamp the spanning selection's counts NOW. By the time the flow continues
+     the user has narrowed to one placement, so recomputing later would render
+     "spans 1 placements" in the replayed history. */
+  const base={selected:sel, asked:sel.length||1, typed:true, cl5:'reading',
+              cl5Prior:{n:sel.length||1, g:cl4Groups(sel).length}};
+  runPCStep(base,'Checking the experiences',
+    ['Reading your request','Checking the selected experiences','Comparing their placements'],2600,
+    {...base,cl5:'mixed'});
+}
 /* the clone ask → the agent groups the selection and plays it back */
 function runCl4Understand(){
   const base={...cl4Base(),cl4:'reading'};
@@ -4439,7 +4593,18 @@ const STEPS_CL4 = [
   ['pcSearch',{selected:[...CL4_SEL],asked:CL4_SEL.length,typed:true,cl4:'grouped'}],
   ...CL4_ORDER.slice(1).map(CL4_S),
 ];
+/* scenario 5 reuses cl4's mixed selection — it is the whole premise — and has
+   exactly one resting state after the ask. */
+const CL5_S = (cl5)=>['pcSearch',{selected:[...CL4_SEL],asked:CL4_SEL.length,typed:true,cl5}];
+const CL5_ORDER = ['mixed'];
+const STEPS_CL5 = [
+  ['home',{}],
+  ['pcSearch',{}],
+  ['pcSearch',{selected:[...CL4_SEL],typed:true}],
+  ...CL5_ORDER.map(CL5_S),
+];
 function FLOW_STEPS(){
+  if(scenario==='cl5') return STEPS_CL5;
   if(scenario==='cl4') return STEPS_CL4;
   if(scenario==='cl3') return STEPS_CL3;
   return scenario==='cl2' ? STEPS_CL2 : STEPS_PC;
@@ -4454,6 +4619,11 @@ function stepIndex(){
     // in-flight states resolve to the resting step they're heading for
     const resolved = {reading:'understood',cloning:'done'}[st.pc] || st.pc;
     const i = PC_ORDER.indexOf(resolved);
+    return i===-1 ? 3 : i+3;
+  }
+  if(st.cl5!==undefined){
+    const r = st.cl5==='reading' ? 'mixed' : st.cl5;   // executing → its rest
+    const i = CL5_ORDER.indexOf(r);
     return i===-1 ? 3 : i+3;
   }
   if(st.cl4!==undefined){

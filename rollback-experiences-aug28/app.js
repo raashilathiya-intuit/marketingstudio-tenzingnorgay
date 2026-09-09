@@ -763,9 +763,10 @@ scenes.home = (state={})=>{
             <!-- the two ACTIVE scenarios lead the menu; the muted ones follow -->
             <button class="simMenu__item" data-sim="rbOne">Rollback a single experience</button>
             <button class="simMenu__item" data-sim="rbMix">Rollback multiple experiences</button>
+            <button class="simMenu__item" data-sim="rbIssue">Rollback blocked by issues</button>
+            <button class="simMenu__item" data-sim="rbNo">Rollback not feasible</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="rbCamp">Rollback within a campaign</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="rbExp">Rollback from experience search</button>
-            <button class="simMenu__item simMenu__item--muted" data-sim="rbNo">Rollback not feasible</button>
           </div>
         </div>
       </div>
@@ -2243,6 +2244,8 @@ function scheduleAuto(name, state){
   // spans both statuses and the confirm pill is the mixed one
   else if(name==='rxMixed' && !state.loading && !state.phase){
     if(state.rb==='confirm') t(()=>trigger.rmConfirm(),1600);
+    // the issues card asks for a date; the rest of that flow runs on its own timers
+    else if(state.rb==='issues') t(()=>trigger.rbiSendDate(),2600);
     else if(state.rb){ /* working / done — end of the guided run */ }
     else if(!(state.selected&&state.selected.length)){
       t(()=>{ render('rxMixed',{selected:[...RM_SEL]}); if(autopilot) timers.push(setTimeout(()=>trigger.rmSend(),2400)); },1200);
@@ -2295,6 +2298,8 @@ const trigger = {
   // ── ROLLBACK triggers ──
   // composer SEND with a selection → feasibility check → confirm card
   rxSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runRbCheck('rxSearch',{}); },
+  // issues scenario: the user supplies the new end date, then issue 2 stops it
+  rbiSendDate:()=>{ clearTimers(); runRbiDate(); },
   // campaign search: View (n) / row click → drill into the campaign (skeleton flash)
   rcView:()=>{ clearTimers(); go('rcDetail',{tab:'experiences',loading:true}); timers.push(setTimeout(()=>{ render('rcDetail',{tab:'experiences'}); if(autopilot) scheduleAuto('rcDetail',{tab:'experiences'}); },1400)); },
   rcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runRbCheck('rcDetail',{tab:'experiences'}); },
@@ -2306,6 +2311,9 @@ const trigger = {
   rmSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers();
     const sp=rmSplit(sel); runRbCheck('rxMixed',{pubN:sp.pub,drfN:sp.drf}); },
   rmConfirm:()=>{ const st=current.state;
+    // in the issues scenario the approval is where the blockers surface: the
+    // check passed the version history, the campaign and linkages did not
+    if(scenario==='rbIssue'){ recordPillThen(()=>runRbiIssues()); return; }
     recordPillThen(()=>runRbRoll('rxMixed',{pubN:st.pubN,drfN:st.drfN})); },
   // ── scenario 4: a single experience fetched by ID ──
   rb1Send:()=>{ clearTimers(); runRB1Understand(); },
@@ -2599,10 +2607,14 @@ function wire(name, state){
       wireCreativeToggle(main,SC,state);
     }
     if(!state.rb && sel.size && !state.typed) scheduleAskType(SC, SC==='rxMixed'?RM_PROMPT:RB_PROMPT);
+    // the issues card asks for a new end date: the reply auto-types like any ask
+    if(state.rb==='issues' && !state.dateTyped) scheduleAskType(SC, RBI_DATE_PROMPT, 'dateTyped');
     const send=main.querySelector('#composerSend');
-    if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;SC==='rxMixed'?trigger.rmSend():trigger.rxSend();};
+    if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;
+      if(state.rb==='issues') trigger.rbiSendDate();
+      else SC==='rxMixed'?trigger.rmSend():trigger.rxSend();};
     const chipX=main.querySelector('[data-chipclear]');
-    if(chipX) chipX.onclick=()=>{ if(state.rb && state.rb!=='infeasible') return; autopilot=false; render(SC,{...state, selected:[]}); };
+    if(chipX) chipX.onclick=()=>{ if(state.rb && state.rb!=='infeasible' && state.rb!=='blocked') return; autopilot=false; render(SC,{...state, selected:[]}); };
     const pill=main.querySelector('#yesRollback');
     if(pill) pill.onclick=()=>{autopilot=false;trigger.rbConfirm();};
     const mpill=main.querySelector('#rmApprove');
@@ -2795,14 +2807,14 @@ const RB_PROMPT = 'Roll back these experiences to the previous version.';
    the live node. Once typing completes, state.typed keeps the draft across
    re-renders instead. */
 let askTypeTok = 0;
-function scheduleAskType(scene, text){
+function scheduleAskType(scene, text, flag){
   const tok = ++askTypeTok;
   timers.push(setTimeout(()=>{
     if(tok!==askTypeTok) return;                    // superseded by a newer render
     const inp=$('#composerInput');
     if(!inp) return;
     if(!inp.querySelector('.promptBox__ph') && inp.textContent.trim()) return;  // already has text
-    typeInto(inp, text, ()=>{ if(current.name===scene) current.state.typed=true; });
+    typeInto(inp, text, ()=>{ if(current.name===scene) current.state[flag||'typed']=true; });
   },700));
 }
 
@@ -2952,7 +2964,14 @@ const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} ex
 // placement-change build's info note. A rollback is reversible, so this is
 // informational rather than a warning.
 const WARN_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#6f5ade"/><rect x="8.25" y="7.6" width="1.5" height="5" rx="0.75" fill="#fff"/><circle cx="9" cy="5.4" r="0.95" fill="#fff"/></svg>`;
+/* the ERROR twin of WARN_ICON: same circle, red fill, exclamation instead of
+   the info glyph. WARN_ICON's purple is baked into its fill, so an error note
+   cannot just recolour it with CSS. */
+const ERR_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="8" fill="#d52b1e"/><rect x="8.25" y="4.4" width="1.5" height="5.6" rx="0.75" fill="#fff"/><circle cx="9" cy="12.4" r="0.95" fill="#fff"/></svg>`;
 const rbWarn = ()=>`<div class="warnNote">${WARN_ICON}<span>Rolled back experiences will be in Draft state. You will need to publish them again.</span></div>`;
+/* an ERROR note: unlike rbWarn (informational, purple) this one is a real
+   blocker, so it borrows the red treatment used for validation errors. */
+const rbErr = ()=>`<div class="errNote">${ERR_ICON}<span>${RBI_EXP} is linked to ${RBI_NEW_IXP}. The rollback would restore a version that points at ${RBI_OLD_IXP}.</span></div>`;
 
 /* ============================================================
    SCENARIO 5 — ROLL BACK A MIXED SELECTION (Draft + Published)
@@ -3053,7 +3072,15 @@ const rmSplit = (selArr)=>({
 const rmNote = (pub,drf)=>{
   const L=[];
   if(pub) L.push(`<div class="rmNote__l"><b>${pub} published</b> ${pub===1?'experience':'experiences'} will get a new version in Draft. The version that is live now stays live until you publish the new one.</div>`);
-  if(drf) L.push(`<div class="rmNote__l"><b>${drf} draft</b> ${drf===1?'experience':'experiences'} will keep the same version. The content from the previous version replaces what is in the draft now.</div>`);
+  /* The draft line borrows the wording users already know from the current
+     tool's "Create new draft?" dialog — "a version in progress (draft, in
+     review, verify, or approved)" and "override". The parenthetical earns its
+     place: a row showing Draft may in fact be in review or approved.
+     Scoped to the ISSUES scenario for now (user, 2026-09-09); the plain
+     multiple-experiences flow keeps its original line until that is reviewed. */
+  if(drf) L.push(scenario==='rbIssue'
+    ? `<div class="rmNote__l"><b>${drf} ${drf===1?'experience has':'experiences have'}</b> a version in progress (draft, in review, verify, or approved). Rolling back will override ${drf===1?'it':'them'}.</div>`
+    : `<div class="rmNote__l"><b>${drf} draft</b> ${drf===1?'experience':'experiences'} will keep the same version. The content from the previous version replaces what is in the draft now.</div>`);
   return `<div class="warnNote">${WARN_ICON}<div class="rmNote">${L.join('')}</div></div>`;
 };
 /* Intent confirmation. NO From/To pair here: with a mixed selection every row
@@ -3088,6 +3115,44 @@ const RB_CONFIRM = (n, inCamp, active)=> agentMsg(`<div class="chatBubble">Rolli
 // no confirm pill, the flow ends here (flow map: "provide reason for not able
 // to roll back").
 const RB_INFEASIBLE = ()=> agentMsg(`<div class="chatBubble">These experiences can't be rolled back to the previous version because &lt;reason goes here&gt;.<div style="margin-top:12px">Let me know if you'd like to make changes instead.</div></div>`);
+/* ============================================================
+   ISSUES SCENARIO — the feasibility check finds blockers.
+   The agent does not just refuse (that is RB_INFEASIBLE); it lists what
+   it found and works the list one issue at a time. Issue 1 the user can
+   answer here; issue 2 is a linkage error this workflow cannot fix, so
+   the flow ends WITHOUT rolling anything back.
+   ============================================================ */
+/* Dates sit in the FUTURE relative to the prototype's "today" (Sep 2026), so
+   the conflict reads as a live problem rather than a historical one. */
+const RBI_CAMP_END  = '10/31';     // the campaign's ceiling — NOT what we change
+const RBI_VER_END   = '12/15';     // the restored version runs past that ceiling
+const RBI_NEW_END   = '10/15';     // the user's fix: an experience date inside the window
+const RBI_OLD_IXP   = 'IXP123456';
+const RBI_NEW_IXP   = 'IXP345678';
+const RBI_EXP       = 'ELM9071-IPD-HelloExpenses-MedPS';
+const RBI_DATE_PROMPT = `Set the experience end date to ${RBI_NEW_END}.`;
+/* the two issues, played back as a numbered list. The agent names both up
+   front so the user knows the size of the problem before answering the first. */
+/* the issues are ONE list; the count in the disclosure and in the sentence are
+   both derived from it, so they cannot drift if an issue is added or removed. */
+/* Each line shows the CONFLICT, not a bare fact: what is true now, what the
+   rollback would restore, and why the two cannot both hold. A flat statement
+   ("the end date is 7/31") makes the reader work out why it matters. */
+const RBI_LIST = [
+  `${RBI_EXP} runs under a campaign that ends ${RBI_CAMP_END}. The version you're rolling back to runs to ${RBI_VER_END}, so it would be cut short.`,
+  `${RBI_EXP} now sits under ${RBI_NEW_IXP}. The version you're rolling back to points at ${RBI_OLD_IXP}.`,
+];
+const rbiN = ()=> `${RBI_LIST.length} issue${RBI_LIST.length===1?'':'s'}`;
+const RBI_ISSUES = ()=> agentMsg(
+  `<div class="chatBubble">I found <span class="issueCount">${rbiN()}</span> that ${RBI_LIST.length===1?'is':'are'} preventing the rollback:<ol class="issueList">${RBI_LIST.map(x=>`<li>${x}</li>`).join('')}</ol><div class="bubble-q">Let's start with issue 1. Can you provide a new end date for this experience?</div></div>`);
+/* issue 1 answered: confirm it, then move straight to issue 2. */
+const RBI_DATE_DONE = ()=> agentMsg(
+  disclosure('Updated the end date',['Reading your request','Checking the campaign window','Updating the experience'])
+  + `<div class="chatBubble">I've set the experience to end ${RBI_NEW_END}, inside the campaign's ${RBI_CAMP_END} window. Issue 1 is clear.${objectCard('edit','Change end date - ELM9071-IPD-HelloExpenses-MedPS')}<div class="bubble-q">Now issue 2: ${RBI_EXP} still sits under ${RBI_NEW_IXP}.</div></div>`);
+/* issue 2 is a linkage error this workflow cannot resolve, so nothing rolls
+   back. The flow ends by naming what has to happen elsewhere. */
+const RBI_BLOCKED = ()=> agentMsg(
+  `<div class="chatBubble">This is a linkage error I can't resolve here, so I haven't rolled anything back.${rbErr()}<div class="bubble-q">Once the linkage is sorted out, ask me again and I'll roll these back.</div></div>`);
 const RB_DONE = (n)=> agentMsg(
   disclosure(`Rolled back ${n} experiences`,['Checked the version history',`Rolled back ${n} experiences`,'Refreshed the list'])
   + `<div class="chatBubble">I've rolled back ${n} experiences to v2. They are now in Draft and will need to be published again.${objectCard('edit','Rollback experiences - DIWM QB Liv…')}${cmLink()}</div>`);
@@ -3336,6 +3401,7 @@ function rbTail(state, inCamp){
   if(state.rb) t += selThread(count) + RB_REQ();
   if(state.rb==='checking') t += agentLoader('Reviewing your request', state.tasks||[]);
   else if(state.rb==='infeasible') t += RB_INFEASIBLE();
+
   else if(state.rb==='confirm') t += RB_CONFIRM(count, inCamp, true);
   else if(state.rb==='working') t += RB_CONFIRM(count, inCamp, false) + agentLoader('Rolling back experiences', state.tasks||[]);
   else if(state.rb==='done') t += RB_CONFIRM((state.rolled||[]).length, inCamp, false) + RB_DONE((state.rolled||[]).length);
@@ -3383,7 +3449,7 @@ scenes.rxSearch = (state={})=>{
   }
   // experience drill-down replaces the canvas (row click); the panel keeps the conversation
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(RX_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+    return expDrillCanvas(RX_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.rb==='issues'&&state.dateTyped)?RBI_DATE_PROMPT:((state.typed&&!state.rb)?RB_PROMPT:'')});
   }
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar(RX_CRUMB)}
@@ -3395,7 +3461,7 @@ scenes.rxSearch = (state={})=>{
     </div></div>
     ${rxSelbar(n,rows.length)}
   </div>`;
-  return content + aiPanel({body,opening:state.opening,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+  return content + aiPanel({body,opening:state.opening,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.rb==='issues'&&state.dateTyped)?RBI_DATE_PROMPT:((state.typed&&!state.rb)?RB_PROMPT:'')});
 };
 
 /* ---- Scene: mixed Draft + Published rollback (scenario 5) ----
@@ -3461,6 +3527,20 @@ scenes.rxMixed = (state={})=>{
     else if(state.rb==='confirm') t += RM_CONFIRM(count,pub,drf,true);
     else if(state.rb==='working') t += RM_CONFIRM(count,pub,drf,false) + agentLoader('Rolling back experiences', state.tasks||[]);
     else if(state.rb==='done')    t += RM_CONFIRM(count,pub,drf,false) + RM_DONE(count);
+    /* ── issues scenario ──
+       The playback is approved first (RM_CONFIRM keeps its pill), THEN the
+       blockers are reported: issue 1 the user answers here, issue 2 ends the
+       flow with nothing rolled back. */
+    else if(state.rb==='checking2') t += RM_CONFIRM(count,pub,drf,false)
+      + `<div class="convoTurn">${agentLoader('Checking the campaign', state.tasks||[])}</div>`;
+    else if(state.rb==='issues')  t += RM_CONFIRM(count,pub,drf,false) + RBI_ISSUES();
+    else if(state.rb==='dating')  t += RM_CONFIRM(count,pub,drf,false) + RBI_ISSUES()
+      + `<div class="convoTurn">${userBubble(RBI_DATE_PROMPT)}${agentLoader('Updating the end date', state.tasks||[])}</div>`;
+    else if(state.rb==='issue2')  t += RM_CONFIRM(count,pub,drf,false) + RBI_ISSUES()
+      + `<div class="convoTurn">${userBubble(RBI_DATE_PROMPT)}${RBI_DATE_DONE()}</div>`;
+    else if(state.rb==='blocked') t += RM_CONFIRM(count,pub,drf,false) + RBI_ISSUES()
+      + `<div class="convoTurn">${userBubble(RBI_DATE_PROMPT)}${RBI_DATE_DONE()}</div>`
+      + `<div class="convoTurn">${RBI_BLOCKED()}</div>`;
     body = RM_SEARCH_CONV() + (t?`<div class="convoTurn">${t}</div>`:'');
     // while the rollback executes, the canvas previews the refresh with a skeleton
     table = (state.rb==='working'||state.pgLoading)
@@ -3553,7 +3633,7 @@ scenes.rcDetail = (state={tab:'experiences'})=>{
   const body = RC_SEARCH_CONV() + rbTail(state,true);
   // experience drill-down replaces the campaign-detail canvas (row click)
   if(!loading && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(RC_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+    return expDrillCanvas(RC_CRUMB, rows[state.expDrill], state) + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.rb==='issues'&&state.dateTyped)?RBI_DATE_PROMPT:((state.typed&&!state.rb)?RB_PROMPT:'')});
   }
   let mainInner;
   if(tab==='meta') mainInner = metaGrid({});
@@ -3585,7 +3665,7 @@ scenes.rcDetail = (state={tab:'experiences'})=>{
     </div></div>
     ${tab==='experiences'&&!loading?rxSelbar(n,rows.length):''}
   </div>`;
-  return content + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.typed&&!state.rb)?RB_PROMPT:''});
+  return content + aiPanel({body,chip:n?n+' experience'+(n===1?'':'s')+' selected':'',draft:(state.rb==='issues'&&state.dateTyped)?RBI_DATE_PROMPT:((state.typed&&!state.rb)?RB_PROMPT:'')});
 };
 
 /* intake (experience search): boot → staggered messages → searching loader → results */
@@ -3625,14 +3705,49 @@ function runIntakeRC(){
 /* feasibility check: loader → confirm card (with From/To version diff) */
 function runRbCheck(scene, extra){
   const sel=[...(current.state.selected||[])];
-  const subs=['Reading your request','Checking the version history','Preparing the rollback'];
+  const subs = ['Reading your request','Checking the version history','Preparing the rollback'];
   const dur=2900;
   const tick=(idx)=>render(scene,{...extra,selected:sel,asked:sel.length,typed:true,rb:'checking',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
   // the not-feasible scenario ends here with the reason; otherwise → confirm card
-  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,asked:sel.length,typed:true,rb:scenario==='rbNo'?'infeasible':'confirm'}),dur));
+  const land = scenario==='rbNo' ? 'infeasible' : 'confirm';
+  timers.push(setTimeout(()=>go(scene,{...extra,selected:sel,asked:sel.length,typed:true,rb:land}),dur));
+}
+/* the playback was approved → the deeper check finds the blockers. This is a
+   real check (campaign + linkages), so it runs a loader of its own. */
+function runRbiIssues(){
+  const st=current.state, sel=[...(st.selected||[])];
+  const base={selected:sel,asked:sel.length,typed:true,pubN:st.pubN,drfN:st.drfN};
+  const subs=['Checking the campaign','Checking experience linkages','Compiling the issues'];
+  const dur=2600;
+  const tick=(idx)=>render('rxMixed',{...base,rb:'checking2',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  tick(0);
+  const slot=(dur-600)/subs.length;
+  subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
+  timers.push(setTimeout(()=>go('rxMixed',{...base,rb:'issues'}),dur));
+}
+/* issue 1 answered → apply the end date, then raise issue 2. The agent pauses
+   on issue 2 before delivering the blocker, so the two land as separate turns
+   rather than one wall of text. */
+function runRbiDate(){
+  const st=current.state, sel=[...(st.selected||[])];
+  const base={selected:sel,asked:sel.length,typed:true,dateTyped:true,pubN:st.pubN,drfN:st.drfN};
+  const subs=['Reading your request','Checking the campaign window','Updating the experience'];
+  const dur=2600;
+  const tick=(idx)=>render('rxMixed',{...base,rb:'dating',tasks:subs.map((label,j)=>({label,state:j<idx?'done':j===idx?'active':'idle'}))});
+  tick(0);
+  const slot=(dur-600)/subs.length;
+  subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
+  /* go() calls clearTimers(), so a second timer queued HERE would be wiped the
+     moment `issue2` lands. The blocker is chained from inside that callback
+     instead — issue 2 needs no work to discover (it was named in the first
+     card), so it follows as a plain message rather than another loader. */
+  timers.push(setTimeout(()=>{
+    go('rxMixed',{...base,rb:'issue2'});
+    timers.push(setTimeout(()=>go('rxMixed',{...base,rb:'blocked'}),2200));
+  },dur));
 }
 /* rollback: loader → versions flip to v2, selection clears */
 function runRbRoll(scene, carry){
@@ -3756,6 +3871,20 @@ const STEPS_RB_EXP = [
   ['rxSearch',{selected:[1,3,6],typed:true,rb:'confirm'}],
   ['rxSearch',{typed:true,rb:'done',rolled:[1,3,6]}],
 ];
+/* the issues scenario runs on the MIXED list, so the playback can show the real
+   published/draft split before the blockers are reported.
+   Built LAZILY: RM_SEL is declared further down this file, so an array literal
+   evaluated here would throw "cannot access before initialization". */
+const STEPS_RB_ISSUE = ()=>{
+  const S=(rb,extra={})=>['rxMixed',{selected:[...RM_SEL],asked:RM_SEL.length,typed:true,
+    pubN:rmSplit(RM_SEL).pub, drfN:rmSplit(RM_SEL).drf, rb, ...extra}];
+  return [
+    ['home',{}],
+    ['rxMixed',{}],
+    ['rxMixed',{selected:[...RM_SEL],typed:true}],
+    S('confirm'), S('issues'), S('issue2',{dateTyped:true}), S('blocked',{dateTyped:true}),
+  ];
+};
 const STEPS_RB_CAMP = [
   ['home',{}],
   ['rcSearch',{}],
@@ -3796,7 +3925,8 @@ const STEPS_RB_MIX = [
 function FLOW_STEPS(){
   if(scenario==='rbMix') return STEPS_RB_MIX;
   if(scenario==='rbOne') return STEPS_RB_ONE;
-  return scenario==='rbCamp' ? STEPS_RB_CAMP : scenario==='rbNo' ? STEPS_RB_NO : STEPS_RB_EXP;
+  return scenario==='rbCamp' ? STEPS_RB_CAMP : scenario==='rbNo' ? STEPS_RB_NO
+       : scenario==='rbIssue' ? STEPS_RB_ISSUE() : STEPS_RB_EXP;
 }
 // map the CURRENT scene+state onto a step index so arrows resume from anywhere
 function stepIndex(){
@@ -3810,6 +3940,10 @@ function stepIndex(){
   }
   if(current.name==='rxMixed'){
     if(st.rb==='done') return 4;
+    // the issues scenario has its own resting states after the playback
+    if(st.rb==='issues'||st.rb==='checking2') return 4;
+    if(st.rb==='issue2'||st.rb==='dating') return 5;
+    if(st.rb==='blocked') return 6;
     if(st.rb) return 3;                       // checking / confirm
     return (st.selected&&st.selected.length)?2:1;
   }
