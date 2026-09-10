@@ -2301,7 +2301,14 @@ function scheduleAuto(name, state){
     /* scenario 5 is terminal: once `mixed` is on screen there is nothing to
        advance to, so autopilot just stops. MUST return — falling through
        reaches the bare `else` that re-fires the clone ask. */
-    if(state.cl5!==undefined) return;
+    /* scenario 5: take the CHANGE branch (the limit is the point of the
+       scenario), then stop at the guardrail — the next move is the user
+       re-selecting, which autopilot cannot guess. MUST return. */
+    if(state.cl5!==undefined){
+      if(state.cl5==='choice') t(()=>trigger.cl5Change(),1600);
+      else if(state.cl5==='naming') t(()=>trigger.cl5ApproveNaming(),1600);
+      return;
+    }
     // scenario 3: take the CHANGE branch, then approve each step
     const c3=state.cl3;
     if(c3!==undefined){
@@ -2388,6 +2395,11 @@ const trigger = {
     else runPCUnderstand(); },
   // "Looks good" on the confirmation → clone them (the flow's only execution step)
   pcLooksGood:()=>{ recordPillThen(()=>runClone()); },
+  /* ── scenario 5's choice: the same question scenario 4 asks, but only the
+     CHANGE branch runs into the one-placement-at-a-time limit. ── */
+  cl5Direct:()=>{ recordPillThen(()=>runCl5NamingDirect()); },
+  cl5ApproveNaming:()=>{ recordPillThen(()=>runCl5Direct()); },
+  cl5Change:()=>{ recordPillThen(()=>runCl5Change()); },
   // ── CLONE triggers (scenario 2: clone + change placement) ──
   // keep the Clone- prefix rather than naming them → planning loader → plan
   cl2KeepPrefix:()=>{ recordPillThen(()=>runCl2Plan()); },
@@ -2674,7 +2686,7 @@ function wire(name, state){
       /* cl5 deliberately does NOT freeze: the guardrail asks the user to
          re-pick, so the checkboxes must stay live. `reading` still freezes
          (a loader is running) but `mixed` does not. */
-      e.stopPropagation(); if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl5==='reading') return; toggle(+cb.dataset.selrow);
+      e.stopPropagation(); if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||(state.cl5!==undefined && state.cl5!=='mixed')) return; toggle(+cb.dataset.selrow);
     });
     /* Group-by dropdown. Only scenario 5 makes it interactive: the guardrail
        asks the user to narrow to one placement, and regrouping the table is
@@ -2695,9 +2707,10 @@ function wire(name, state){
     // picker), so pass an empty set or the header renders checked over unchecked rows.
     const onCloneList = state.pc==='done' || state.cl2==='allrev' || state.cl2==='done'
       || state.cl3==='done3a' || ['clonesErr','fixingAll','verified'].includes(state.cl3)
-      || ['doneall','allrev','done'].includes(state.cl4);
+      || ['doneall','allrev','done'].includes(state.cl4)
+      || state.cl5==='doneall';
     wireSelAll(main, onCloneList ? new Set() : sel,
-      state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl5==='reading', apply);
+      state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||(state.cl5!==undefined && state.cl5!=='mixed'), apply);
     // row click → experience drill-down (checkbox still selects)
     main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
       if(e.target.closest('[data-selrow]'))return;
@@ -2761,7 +2774,7 @@ function wire(name, state){
       else trigger.pcSend();
     };
     const chipX=main.querySelector('[data-chipclear]');
-    if(chipX) chipX.onclick=()=>{ if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl5==='reading') return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
+    if(chipX) chipX.onclick=()=>{ if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||(state.cl5!==undefined && state.cl5!=='mixed')) return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
     // ── name card: arrives prefilled with the AI's proposal (no typing
     //    animation). Editing it keeps the value on state; emptying it disables
     //    Proceed, since a new experience has to be called something. ──
@@ -2863,7 +2876,11 @@ function wire(name, state){
                  ['#cl4Direct','cl4Direct'],['#cl4Change','cl4Change'],
                  ['#cl4ApproveConfirm','cl4ApproveConfirm'],['#cl4ApproveNaming','cl4ApproveNaming'],
                  ['#cl4ApprovePlan','cl4ApprovePlan'],
-                 ['#cl4ApproveGroup','cl4ApproveGroup']];
+                 ['#cl4ApproveGroup','cl4ApproveGroup'],
+                 // scenario 5 — every new pill id MUST be added here or the
+                 // button renders and simply does nothing
+                 ['#cl5Direct','cl5Direct'],['#cl5Change','cl5Change'],
+                 ['#cl5ApproveNaming','cl5ApproveNaming']];
     pills.forEach(([selr,fn])=>{ const b=main.querySelector(selr); if(b) b.onclick=()=>{autopilot=false;trigger[fn]();}; });
   }
 
@@ -3114,6 +3131,20 @@ const cl4Dest = (g)=>CL4_DEST[g % CL4_DEST.length];
    regroup here, per this build's rule that the canvas updates when the agent
    produces an artifact, not when it asks a question. Both calls were the
    user's, 2026-09-09. */
+/* Step 1 (user, 2026-09-10): before the limit is mentioned at all, the agent
+   asks the same question scenario 4 asks. Only the CHANGE branch runs into the
+   one-placement-at-a-time limit; "clone as they are" needs no change, so it
+   behaves exactly like 4a. Same copy and the same two-pill .replyRow as
+   CL4_GROUPED — the question is identical, so it must read identically. */
+const CL5_CHOICE = (nSel, G, active, chose)=> agentMsg(
+  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking their placements'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">You've selected ${nSel} experience${nSel===1?'':'s'} across ${G.length} placement${G.length===1?'':'s'}.</p><p class="summaryCard__q">Do you want to change the placement while I clone them, or clone them as they are?</p>${active
+      ? `<div class="replyRow">${replyBtn('Change the placement','cl5Change')}${replyBtn('Clone as they are','cl5Direct')}</div>`
+      : recordedReply(chose || 'Change the placement')}</div>`);
+/* Same card and copy as CL4_NAMING(active, direct=true): the prefix is stated
+   and confirmed before any copy exists. Only the pill id differs. */
+const CL5_NAMING = (active)=> agentMsg(
+  `<div class="chatBubble">I'll add "${CLONE_PREFIX.replace('-','')}" to the start of each name so you can tell the copies apart.${cloneInfoNote()}<div class="bubble-q">Shall I go ahead?</div>${active?replyBtn('Proceed','cl5ApproveNaming'):recordedReply('Proceed')}</div>`);
 const CL5_MIXED = (nSel, G)=> agentMsg(
   disclosure('Checked the selected experiences',
     ['Reading your request','Checking the selected experiences','Comparing their placements'])
@@ -3726,7 +3757,8 @@ scenes.pcSearch = (state={})=>{
   const CL3_LIST = ['clonesErr','fixingAll','verified'];
   const onCloneResults = (state.pc==='done') || (state.cl2==='allrev' || state.cl2==='done')
     || (state.cl3==='done3a') || (state.cl3!==undefined && CL3_LIST.includes(state.cl3))
-    || (state.cl4==='doneall' || state.cl4==='done');
+    || (state.cl4==='doneall' || state.cl4==='done')
+    || (state.cl5==='doneall');
   const rows = onCloneResults ? cloneRows : SRC;
   const n = sel.size;
   const pick = rows[[...sel][0]] || rows[1];
@@ -3810,9 +3842,21 @@ scenes.pcSearch = (state={})=>{
       const P = state.cl5Prior;
       const nSel = P ? P.n : (state.asked || n || 1);
       const G = P ? {length:P.g} : (cl4G.length ? cl4G : cl4Groups([...sel]));
+      const c5 = state.cl5;
+      // the pill the user pressed, so the recorded reply matches their choice
+      const chose5 = state.path==='direct' ? 'Clone as they are' : 'Change the placement';
+      const CHOICE5 = ()=> CL5_CHOICE(nSel,G,false,chose5);
       let tail = selThread(nSel) + PC_REQ();
-      if(state.cl5==='reading') tail += agentLoader('Checking the experiences', state.tasks||[]);
-      else if(state.cl5==='mixed') tail += CL5_MIXED(nSel,G);
+      if(c5==='reading') tail += agentLoader('Checking the experiences', state.tasks||[]);
+      else if(c5==='choice') tail += CL5_CHOICE(nSel,G,true);
+      // ── "clone as they are": no change, so the limit never applies (like 4a)
+      else if(c5==='wnaming') tail += CHOICE5() + `<div class="convoTurn">${agentLoader('Preparing the copies', state.tasks||[])}</div>`;
+      else if(c5==='naming') tail += CHOICE5() + `<div class="convoTurn">${CL5_NAMING(true)}</div>`;
+      else if(c5==='wall') tail += CHOICE5() + `<div class="convoTurn">${CL5_NAMING(false)}</div><div class="convoTurn">${agentLoader(`Cloning ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[])}</div>`;
+      else if(c5==='doneall') tail += CHOICE5() + `<div class="convoTurn">${CL5_NAMING(false)}</div><div class="convoTurn">${CL4_DONE(nSel,G,false)}</div>`;
+      // ── "change the placement": the limit bites, so the guardrail lands here
+      else if(c5==='reading2') tail += CHOICE5() + `<div class="convoTurn">${agentLoader('Checking the placements', state.tasks||[])}</div>`;
+      else if(c5==='mixed') tail += CHOICE5() + `<div class="convoTurn">${CL5_MIXED(nSel,G)}</div>`;
       body += `<div class="convoTurn">${tail}</div>`;
     }
     else if(state.cl4!==undefined){
@@ -3893,7 +3937,9 @@ scenes.pcSearch = (state={})=>{
          numbers — the live selection is now narrowed to one placement, so
          recomputing would show "spans 1 placements"). */
       const cl5Prelude = ()=> state.cl5Prior
-        ? `<div class="convoTurn">${selThread(state.cl5Prior.n)}${PC_REQ()}${CL5_MIXED(state.cl5Prior.n,{length:state.cl5Prior.g})}</div>`
+        ? `<div class="convoTurn">${selThread(state.cl5Prior.n)}${PC_REQ()}`
+          + CL5_CHOICE(state.cl5Prior.n,{length:state.cl5Prior.g},false,'Change the placement')
+          + `<div class="convoTurn">${CL5_MIXED(state.cl5Prior.n,{length:state.cl5Prior.g})}</div></div>`
         : '';
       // the pill the user actually pressed, so the recorded reply matches it
       const chose3 = state.path==='direct' ? 'Clone as they are' : 'Change the placement';
@@ -4151,7 +4197,9 @@ scenes.pcSearch = (state={})=>{
   // the search project (…- Banking hellobox), so it stays short there
   // scenario 2 moved the copies to a new placement, so the view is named for THAT
   const heading = onCloneResults
-    ? (isCl4 ? 'Cloned experiences' : isCl2 ? CL2_VIEW_NAME : isCl3b ? CL3_VIEW_NAME : CLONE_VIEW_NAME)
+    ? (isCl4 ? 'Cloned experiences'
+      : (state.cl5==='doneall') ? `Cloned experiences - ${CL4_PROJECT}`
+      : isCl2 ? CL2_VIEW_NAME : isCl3b ? CL3_VIEW_NAME : CLONE_VIEW_NAME)
     : ((isCl4||isCl5) ? 'QB Payroll IPD experiences' : 'QB Payroll IPD experiences using Banking - hellobox placement');
   const crumb = (isCl4||isCl5) ? CL4_CRUMB : (onCloneResults ? CLONE_CRUMB : PC_CRUMB);
   /* This scene's table is always FLAT — scenario 4's grouping lives on the
@@ -4397,6 +4445,41 @@ function runCl5Understand(){
               cl5Prior:{n:sel.length||1, g:cl4Groups(sel).length}};
   runPCStep(base,'Checking the experiences',
     ['Reading your request','Checking the selected experiences','Comparing their placements'],2600,
+    {...base,cl5:'choice'});
+}
+/* cl5 base, preserving the stamp and the user's grouping across transitions */
+function cl5Base(){
+  const st=current.state||{}, sel=[...(st.selected||[])];
+  const b={selected:sel, asked:st.cl5Prior?st.cl5Prior.n:(sel.length||1), typed:true};
+  if(st.cl5Prior) b.cl5Prior=st.cl5Prior;
+  if(st.groupBy) b.groupBy=st.groupBy;
+  if(st.path) b.path=st.path;
+  return b;
+}
+/* "Clone as they are" → the Clone- PREFIX is confirmed before anything is
+   created, exactly as 4a does it (user, 2026-09-10: this step was missing).
+   The prefix must be stated before copies exist on every path. */
+function runCl5NamingDirect(){
+  const base={...cl5Base(),path:'direct',cl5:'wnaming'};
+  runPCStep(base,'Preparing the copies',
+    ['Reading your choice','Checking naming conventions','Preparing the copies'],2200,
+    {...base,cl5:'naming'});
+}
+/* naming approved → nothing changes, so the limit never applies: clone every
+   group at once, exactly like 4a. */
+function runCl5Direct(){
+  const n=(current.state.cl5Prior||{}).n || (current.state.selected||[]).length || 1;
+  const base={...cl5Base(),path:'direct',cl5:'wall'};
+  runPCStep(base,`Cloning ${n} experience${n===1?'':'s'}`,
+    ['Reading each group','Copying the settings','Creating the copies'],2900,
+    {...base,cl5:'doneall'});
+}
+/* "Change the placement" → THIS is where the one-placement-at-a-time limit
+   bites, so the guardrail message lands here and nowhere else. */
+function runCl5Change(){
+  const base={...cl5Base(),path:'change',cl5:'reading2'};
+  runPCStep(base,'Checking the placements',
+    ['Reading your request','Checking the selected experiences','Comparing their placements'],2400,
     {...base,cl5:'mixed'});
 }
 /* the clone ask → the agent groups the selection and plays it back */
@@ -4595,8 +4678,11 @@ const STEPS_CL4 = [
 ];
 /* scenario 5 reuses cl4's mixed selection — it is the whole premise — and has
    exactly one resting state after the ask. */
-const CL5_S = (cl5)=>['pcSearch',{selected:[...CL4_SEL],asked:CL4_SEL.length,typed:true,cl5}];
-const CL5_ORDER = ['mixed'];
+const CL5_S = (cl5)=>['pcSearch',{selected:[...CL4_SEL],asked:CL4_SEL.length,typed:true,
+  cl5Prior:{n:CL4_SEL.length,g:CL4_NG},
+  ...(cl5==='mixed'?{path:'change'}:{}), cl5}];
+// the nav walks the CHANGE branch, since the limit is what this scenario shows
+const CL5_ORDER = ['choice','mixed'];
 const STEPS_CL5 = [
   ['home',{}],
   ['pcSearch',{}],
@@ -4622,8 +4708,10 @@ function stepIndex(){
     return i===-1 ? 3 : i+3;
   }
   if(st.cl5!==undefined){
-    const r = st.cl5==='reading' ? 'mixed' : st.cl5;   // executing → its rest
-    const i = CL5_ORDER.indexOf(r);
+    // executing states resolve to the resting state they are heading for
+    const R={reading:'choice', reading2:'mixed', wnaming:'choice', naming:'choice',
+             wall:'choice', doneall:'choice'};
+    const i = CL5_ORDER.indexOf(R[st.cl5]||st.cl5);
     return i===-1 ? 3 : i+3;
   }
   if(st.cl4!==undefined){
