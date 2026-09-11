@@ -384,7 +384,7 @@ const COL = {
   search:[{label:'Campaign name',key:'name'},{label:'Campaign ID',key:'id'},{label:'Status',key:'status',badge:1},{label:'Start date',key:'start'},{label:'End date',key:'end'},{label:'Last modified',key:'mod',info:1}],
   aud:[{label:'Audience name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Description',key:'desc'},{label:'Size',key:'size'}],
   billing:[{label:'Billing code',key:'code',info:1},{label:'QA status',key:'status',badge:1},{label:'Title',key:'title'},{label:'No. of offers',key:'off'},{label:'Start date',key:'start'},{label:'End date',key:'end',editedKey:'edited'},{label:'SKU',key:'sku'}],
-  place:[{label:'Placement name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Template',key:'tmpl'},{label:'Impression cap',key:'cap'},{label:'No. of offers',key:'off'}],
+  place:[{label:'Access point name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Template',key:'tmpl'},{label:'Impression cap',key:'cap'},{label:'No. of offers',key:'off'}],
   exp:[{label:'Experiment name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'ID',key:'id'},{label:'Start date',key:'start'},{label:'End date',key:'end',editedKey:'edited'}],
 };
 
@@ -394,7 +394,7 @@ const withMod = (cols)=>[...cols,{label:'Last updated',key:'mod'}];
 function campaignDataTables(endDate, edited){
   return `
     <div class="sec-label">Audiences</div>${tableHTML(withMod(COL.aud),AUDIENCES)}
-    <div class="sec-label">Placement</div>${tableHTML(withMod(COL.place),PLACEMENTS)}
+    <div class="sec-label">Access point</div>${tableHTML(withMod(COL.place),PLACEMENTS)}
     <div class="sec-label">Experiments</div>${tableHTML(withMod(COL.exp),experimentRows(endDate,edited))}`;
 }
 
@@ -411,7 +411,7 @@ function viewToggle(active){ // active: 'table' | 'tree'
 }
 
 /* ---------- TREE view — data model + real expand/collapse ---------- */
-const NODE_COLORS={segment:'var(--node-segment)',experiment:'var(--node-experiment)',billing:'var(--node-billing)',placement:'var(--node-placement)',campaign:'var(--node-campaign)',treatment:'var(--node-experiment)',uipattern:'var(--node-placement)',template:'var(--node-placement)'};
+const NODE_COLORS={segment:'var(--node-segment)',experiment:'var(--node-experiment)',billing:'var(--node-billing)',placement:'var(--node-access point)',campaign:'var(--node-campaign)',treatment:'var(--node-experiment)',uipattern:'var(--node-access point)',template:'var(--node-access point)'};
 // tile glyphs = real DS icons tinted WHITE (Figma: icon-inverse on the colored tile)
 const whiteIcon=(name)=>`<span class="tile-ico">${icon(name,16)}</span>`;
 const NODE_ICON={segment:whiteIcon('personThree'),experiment:whiteIcon('beaker'),billing:whiteIcon('percent'),placement:whiteIcon('thumbnail'),campaign:whiteIcon('megaphone'),treatment:whiteIcon('beaker'),uipattern:whiteIcon('thumbnail'),template:whiteIcon('thumbnail')};
@@ -419,7 +419,7 @@ const NODE_ICON={segment:whiteIcon('personThree'),experiment:whiteIcon('beaker')
 let treeExpanded = new Set();
 /* render one data node. n = {id,type,k,v,meta,children[],pre,extra}
    pre  = HTML rendered ABOVE children (e.g. segment LABEL/Value grid)
-   extra= HTML rendered BELOW children (e.g. placement preview card) */
+   extra= HTML rendered BELOW children (e.g. access point preview card) */
 function treeNode(n){
   const hasKids = (n.children&&n.children.length) || n.extra || n.pre;
   const open = treeExpanded.has(n.id);
@@ -582,7 +582,7 @@ function buildTree(){
   // edit-flow leaves keep the plain preview card.
   const leafNode=(o,parentId,i)=>{
     const id=`${parentId}/leaf${i}`;
-    return {id,type:'placement',k:'Placement/Template',v:o.placement,meta:o.template,
+    return {id,type:'placement',k:'Access point/Template',v:o.placement,meta:o.template,
       extra:treeRichMode?richLeafExtra(o,id):previewCard()};
   };
   // group-node attribute panel: rich mode shows the REAL per-level attributes,
@@ -646,7 +646,7 @@ const TREE_DIMS = [
   {key:'experiment',label:'Experiment', type:'experiment'},
   {key:'segment',   label:'Segment',    type:'segment'},
   {key:'treatment', label:'Treatment',  type:'treatment'},
-  {key:'placement', label:'Placement',  type:'placement'},
+  {key:'placement', label:'Access point',  type:'placement'},
   {key:'uipattern', label:'UI Pattern', type:'uipattern'},
   {key:'template',  label:'Template',   type:'template'},
 ];
@@ -761,7 +761,7 @@ scenes.home = (state={})=>{
   const shortcuts = [
     ['Create campaign','Build email, push, or in-app campaigns with AI-assisted copy.', scCampaign],
     ['Run experiment','A/B test subject lines, offers and send times at scale.', scExperiment],
-    ['Create IPD','Design in-product display creatives for targeted placements.', scIpd],
+    ['Create IPD','Design in-product display creatives for targeted access points.', scIpd],
   ].map(([t,d,ic])=>`<div class="scard"><div class="si">${ic}</div><div><div class="st">${t}</div><div class="sd">${d}</div></div></div>`).join('');
   return `<div class="content">
     ${topbar('<span>Home</span>')}
@@ -779,16 +779,16 @@ scenes.home = (state={})=>{
             </div>
           </div>
         </div>
-        <!-- Simulate a scenario: dashed pill → the placement-change scenario -->
+        <!-- Simulate a scenario: dashed pill → the access point-change scenario -->
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
             <!-- the two ACTIVE scenarios lead; the earlier drafts are muted below -->
-            <button class="simMenu__item" data-sim="cl3">Clone experiences, choose whether to change the placement</button>
-            <button class="simMenu__item" data-sim="cl4">Mixed placements, group and retarget each one</button>
-            <button class="simMenu__item" data-sim="cl5">Mixed placements, one placement at a time</button>
-            <button class="simMenu__item simMenu__item--muted" data-sim="pc">Clone experiences, same placement, no changes</button>
-            <button class="simMenu__item simMenu__item--muted" data-sim="cl2">Clone experiences and change the placement</button>
+            <button class="simMenu__item" data-sim="cl3">Clone experiences, choose whether to change the access point</button>
+            <button class="simMenu__item" data-sim="cl4">Mixed access points, group and retarget each one</button>
+            <button class="simMenu__item" data-sim="cl5">Mixed access points, one access point at a time</button>
+            <button class="simMenu__item simMenu__item--muted" data-sim="pc">Clone experiences, same access point, no changes</button>
+            <button class="simMenu__item simMenu__item--muted" data-sim="cl2">Clone experiences and change the access point</button>
           </div>
         </div>
       </div>
@@ -952,7 +952,7 @@ function p2SummaryTables(hl=true){
   const placeHi=new Set([0,1,3,5]);
   const place = PLACEMENTS.map((r,i)=>({...r,editedRow:hl&&placeHi.has(i)}));
   return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
-    <div class="sec-label">Placement</div>${tableHTML(COL.place,place)}
+    <div class="sec-label">Access point</div>${tableHTML(COL.place,place)}
     <div class="sec-label">Experiments</div>${tableHTML(COL.exp,experimentRows('04/22/2026',false))}`;
 }
 
@@ -1033,7 +1033,7 @@ function experiencesPanel(opts={}){
   const hlOn = opts.hlOn!==false;   // "Highlight changes" toggle (default on)
   // opts.allEdited → every row is Edited (yellow); otherwise only rows in `highlight`.
   const rows = Array(10).fill(0).map((_,i)=>{const ed=opts.allEdited||hi.has(i);return {exp:'ELM9071-IPD-HelloChartAcc-US…',expEdited:ed && hlOn,eid:'4d738ef0-9505-11f1-86ec-a3e65…',status:ed?'Edited':status,ap:'Chart of Accounts -hellobox',tmpl:'helloboxThirdParty',prio:'15.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'};});
-  const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Experience ID',key:'eid'},{label:'Status',key:'status',badge:1},{label:'Placement',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
+  const cols=[{label:'Experience',key:'exp',info:1,editedKey:'expEdited'},{label:'Experience ID',key:'eid'},{label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},{label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},{label:'Created by',key:'by'},{label:'Last updated',key:'mod'}];
   const expTable = loading ? skeletonTable(cols,true) : tableHTML(cols,rows,{checkbox:true,drillrow:opts.drillrow});
   const pager = loading ? '' : `<div class="pager"><span>1-10 of 64 items</span><span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of 3</span>${I.chevR}</span></div>`;
   // bottom action bar (Figma 919:48089): 0 selected → all actions disabled
@@ -1271,7 +1271,7 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
 /* ============================================================
    SCENARIO 2 — WORKBOOK SCENES
    Reuses artifactScreen, tableHTML (edited highlights), plan/step spinners,
-   cumulative WB_* transcript. Placement rows drill down to a content table.
+   cumulative WB_* transcript. Access point rows drill down to a content table.
    ============================================================ */
 const WB_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>Change order - DIWM QB Live campaign</span>';
 
@@ -1287,7 +1287,7 @@ const CREATIVE_CTA = 'Claim your offer';
 // PLACEMENT / TEMPLATE attribute row + "Creatives" section header with the toggle
 function creativesHeader(view){
   return `<div class="cd-attr">
-      <div><div class="cd-attr__k">PLACEMENT</div><div class="cd-attr__v">Chart of Accounts -hellobox</div></div>
+      <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v">Chart of Accounts -hellobox</div></div>
       <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v">helloboxThirdParty</div></div>
     </div>
     <div class="cd-head"><span class="cd-head__t">Creatives</span>
@@ -1318,7 +1318,7 @@ function contentDetail(hl=false){
 // PREVIEW view: 9 creative cards rendering the actual creative. No edit
 // highlights in the create flow.
 function helloboxCreative(hl=false, opts={}){
-  // opts.sub / opts.foot are the fields the hellobox image placement adds — rendered
+  // opts.sub / opts.foot are the fields the hellobox image access point adds — rendered
   // with the inline highlight so the yellow hugs the text, not the whole row.
   const mark = (t)=> opts.hl===false ? t : `<span class="cd-hl">${t}</span>`;
   const sub  = opts.sub  ? `<div class="hb-sub">${mark(opts.sub)}</div>` : '';
@@ -1348,14 +1348,14 @@ function contentPreview(hl=false){
   return `<div class="cd-list">${cards}</div>`;
 }
 // experience drill-down Creative tab: ONE creative, bare — the .cd-card outline
-// only groups multiple creatives on a placement, so it's dropped here.
+// only groups multiple creatives on a access point, so it's dropped here.
 function singleCreative(view){
   if(view==='preview') return `<div class="creativeCenter">${helloboxCreative()}</div>`;
   return `<div class="cd-row">${cdPair('HEADLINE',CREATIVE_HEADLINE,false)}${cdPair('BODY',CREATIVE_BODY,false)}</div>
     <div class="cd-row" style="margin-top:16px">${cdPair('CTA',CREATIVE_CTA,false)}${cdPair('IMAGE','imagename.png',false,true)}</div>`;
 }
 /* Clone review creative (scenario 2). Same shape as singleCreative, but the
-   carried-over body copy is over the new placement's limit until it's fixed:
+   carried-over body copy is over the new access point's limit until it's fixed:
    over=true shows the original copy with the field-level error (Figma
    6306:11217 — no border, value unchanged, red icon + message beneath),
    over=false shows the corrected copy. Nothing is highlighted: a clone is a new
@@ -1365,7 +1365,7 @@ function cloneCreative(view, over, edited){
   if(view==='preview') return `<div class="creativeCenter">${helloboxCreative(false,{body})}</div>`;
   const bodyErr = over ? `<div class="cd-pair__err">${ERR_ICON}<span>${BODY_ERR}</span></div>` : '';
   // once the copy has been supplied the BODY is a changed field, so it carries
-  // the same highlight as the placement and template
+  // the same highlight as the access point and template
   const bodyCls = (!over && edited) ? ' cd-hl' : '';
   return `<div class="cd-row">${cdPair('HEADLINE',CREATIVE_HEADLINE,false)}<div class="cd-pair"><div class="cd-pair__k">BODY</div><span class="cd-pair__v${bodyCls}">${body}</span>${bodyErr}</div></div>
     <div class="cd-row" style="margin-top:16px">${cdPair('CTA',CREATIVE_CTA,false)}${cdPair('IMAGE','imagename.png',false,true)}</div>`;
@@ -1373,7 +1373,7 @@ function cloneCreative(view, over, edited){
 // dispatch by view
 function creativesBody(view, hl=false){ return view==='preview' ? contentPreview(hl) : contentDetail(hl); }
 
-// placement table where each row drills into the content table (steps 2 & 3).
+// access point table where each row drills into the content table (steps 2 & 3).
 // rows 0,1,3,5 highlighted; every row clickable (data-drillplace) to open content.
 function placementDrill(hl=true){
   // rows 1,2,4,6 (1-indexed) highlighted; the rest stay white
@@ -1428,8 +1428,8 @@ scenes.billingIDs = (state={})=>{
   return artifactScreen({crumb:WB_CRUMB,title:'Billing offers - DIWM QB Live campaign',table:billTbl,step:'1.  Change billing offer IDs',body,stepLoading:loading});
 };
 
-/* WB step 2 & 3 share a placement table that drills into the content table.
-   state.drill = index of the placement row being viewed (content table shown). */
+/* WB step 2 & 3 share a access point table that drills into the content table.
+   state.drill = index of the access point row being viewed (content table shown). */
 function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loading,tasks,mode,drill,drillLoading,crumb:crumbIn,creativeView,hl=true}){
   let canvas, title, crumb=crumbIn||WB_CRUMB, backForDrill=false;
   if(drill!==undefined && drill!==null){
@@ -1446,8 +1446,8 @@ function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loa
       ${drillLoading?'':hlBar(hl)}`;
     crumb = '<span>Home</span> <span class="sep">/</span> <span>DIWM QB Live campaign</span>';
   } else {
-    title=`Placement - DIWM QB Live campaign`;
-    canvas = `<div class="detail-h"><span class="title">Placement - DIWM QB Live campaign</span></div><div style="height:16px"></div>${loading?skeletonTable(COL.place,false):placementDrill(hl)+hlBar(hl)}`;
+    title=`Access point - DIWM QB Live campaign`;
+    canvas = `<div class="detail-h"><span class="title">Access point - DIWM QB Live campaign</span></div><div style="height:16px"></div>${loading?skeletonTable(COL.place,false):placementDrill(hl)+hlBar(hl)}`;
   }
   const bodyFull = loading ? conv + agentLoader(loaderLabel, tasks||[]) : conv + activeReply;
   const content = `<div class="content">${topbar(crumb)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
@@ -1473,7 +1473,7 @@ scenes.campaignObjectWB = (state={view:'table'})=>{
   let body;
   if(loading){ body = priorConv + agentLoader('Reviewing change summary', state.tasks||[]); }
   else { body = priorConv + (reveal>=1?summaryMsg:'') + (reveal>=2?reviewMsg:''); }
-  // campaign summary canvas with billing + placement rows highlighted yellow
+  // campaign summary canvas with billing + access point rows highlighted yellow
   const hl = state.hl!==false;
   const canvas = loading ? summarySkeleton() : `<div class="detail-h"><span class="title">Campaign summary - DIWM QB Live campaign</span></div>
     <div style="height:10px"></div>
@@ -1485,7 +1485,7 @@ ${metaGrid()}
   return content + aiPanel({step:'2.  Review change summary',body,stepLoading:loading});
 };
 
-// summary tables for WB review: audiences (plain), billing (2 rows yellow), placement (all yellow), experiments
+// summary tables for WB review: audiences (plain), billing (2 rows yellow), access point (all yellow), experiments
 function wbSummaryTables(hl=true){
   // billing-ID/IPD flow does NOT change end dates → keep original 04/22 (unchanged);
   // the whole-row highlight flags the billing offers whose IDs changed.
@@ -1493,7 +1493,7 @@ function wbSummaryTables(hl=true){
   const placeHi=new Set([0,1,3,5]);
   const place = PLACEMENTS.map((r,i)=>({...r,editedRow:hl&&placeHi.has(i)}));
   return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
-    <div class="sec-label">Placement</div>${tableHTML(COL.place,place)}
+    <div class="sec-label">Access point</div>${tableHTML(COL.place,place)}
     <div class="sec-label">Experiments</div>${tableHTML(COL.exp,experimentRows('04/22/2026',false))}`;
 }
 
@@ -1510,7 +1510,7 @@ scenes.campaignTreeWB = (state={view:'tree',tab:'experiences'})=>{
   } else if(state.tab==='insights'){
     mainInner = insightsPanel();
   } else {
-    // Campaign meta tab reflects the WORKBOOK edits (billing IDs + placement highlights), not the prompt-flow end-date diff
+    // Campaign meta tab reflects the WORKBOOK edits (billing IDs + access point highlights), not the prompt-flow end-date diff
     mainInner = `${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):wbSummaryTables()}</div>`;
   }
   const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">
@@ -1567,7 +1567,7 @@ scenes.p2Billing = (state={})=>{
   return artifactScreen({crumb:P2_CRUMB,title:'Billing offers - DIWM QB Live campaign',table:billTbl,step:'1.  Change billing offer ID',body,stepLoading:loading});
 };
 
-/* ---- P2 step 2: Change IPD content and images (placement drill-down) ---- */
+/* ---- P2 step 2: Change IPD content and images (access point drill-down) ---- */
 scenes.p2Ipd = (state={})=>{
   const loading=state.loading;
   const conv = P2_TO_IPD(loading?0:1, loading?0:-1);
@@ -1669,7 +1669,7 @@ const CR_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>DIWM QB Liv
 const CR_PLAN_TASKS = [
   'Parse and validate campaign meta',
   'Parse and validate audiences',
-  'Parse and validate placements',
+  'Parse and validate access points',
   'Parse and validate experiments',
   'Review campaign summary',
   'Create experiences',
@@ -1697,7 +1697,7 @@ const CR_PLAN = (done=0, loading=-1)=> agentMsg(`<div class="summaryCard"><p cla
 const CR_META    = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the campaign meta.${objectCard('megaphone','Campaign meta - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
 const CR_AUD     = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the audiences.${objectCard('personThree','Audience - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
 const CR_BILLING = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the billing offers.${objectCard('percent','Billing offer - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
-const CR_CREATIVE= ()=> agentMsg(`<div class="chatBubble">Parsed and validated the placements.${objectCard('thumbnail','Placements - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
+const CR_CREATIVE= ()=> agentMsg(`<div class="chatBubble">Parsed and validated the access points.${objectCard('thumbnail','Access points - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
 const CR_EXP     = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the experiments.${objectCard('beaker','Experiments - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 5.</div>${recordedReply('Approved')}</div>`);
 // composed "history up to" helpers
 const CR_TO_PLAN     = ()=> CR_USER() + CR_CREATED() + CR_UNDERSTOOD();
@@ -1829,13 +1829,13 @@ function metaGrid2(pairs){
   return `<div class="meta meta--bare">${pairs.map(([k,v])=>`<div><div class="meta__k">${k}</div><div class="meta__v">${v}</div></div>`).join('')}</div>`;
 }
 
-/* ---- CR task 4: Creative, placements and content (Placement table → Creatives drill) ---- */
+/* ---- CR task 4: Creative, access points and content (Access point table → Creatives drill) ---- */
 scenes.crCreative = (state={})=>{
   const loading=state.loading;
   const conv = CR_TO_CREATIVE(loading?2:3, loading?2:-1);
   const body = loading
-    ? conv + agentLoader('Creating creative, placements and content', state.tasks||[])
-    : conv + agentMsg(`<div class="chatBubble">Parsed and validated the placements.${objectCard('thumbnail','Placements - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${replyBtn('Approve','crApproveCreative')}</div>`);
+    ? conv + agentLoader('Creating creative, access points and content', state.tasks||[])
+    : conv + agentMsg(`<div class="chatBubble">Parsed and validated the access points.${objectCard('thumbnail','Access points - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${replyBtn('Approve','crApproveCreative')}</div>`);
   let canvas;
   if(state.drill!==undefined && state.drill!==null){
     const view = state.creativeView==='preview' ? 'preview' : 'detail';
@@ -1847,10 +1847,10 @@ scenes.crCreative = (state={})=>{
       <div style="height:16px"></div>${drillBody}`;
   } else {
     const tbl = loading ? skeletonTable(COL.place,false) : tableHTML(COL.place, PLACEMENTS, {drillrow:true});
-    canvas = `<div class="detail-h"><span class="title">Placements - DIWM QB Live campaign</span></div><div style="height:16px"></div>${tbl}`;
+    canvas = `<div class="detail-h"><span class="title">Access points - DIWM QB Live campaign</span></div><div style="height:16px"></div>${tbl}`;
   }
   const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
-  return content + aiPanel({step:'3.  Parse and validate placements',body,stepLoading:loading});
+  return content + aiPanel({step:'3.  Parse and validate access points',body,stepLoading:loading});
 };
 
 /* ---- CR task 5: Experiment (table → treatments drill) ---- */
@@ -1939,7 +1939,7 @@ scenes.crTree = (state={view:'tree',tab:'meta'})=>{
             <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
           </div></div>
         <div class="cd-attr">
-          <div><div class="cd-attr__k">PLACEMENT</div><div class="cd-attr__v">Chart of Accounts -hellobox</div></div>
+          <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v">Chart of Accounts -hellobox</div></div>
           <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v">helloboxThirdParty</div></div>
         </div>` + singleCreative(view);
     } else if(t==='experiment'){
@@ -2068,7 +2068,7 @@ function runIntakeWB(){
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),ldr+Math.round(slot*(i+1)))));
   timers.push(setTimeout(()=>go('coIntentWB',{phase:'msg-understood'}),ldr+dur));
 }
-// placement row → content drill-down: skeleton flash (~1100ms) then the content table
+// access point row → content drill-down: skeleton flash (~1100ms) then the content table
 function drillInto(scene, idx){
   clearTimers();
   go(scene,{drill:idx,drillLoading:true});
@@ -2283,7 +2283,7 @@ function go(name, state={}){
 function scheduleAuto(name, state){
   const t=(fn,ms)=>timers.push(setTimeout(fn,ms));
   if(name==='home') t(()=>trigger.home(),900);
-  // placement change: pick one row → send the ask → confirm each card in turn
+  // access point change: pick one row → send the ask → confirm each card in turn
   else if(name==='pcSearch' && !state.loading && !state.phase){
     const p=state.pc;
     // scenario 4: take the CHANGE branch and walk every group
@@ -2294,6 +2294,7 @@ function scheduleAuto(name, state){
       else if(c4==='naming')        t(()=>trigger[state.path==='direct'?'cl4ApproveNamingDirect':'cl4ApproveNaming'](),1600);
       else if(c4==='plan')          t(()=>trigger.cl4ApprovePlan(),1600);
       else if(/^g\d+ask$/.test(c4)) t(()=>trigger.cl4SendDest(),2600);
+      else if(/^g\d+int$/.test(c4))  t(()=>trigger.cl4ApproveGroupIntent(),1600);
       else if(/^g\d+done$/.test(c4)) t(()=>trigger.cl4ApproveGroup(),1600);
       // executing states just wait
       return;
@@ -2316,6 +2317,7 @@ function scheduleAuto(name, state){
       else if(c3==='asking')     t(()=>trigger.cl3SendTarget(),2600);
       else if(c3==='intent')     t(()=>trigger.cl3ApproveIntent(),1600);
       else if(c3==='naming')     t(()=>trigger[state.path==='direct'?'cl3ApproveNamingDirect':'cl3ApproveNaming'](),1600);
+      else if(c3==='fields')     t(()=>trigger.cl3ApproveFields(),1600);
       /* clonesErr is where the user takes over: fixes are per experience, so
          autopilot opens the first flagged clone rather than guessing. */
       else if(c3==='clonesErr' && state.expDrill===undefined){
@@ -2378,9 +2380,9 @@ const trigger = {
     else if(scenario==='cl4') runCl4Understand();
     /* Scenario 5 sends TWICE. The first send hits the guardrail. The second
        comes after the user regrouped and re-picked, so it re-tests the new
-       selection: still spanning placements → the guardrail again; down to one
-       placement → SCENARIO 3's choice card, because a plain clone ask always
-       means the agent asks whether to change the placement first and the
+       selection: still spanning access points → the guardrail again; down to one
+       access point → SCENARIO 3's choice card, because a plain clone ask always
+       means the agent asks whether to change the access point first and the
        answer drives the rest. (Routing it into scenario 1 hardcoded "no
        changes" and skipped that question — wrong, caught 2026-09-09.)
        cl5Prior keeps the guardrail's own counts so it can be replayed as
@@ -2396,11 +2398,11 @@ const trigger = {
   // "Looks good" on the confirmation → clone them (the flow's only execution step)
   pcLooksGood:()=>{ recordPillThen(()=>runClone()); },
   /* ── scenario 5's choice: the same question scenario 4 asks, but only the
-     CHANGE branch runs into the one-placement-at-a-time limit. ── */
+     CHANGE branch runs into the one-access point-at-a-time limit. ── */
   cl5Direct:()=>{ recordPillThen(()=>runCl5NamingDirect()); },
   cl5ApproveNaming:()=>{ recordPillThen(()=>runCl5Direct()); },
   cl5Change:()=>{ recordPillThen(()=>runCl5Change()); },
-  // ── CLONE triggers (scenario 2: clone + change placement) ──
+  // ── CLONE triggers (scenario 2: clone + change access point) ──
   // keep the Clone- prefix rather than naming them → planning loader → plan
   cl2KeepPrefix:()=>{ recordPillThen(()=>runCl2Plan()); },
   // Approve on the plan → task 1 (which hits the body-copy limit)
@@ -2419,29 +2421,32 @@ const trigger = {
   cl3Direct:()=>{ recordPillThen(()=>runCl3NamingDirect()); },
   cl3ApproveNamingDirect:()=>{ recordPillThen(()=>runCl3Direct()); },
   cl3Change:()=>{ recordPillThen(()=>runCl3Ask()); },
-  // composer SEND naming the placement + template
+  // composer SEND naming the access point + template
   cl3SendTarget:()=>{ clearTimers(); runCl3Target(); },
   cl3ApproveIntent:()=>{ recordPillThen(()=>runCl3Naming()); },
-  cl3ApproveNaming:()=>{ recordPillThen(()=>runCl3Clones()); },
+  cl3ApproveNaming:()=>{ recordPillThen(()=>runCl3Fields()); },
+  cl3ApproveFields:()=>{ recordPillThen(()=>runCl3Clones()); },
 
   /* composer SEND on the clones message → apply every clone's copy at once */
   cl3SendFix:()=>{ clearTimers(); runCl3FixAll(); },
   cl3ApproveAll:()=>{ recordPillThen(()=>runCl3Done()); },
-  // ── CLONE triggers (scenario 4: the selection spans placements) ──
+  // ── CLONE triggers (scenario 4: the selection spans access points) ──
   cl4Direct:()=>{ recordPillThen(()=>runCl4NamingDirect()); },
   cl4ApproveNamingDirect:()=>{ recordPillThen(()=>runCl4Direct()); },
   cl4Change:()=>{ recordPillThen(()=>runCl4Confirm()); },
   cl4ApproveConfirm:()=>{ recordPillThen(()=>runCl4Naming()); },
   cl4ApproveNaming:()=>{ recordPillThen(()=>runCl4Plan()); },
   cl4ApprovePlan:()=>{ recordPillThen(()=>runCl4AskGroup(0)); },
-  // composer SEND naming this group's destination placement
+  // composer SEND naming this group's destination access point
   cl4SendDest:()=>{ const m=/^g(\d+)ask$/.exec(current.state.cl4||''); if(!m) return;
     clearTimers(); runCl4MapGroup(+m[1]); },
   /* ONE pill id serves both of a group's approvals — the stage in the state
      says whether we are approving the playback or the finished group. */
+  cl4ApproveGroupIntent:()=>{ const m=/^g(\d+)int$/.exec(current.state.cl4||''); if(!m) return;
+    recordPillThen(()=>runCl4CloneGroup(+m[1])); },
   cl4ApproveGroup:()=>{ const m=/^g(\d+)done$/.exec(current.state.cl4||''); if(!m) return;
     recordPillThen(()=>runCl4NextGroup(+m[1])); },
-  // ── dead placement-change triggers, kept for scenarios 2 and 4 ──
+  // ── dead access point-change triggers, kept for scenarios 2 and 4 ──
   // Proceed on the name card → the fields the new template adds
   pcNameProceed:()=>{ recordPillThen(()=>runPCFields()); },
   // composer SEND carrying the corrected body copy → canvas + panel both load
@@ -2450,7 +2455,7 @@ const trigger = {
   pcApproveBodyFix:()=>{ recordPillThen(()=>runPCExperience()); },
   // Proceed on the field card → planning loader → plan
   pcProceed:()=>{ recordPillThen(()=>runPCPlan()); },
-  // "Looks good" on the plan → task 1 (update the placement)
+  // "Looks good" on the plan → task 1 (update the access point)
   pcApprovePlan:()=>{ recordPillThen(()=>runPCPlacement()); },
   // Approve on task 2 → done
   pcApproveExp:()=>{ recordPillThen(()=>runPCDone()); },
@@ -2468,14 +2473,14 @@ const trigger = {
   // ── WORKBOOK triggers ──
   wbApproveUnderstood:()=>{ recordPillThen(()=>runWBPlan()); },
   wbApprovePlan:()=>{ recordPillThen(()=>runWBStep('ipdContent','Changing IPD content and images','ipdContent',{})); },
-  wbApproveBilling:()=>{ recordPillThen(()=>runWBStep('ipdContent','Loading placements','ipdContent',{})); },   // loader → placement table (merged step 2)
+  wbApproveBilling:()=>{ recordPillThen(()=>runWBStep('ipdContent','Loading access points','ipdContent',{})); },   // loader → access point table (merged step 2)
   wbApproveIpd:()=>{ recordPillThen(()=>runWBReview()); },                                                       // step 2 done → review (step 3)
   wbApproveReview:()=>{ recordPillThen(()=>runLoader('campaignTreeWB',LOADERS.saving,'campaignTreeWB',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
   wbLooksGoodFinal:()=>{ autopilot=false; go('home'); },
   // ── SCENARIO 3 (prompt CO) triggers ──
   p2ApproveUnderstood:()=>{ recordPillThen(()=>runP2Plan()); },
   p2ApprovePlan:()=>{ recordPillThen(()=>runP2Step('p2Ipd','Changing IPD content and images','p2Ipd',{})); },
-  p2ApproveBilling:()=>{ recordPillThen(()=>runP2Step('p2Ipd','Loading placements','p2Ipd',{})); },
+  p2ApproveBilling:()=>{ recordPillThen(()=>runP2Step('p2Ipd','Loading access points','p2Ipd',{})); },
   p2ApproveIpd:()=>{ recordPillThen(()=>runP2Review()); },
   p2ApproveReview:()=>{ recordPillThen(()=>runLoader('p2Tree',LOADERS.saving,'p2Tree',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
   p2LooksGoodFinal:()=>{ autopilot=false; go('home'); },
@@ -2483,8 +2488,8 @@ const trigger = {
   crApproveUnderstood:()=>{ recordPillThen(()=>runCRPlan()); },
   crApprovePlan:()=>{ recordPillThen(()=>runCRStep('crMeta','Parsing and validating campaign meta','crMeta',{})); },
   crApproveMeta:()=>{ recordPillThen(()=>runCRStep('crAudience','Parsing and validating audiences','crAudience',{})); },
-  crApproveAud:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating placements','crCreative',{})); },
-  crApproveBilling:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating placements','crCreative',{})); },
+  crApproveAud:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating access points','crCreative',{})); },
+  crApproveBilling:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating access points','crCreative',{})); },
   crApproveCreative:()=>{ recordPillThen(()=>runCRStep('crExperiment','Parsing and validating experiments','crExperiment',{})); },
   crApproveExp:()=>{ recordPillThen(()=>runCRStep('crSummary','Creating campaign summary','crSummary',{})); },
   crApproveSummary:()=>{ recordPillThen(()=>runLoader('crTree',{label:'Creating experiences',tasks:LOADERS.saving.tasks,after:2900},'crTree',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
@@ -2524,10 +2529,10 @@ function bindToggle(main, name, state){
         // preview card only on the final tree scenes; Create's tree runs in RICH mode
         zone.innerHTML = treeView(name==='campaignTree'||name==='campaignTreeWB'||name==='p2Tree'||name==='crTree'||name==='crSummary', name==='crTree'||name==='crSummary');
       } else if(name==='campaignTreeWB'||name==='campaignObjectWB'){
-        // Workbook flow Table view = billing-ID + placement edits, NOT the end-date diff
+        // Workbook flow Table view = billing-ID + access point edits, NOT the end-date diff
         zone.innerHTML = wbSummaryTables(current.state.hl!==false);
       } else if(name==='p2Tree'||name==='p2Review'){
-        // Scenario 2 (prompt billing) Table view = single billing-ID + placement edits
+        // Scenario 2 (prompt billing) Table view = single billing-ID + access point edits
         zone.innerHTML = p2SummaryTables(current.state.hl!==false);
       } else if(name==='crTree'||name==='crSummary'){
         // Create flow Table view: newly created data, nothing edited
@@ -2665,7 +2670,7 @@ function wire(name, state){
       menu.querySelectorAll('[data-sim]').forEach(b=>b.onclick=(e)=>{
         e.stopPropagation(); autopilot=false;
         scenario = b.dataset.sim;
-        // scenario 4 searches ACROSS placements, so it opens with its own ask
+        // scenario 4 searches ACROSS access points, so it opens with its own ask
         go('home',{autotype: (scenario==='cl4'||scenario==='cl5') ? CL4_FIND_PROMPT : FIND_EXP_PROMPT});
       });
       document.addEventListener('click',()=>menu.classList.add('hidden'),{once:true});
@@ -2689,9 +2694,9 @@ function wire(name, state){
       e.stopPropagation(); if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||(state.cl5!==undefined && state.cl5!=='mixed')) return; toggle(+cb.dataset.selrow);
     });
     /* Group-by dropdown. Only scenario 5 makes it interactive: the guardrail
-       asks the user to narrow to one placement, and regrouping the table is
-       how they do it. Picking Placement CLEARS the selection (it spanned
-       several placements, which is what the guardrail objected to) so the user
+       asks the user to narrow to one access point, and regrouping the table is
+       how they do it. Picking Access point CLEARS the selection (it spanned
+       several access points, which is what the guardrail objected to) so the user
        starts clean inside one group. */
     const gb = main.querySelector('[data-groupby]');
     if(gb && state.cl5==='mixed') gb.onclick=(e)=>{
@@ -2871,11 +2876,12 @@ function wire(name, state){
                  ['#cl3ApproveIntent','cl3ApproveIntent'],['#cl3ApproveNaming','cl3ApproveNaming'],
                  ['#cl3ApproveNamingDirect','cl3ApproveNamingDirect'],
                  ['#cl4ApproveNamingDirect','cl4ApproveNamingDirect'],
-                 ['#cl3ApproveAll','cl3ApproveAll'],
+                 ['#cl3ApproveAll','cl3ApproveAll'],['#cl3ApproveFields','cl3ApproveFields'],
                  // scenario 4
                  ['#cl4Direct','cl4Direct'],['#cl4Change','cl4Change'],
                  ['#cl4ApproveConfirm','cl4ApproveConfirm'],['#cl4ApproveNaming','cl4ApproveNaming'],
                  ['#cl4ApprovePlan','cl4ApprovePlan'],
+                 ['#cl4ApproveGroupIntent','cl4ApproveGroupIntent'],
                  ['#cl4ApproveGroup','cl4ApproveGroup'],
                  // scenario 5 — every new pill id MUST be added here or the
                  // button renders and simply does nothing
@@ -2922,7 +2928,7 @@ function wire(name, state){
     const lg=main.querySelector('#looksGoodFinal'); if(lg) lg.onclick=()=>{autopilot=false;go('home');};
   }
 
-  // ── WORKBOOK flow reply pills + placement drill-down ──
+  // ── WORKBOOK flow reply pills + access point drill-down ──
   const wbPill=(id,fn)=>{const b=main.querySelector('#'+id); if(b) b.onclick=()=>{autopilot=false;fn();};};
   if(name==='coIntentWB'){
     wbPill('wbApproveUnderstood',()=>trigger.wbApproveUnderstood());  // understanding → plan
@@ -2938,7 +2944,7 @@ function wire(name, state){
   if(name==='campaignObjectWB' && !state.loading) wbPill('wbApproveReview',()=>trigger.wbApproveReview());
   if(name==='campaignTreeWB' && !state.loading) wbPill('wbLooksGoodFinal',()=>trigger.wbLooksGoodFinal());
 
-  // ── SCENARIO 3 (prompt CO) reply pills + placement drill-down ──
+  // ── SCENARIO 3 (prompt CO) reply pills + access point drill-down ──
   if(name==='p2Intent'){
     wbPill('p2ApproveUnderstood',()=>trigger.p2ApproveUnderstood());
     wbPill('p2ApprovePlan',()=>trigger.p2ApprovePlan());
@@ -3001,32 +3007,36 @@ function wire(name, state){
 
 /* ============================================================
    CLONE IPD EXPERIENCES FLOW (3 Sep)
-   Scenario 1 of 4: SAME placement, no changes while cloning.
-     1. Same placement, no changes            ← this build
-     2. Same placement, want to change it
-     3. Varying placements, no changes
-     4. Varying placements, want to change it
+   Scenario 1 of 4: SAME access point, no changes while cloning.
+     1. Same access point, no changes            ← this build
+     2. Same access point, want to change it
+     3. Varying access points, no changes
+     4. Varying access points, want to change it
 
-   Find QB Payroll IPD experiences on the Banking - hellobox placement →
+   Find QB Payroll IPD experiences on the Banking - hellobox access point →
    MULTI-select the ones to copy → "I want to clone these experiences." →
-   AI confirms what it will do (how many copies, the placement they keep,
+   AI confirms what it will do (how many copies, the access point they keep,
    what carries over, and that the copies land in Draft) → "Looks good"
    → clones → done.
 
-   Deliberately SHORTER than the placement-change flow it was copied from:
+   Deliberately SHORTER than the access point-change flow it was copied from:
    nothing is being changed, so there is no name card, no field card, no
-   plan, and no QA error. One confirm, one clone. The placement-change
+   plan, and no QA error. One confirm, one clone. The access point-change
    pieces (pcNameCard, pcFieldCard, PC_PLAN, the QA-error canvas) are left
    in the file as dead code — scenarios 2 and 4 will need the change-side
    parts of them.
    ============================================================ */
-// Scenario 1: every selected experience keeps its own placement, and since the
-// search is filtered to one placement they are all the same. No From/To pairs
+// Scenario 1: every selected experience keeps its own access point, and since the
+// search is filtered to one access point they are all the same. No From/To pairs
 // anywhere in this build — nothing changes.
 const CLONE_PROMPT = 'I want to clone these experiences.';
 // copies land in Draft, named from the source with a Clone- PREFIX (front of
 // the name, so the copies sort together and read as clones at a glance)
-const CLONE_PREFIX = 'Clone-';
+/* The marker goes at the END of the name (user, 2026-09-11; it used to be a
+   `Clone-` prefix). Kept as one constant feeding both the names and every
+   card's copy so they cannot drift. `CLONE_WORD` is the bare word for prose. */
+const CLONE_SUFFIX = '-Clone';
+const CLONE_WORD = 'Clone';
 /* Whether clone `i` still needs copy, readable from wire() as well as the
    scene (the scene's own `needsCopy` closes over local state). */
 /* The clone names for the current selection, derivable from state alone so
@@ -3034,7 +3044,7 @@ const CLONE_PREFIX = 'Clone-';
 function cloneNamesW(){
   const st=current&&current.state||{};
   return [...(st.selected||[])].sort((a,b)=>a-b)
-    .map(i=>PC_ROWS[i] ? CLONE_PREFIX + PC_ROWS[i].exp.replace('…','') : null)
+    .map(i=>PC_ROWS[i] ? PC_ROWS[i].exp.replace('…','') + CLONE_SUFFIX : null)
     .filter(Boolean);
 }
 function needsCopyW(i){
@@ -3056,39 +3066,39 @@ const CLONE_EIDS = [
 const CLONE_STAMP = '09/03 11:20PST';
 
 /* ============================================================
-   SCENARIO 2: same placement selection, but CHANGE the placement while cloning
+   SCENARIO 2: same access point selection, but CHANGE the access point while cloning
    Prompt names both the clone and the change in one ask. Unlike the
-   placement-change flow, the TEMPLATE is NOT changed here — only the placement,
+   access point-change flow, the TEMPLATE is NOT changed here — only the access point,
    so the creative keeps helloboxThirdParty and the same fields.
-   Flow: multi-select → "clone these and change placement to Batch save -
+   Flow: multi-select → "clone these and change access point to Batch save -
    hellobox" → AI offers the Clone- prefix OR a name of the user's choosing →
    user keeps the prefix → plan of n+1 tasks (review each new clone, then review
    all of them together) → task 1 has a body-copy error the user fixes by
    prompt → tasks 2..n pass → final task shows all clones in the table.
    ============================================================ */
 /* ============================================================
-   SCENARIO 4: the selection spans SEVERAL placements.
-   Per the flow diagram's "Same placements? NO" branch:
-     search (NOT placement-filtered) → select across placements →
+   SCENARIO 4: the selection spans SEVERAL access points.
+   Per the flow diagram's "Same access points? NO" branch:
+     search (NOT access point-filtered) → select across access points →
      Marketing Studio GROUPS them and plays the grouping back
-     ("You have selected N experiences across M placements"), shown as an
+     ("You have selected N experiences across M access points"), shown as an
      object on the canvas (diagram Option 1) →
-     "Would you like to make placement changes?"
+     "Would you like to make access point changes?"
        NO  → one playback + confirm → clone every group at once
-       YES → iterate GROUP BY GROUP: ask the destination placement for that
+       YES → iterate GROUP BY GROUP: ask the destination access point for that
              group, carry the field values over, playback + confirm, clone,
              then "Starting on next group" until the groups run out.
    ============================================================ */
-// this search is deliberately NOT filtered to one placement
+// this search is deliberately NOT filtered to one access point
 const CL4_FIND_PROMPT = 'Find all QB Payroll IPD experiences.';
 const CL4_PROJECT = 'QB Payroll IPD experiences';
 const CL4_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${CL4_PROJECT}</span>`;
-// the six placements the results span
+// the six access points the results span
 const CL4_APS = [
   'Banking -hellobox','Chart of Accounts -hellobox','Expenses -hellobox',
   'Payments Deposit -hellobox','Vendors -hellobox','Banner - Shell',
 ];
-/* 18 rows, 3 per placement, so a selection can genuinely span groups. */
+/* 18 rows, 3 per access point, so a selection can genuinely span groups. */
 const CL4_ROWS = CL4_APS.flatMap((ap,ai)=>['MedPS','HighPS','NoPS'].map((ps,pi)=>{
   const k = ai*3+pi;
   const elm = ['9684','9533','4217','7856','3041','6198'][ai];
@@ -3100,7 +3110,7 @@ const CL4_ROWS = CL4_APS.flatMap((ap,ai)=>['MedPS','HighPS','NoPS'].map((ps,pi)=
     by:'Stroupe, Kristin', mod:'06/30 18:30PST',
   };
 }));
-// group a selection by placement, in the order the APs appear
+// group a selection by access point, in the order the APs appear
 const cl4Groups = (selArr)=>{
   const by = new Map();
   [...(selArr||[])].sort((a,b)=>a-b).forEach(i=>{
@@ -3116,62 +3126,62 @@ const cl4Dest = (g)=>CL4_DEST[g % CL4_DEST.length];
 
 /* ============================================================
    SCENARIO 5: the GUARDRAIL. Same input as scenario 4 (a selection spanning
-   several placements) but the opposite answer: instead of grouping and
+   several access points) but the opposite answer: instead of grouping and
    retargeting, the agent declines the batch and asks the user to narrow the
-   selection to ONE placement. Kept alongside cl4 deliberately — the two are
+   selection to ONE access point. Kept alongside cl4 deliberately — the two are
    alternative design directions for the same situation, so they can be shown
    side by side. Reuses CL4_ROWS / CL4_APS / cl4Groups wholesale.
    TERMINAL: the flow ends at the message. There is no continuation, because
    the point is the guardrail itself, not what the user does next. */
-/* The message carries the COUNT ONLY, never a list of placement names. Naming
+/* The message carries the COUNT ONLY, never a list of access point names. Naming
    them does not scale (six in the demo data, and a real selection could span
    twenty), and a CAPPED list is worse still because it hides exactly the
-   placements the user needs in order to act. The breakdown belongs in the
+   access points the user needs in order to act. The breakdown belongs in the
    table, which sorts and stays legible at any size — and the table does NOT
    regroup here, per this build's rule that the canvas updates when the agent
    produces an artifact, not when it asks a question. Both calls were the
    user's, 2026-09-09. */
 /* Step 1 (user, 2026-09-10): before the limit is mentioned at all, the agent
    asks the same question scenario 4 asks. Only the CHANGE branch runs into the
-   one-placement-at-a-time limit; "clone as they are" needs no change, so it
+   one-access point-at-a-time limit; "clone as they are" needs no change, so it
    behaves exactly like 4a. Same copy and the same two-pill .replyRow as
    CL4_GROUPED — the question is identical, so it must read identically. */
 const CL5_CHOICE = (nSel, G, active, chose)=> agentMsg(
-  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking their placements'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">You've selected ${nSel} experience${nSel===1?'':'s'} across ${G.length} placement${G.length===1?'':'s'}.</p><p class="summaryCard__q">Do you want to change the placement while I clone them, or clone them as they are?</p>${active
-      ? `<div class="replyRow">${replyBtn('Change the placement','cl5Change')}${replyBtn('Clone as they are','cl5Direct')}</div>`
-      : recordedReply(chose || 'Change the placement')}</div>`);
+  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking their access points'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">You've selected ${nSel} experience${nSel===1?'':'s'} across ${G.length} access point${G.length===1?'':'s'}.</p><p class="summaryCard__q">Do you want to change the access point while I clone them, or clone them as they are?</p>${active
+      ? `<div class="replyRow">${replyBtn('Change the access point','cl5Change')}${replyBtn('Clone as they are','cl5Direct')}</div>`
+      : recordedReply(chose || 'Change the access point')}</div>`);
 /* Same card and copy as CL4_NAMING(active, direct=true): the prefix is stated
    and confirmed before any copy exists. Only the pill id differs. */
 const CL5_NAMING = (active)=> agentMsg(
-  `<div class="chatBubble">I'll add "${CLONE_PREFIX.replace('-','')}" to the start of each name so you can tell the copies apart.${cloneInfoNote()}<div class="bubble-q">Shall I go ahead?</div>${active?replyBtn('Proceed','cl5ApproveNaming'):recordedReply('Proceed')}</div>`);
+  `<div class="chatBubble">I'll add "${CLONE_WORD}" to the end of each name so you can tell the copies apart.${cloneInfoNote()}<div class="bubble-q">Shall I go ahead?</div>${active?replyBtn('Proceed','cl5ApproveNaming'):recordedReply('Proceed')}</div>`);
 const CL5_MIXED = (nSel, G)=> agentMsg(
   disclosure('Checked the selected experiences',
-    ['Reading your request','Checking the selected experiences','Comparing their placements'])
-  + `<div class="chatBubble">Cloning runs one placement at a time, and the ${nSel} experiences you selected are across ${G.length} placements.<div class="bubble-q">Select experiences that share a placement and I'll clone those together.</div></div>`);
+    ['Reading your request','Checking the selected experiences','Comparing their access points'])
+  + `<div class="chatBubble">Cloning runs one access point at a time, and the ${nSel} experiences you selected are across ${G.length} access points.<div class="bubble-q">Select experiences that share a access point and I'll clone those together.</div></div>`);
 /* the grouped canvas lists the PLACEMENT column but not Validation: nothing
    is flagged in this flow (the template never changes) */
 const PC_COLS_AP = [
   {label:'Experience',key:'exp',info:1},
   {label:'Status',key:'status',badge:1},
-  {label:'Placement',key:'ap'},
+  {label:'Access point',key:'ap'},
   {label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},
   {label:'Created by',key:'by'},{label:'Last updated',key:'mod'},
 ];
 /* Group-by dropdown — Figma node 919:48122 (Search + Sort + Filter): a 200x40
    input-shaped control, label left and chevron right. Unset it reads the bare
    placeholder "Group by"; once the table IS grouped it names the key,
-   "Group by: Placements", so the control reflects the view rather than
+   "Group by: Access points", so the control reflects the view rather than
    inviting a choice already made. Every table in the clone flows carries it.
    Named groupByCtl because `groupBy` is already a local in the tree builder. */
-/* The dropdown's options, matching the real product's list. Only Placement is
+/* The dropdown's options, matching the real product's list. Only Access point is
    wired: it is the only field the row data actually carries, and it is the one
    this flow is about. The rest are listed (so the control looks like the real
    thing) but inert — no data behind them, and inventing some would add four
    columns this flow never uses. `by` is the label the control shows once set;
    `on` is what makes it clickable. */
 const GROUP_BY_OPTS = [
-  {label:'Placement',      by:'Placements', on:true},
+  {label:'Access point',      by:'Access points', on:true},
   {label:'Audience Set',   on:false},
   {label:'Status',         on:false},
   {label:'Promotion Offer',on:false},
@@ -3199,20 +3209,20 @@ const cl4DestPrompt = (g)=>`Change to ${cl4Dest(g)}.`;
 /* ============================================================
    SCENARIO 3: the user does NOT say up front whether they want a change.
    The clone ask is plain ("I want to clone these experiences"), and the AI
-   offers the choice — clone directly (3a) or change the placement (3b).
+   offers the choice — clone directly (3a) or change the access point (3b).
 
    3a is scenario 1's ending: clone, done.
    3b is the long one:
-     AI asks WHICH placement → the user's reply names a placement AND a
+     AI asks WHICH access point → the user's reply names a access point AND a
      template → plan → **task 1 reviews the updated PLACEMENT** (not an
      experience: one screen, with a change-summary download the user can send
      to marketers to request copy) → approve → the clones are created and
      EVERY ONE carries a validation error, because changing the TEMPLATE (not
-     the placement) leaves fields in each experience's creative invalid → the
+     the access point) leaves fields in each experience's creative invalid → the
      user fixes one by prompt → the finished object offers the change summary
      again.
    ============================================================ */
-// the user's answer names BOTH the placement and the template
+// the user's answer names BOTH the access point and the template
 const CL3_TARGET_PROMPT = 'Use Batch save - hellobox with the hellobox - text template.';
 const CL3_NEW_PLACEMENT = 'Batch save -hellobox';
 const CL3_NEW_TEMPLATE  = 'helloboxText';
@@ -3235,20 +3245,20 @@ const cl3FixPrompt = (names)=> 'Use this copy:\n'
 const cl3FixBubble = (names)=> `Use this copy:<ul class="msgList">${
   cl3FixPairs(names).map(l=>`<li><span class="msgList__k">${l.nm}</span><span class="msgList__v">"${l.copy}"</span></li>`).join('')}</ul>`;
 
-const CLONE2_PROMPT = 'I want to clone these and change placement to Batch save - hellobox.';
-// the placement the copies move to (the originals keep theirs)
+const CLONE2_PROMPT = 'I want to clone these and change access point to Batch save - hellobox.';
+// the access point the copies move to (the originals keep theirs)
 const CL2_NEW_PLACEMENT = 'Batch save -hellobox';
 // the user's reply to the naming offer: keep the prefix rather than name them
-const CL2_KEEP_PREFIX_PROMPT = 'Use the Clone prefix.';
-// the copies live on the NEW placement, so their view is named for that one
+const CL2_KEEP_PREFIX_PROMPT = 'Add Clone to the end of each name.';
+// the copies live on the NEW access point, so their view is named for that one
 const CL2_VIEW_NAME = 'Cloned experiences - Batch save hellobox';
-const FIND_EXP_PROMPT = 'Find all QB Payroll IPD experiences using Banking - hellobox placement.';
-const CHANGE_TMPL_PROMPT = 'Change placement to Batch save - hellobox and template to hellobox - text.';
+const FIND_EXP_PROMPT = 'Find all QB Payroll IPD experiences using Banking - hellobox access point.';
+const CHANGE_TMPL_PROMPT = 'Change access point to Batch save - hellobox and template to hellobox - text.';
 const NEW_TEMPLATE = 'helloboxText';
 const OLD_TEMPLATE = 'helloboxThirdParty';
 const OLD_PLACEMENT = 'Banking -hellobox';
 const NEW_PLACEMENT = 'Batch save -hellobox';
-// the new experience the placement change creates; the selected one is untouched
+// the new experience the access point change creates; the selected one is untouched
 const PC_PROPOSED_NAME = 'ELM9684-IPD-QBPayroll-BatchSaveHellobox-HighPS-US';
 // body copy limit for the text template — the carried-over copy runs over it
 const BODY_LIMIT = 100;
@@ -3321,7 +3331,7 @@ function expDrillCanvas(crumb, r, state, opts={}){
           <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
         </div></div>
       <div class="cd-attr">
-        <div><div class="cd-attr__k">PLACEMENT</div><div class="cd-attr__v">${opts.hlAp?`<span class="cd-hl">${opts.ap||r.ap}</span>`:(opts.ap||r.ap)}</div></div>
+        <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v">${opts.hlAp?`<span class="cd-hl">${opts.ap||r.ap}</span>`:(opts.ap||r.ap)}</div></div>
         <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v">${opts.hlTmpl?`<span class="cd-hl">${tmpl}</span>`:tmpl}</div></div>
       </div>` + (opts.newFields ? newFieldDetail(view, opts)
                  : opts.bodyOver!==undefined ? cloneCreative(view, opts.bodyOver, opts.bodyEdited)
@@ -3342,7 +3352,7 @@ function expDrillCanvas(crumb, r, state, opts={}){
 }
 
 /* Creative tab for the NEW experience: the carried-over values plus the two
-   fields the hellobox image placement adds, both marked as changed. */
+   fields the hellobox image access point adds, both marked as changed. */
 function newFieldDetail(view, opts){
   const f = opts.fields||{};
   const hl = opts.hl!==false;
@@ -3355,7 +3365,7 @@ function newFieldDetail(view, opts){
     <div class="cd-row" style="margin-top:16px">${cdPair('FOOTNOTE',foot,hl)}${cdPair('',' ',false)}</div>`;
 }
 
-// QB Payroll IPD experiences on the Banking - hellobox placement (the search filter).
+// QB Payroll IPD experiences on the Banking - hellobox access point (the search filter).
 // Versions are a MIX of v3 and v4 across the search results — these are live
 // experiences that have each been revised a different number of times. A clone
 // always starts over at v1 (see cloneRows), so the column also makes the reset
@@ -3376,7 +3386,7 @@ const PC_ROWS = [
 const PC_COLS = [
   {label:'Experience',key:'exp',info:1},{label:'Experience ID',key:'eid'},
   {label:'Status',key:'status',badge:1},{label:'Version',key:'ver'},
-  {label:'Placement',key:'ap'},
+  {label:'Access point',key:'ap'},
   {label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},
   {label:'Created by',key:'by'},{label:'Last updated',key:'mod'},
 ];
@@ -3386,7 +3396,7 @@ const PC_COLS = [
    shows what differs from the source (tableHTML reads `editedKey`). */
 const PC_COLS_QA = [
   ...PC_COLS.slice(0,4),
-  {label:'Placement',key:'ap',editedKey:'apChanged'},
+  {label:'Access point',key:'ap',editedKey:'apChanged'},
   {label:'Template',key:'tmpl',editedKey:'tmplChanged'},
   ...PC_COLS.slice(6),
 ];
@@ -3402,7 +3412,7 @@ const CLONE_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${PC_PRO
    full name, so nothing is lost. Do NOT hand-type a "…" into this string: the
    container already ellipsises, and a hand-typed one just moves the cut earlier. */
 const CLONE_VIEW_NAME = 'Cloned experiences - Banking hellobox';
-/* scenario 4's search is not placement-filtered, so it replays its own ask */
+/* scenario 4's search is not access point-filtered, so it replays its own ask */
 const CL4_SEARCH_CONV = ()=>
   userBubble(CL4_FIND_PROMPT)
   + agentMsg(`<div class="chatBubble">I have created "<span class="chatBubble__name">${CL4_PROJECT}</span>" project for you.</div>`,'')
@@ -3425,11 +3435,11 @@ const pcFtBlk=(label,from,to)=>`<div class="ft-label" style="margin:0">${label}<
     <div class="ft__row"><div class="ft__k">From</div><div class="ft__v">${from}</div></div>
     <div class="ft__row"><div class="ft__k">To</div><div class="ft__v">${to}</div></div></div>`;
 const PC_UNDERSTOOD_TABLE = (r)=>
-  pcFtBlk('Placement:', OLD_PLACEMENT, NEW_PLACEMENT)
+  pcFtBlk('Access point:', OLD_PLACEMENT, NEW_PLACEMENT)
   + pcFtBlk('Template:', OLD_TEMPLATE, NEW_TEMPLATE);
-// A placement change can't be applied in place, so it forks a new experience.
+// A access point change can't be applied in place, so it forks a new experience.
 // Informational, not a warning: nothing is lost and nothing needs deciding.
-const pcInfoNote = ()=>`<div class="infoNote">${INFO_ICON}<span>Changing the placement creates a new experience. The one you selected stays as it is.</span></div>`;
+const pcInfoNote = ()=>`<div class="infoNote">${INFO_ICON}<span>Changing the access point creates a new experience. The one you selected stays as it is.</span></div>`;
 
 /* ---- Clone step 1: confirm the clone (the ONLY confirm in scenario 1) ----
    NO From/To table and no key/value block here: nothing is being changed, so
@@ -3439,33 +3449,33 @@ const pcInfoNote = ()=>`<div class="infoNote">${INFO_ICON}<span>Changing the pla
 // The one consequence the user cannot see on the canvas: the copies are not live.
 const cloneInfoNote = ()=>`<div class="infoNote">${INFO_ICON}<span>The copies are created in Draft. To make them live, publish them from Campaign Manager.</span></div>`;
 const CLONE_UNDERSTOOD = (n, active)=> agentMsg(
-  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking the placement'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">I'll clone these experiences for you.</p><p class="summaryCard__intro" style="font-weight:400">I'll add "${CLONE_PREFIX.replace('-','')}" to the start of each name so you can tell them apart. Each copy keeps the same placement, template, audience, creative, and experiment settings.</p>${cloneInfoNote()}<p class="summaryCard__q">Does this look right? I'll clone once you approve.</p>${active?replyBtn('Approve','pcLooksGood'):recordedReply('Approve')}</div>`);
+  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking the access point'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">I'll clone these experiences for you.</p><p class="summaryCard__intro" style="font-weight:400">I'll add "${CLONE_WORD}" to the end of each name so you can tell them apart. Each copy keeps the same access point, template, audience, creative, and experiment settings.</p>${cloneInfoNote()}<p class="summaryCard__q">Does this look right? I'll clone once you approve.</p>${active?replyBtn('Approve','pcLooksGood'):recordedReply('Approve')}</div>`);
 
 /* ============================================================
    SCENARIO 4 messages
    ============================================================ */
-/* Step 1: the GROUPING playback. The selection spans placements, so before
+/* Step 1: the GROUPING playback. The selection spans access points, so before
    asking anything the agent says what it found and shows the grouping as an
    object on the canvas. The change question rides on the same card, because the
    grouping IS the context for answering it. */
 const CL4_GROUPED = (nSel, groups, active, chose)=> agentMsg(
-  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking their placements'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">You've selected ${nSel} experience${nSel===1?'':'s'} across ${groups.length} placement${groups.length===1?'':'s'}.</p><p class="summaryCard__q">Do you want to change the placement while I clone them, or clone them as they are?</p>${active
-      ? `<div class="replyRow">${replyBtn('Change the placements','cl4Change')}${replyBtn('Clone as they are','cl4Direct')}</div>`
-      : recordedReply(chose || 'Change the placements')}</div>`);
+  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking their access points'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">You've selected ${nSel} experience${nSel===1?'':'s'} across ${groups.length} access point${groups.length===1?'':'s'}.</p><p class="summaryCard__q">Do you want to change the access point while I clone them, or clone them as they are?</p>${active
+      ? `<div class="replyRow">${replyBtn('Change the access points','cl4Change')}${replyBtn('Clone as they are','cl4Direct')}</div>`
+      : recordedReply(chose || 'Change the access points')}</div>`);
 /* 4b step: the CONFIRMATION that stands in for a playback (user, 2026-09-09).
-   The selection spans placements and no destination has been named yet, so
+   The selection spans access points and no destination has been named yet, so
    there is nothing to play back as From/To. The card says what it knows —
    the mix, and that destinations come group by group — and carries the Draft
    note that scenario 3 puts on its intent card. */
 const CL4_CONFIRM = (nSel, groups, active)=> agentMsg(
-  disclosure('Checked the placements',['Reading your choice','Checking each group','Preparing the changes'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">I'll take you through one placement at a time, so you can tell me what each one changes to.</p>${cloneInfoNote()}<p class="summaryCard__q">Does this look right?</p>${active?replyBtn('Proceed','cl4ApproveConfirm'):recordedReply('Proceed')}</div>`);
+  disclosure('Checked the access points',['Reading your choice','Checking each group','Preparing the changes'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">I'll take you through one access point at a time, so you can tell me what each one changes to.</p>${cloneInfoNote()}<p class="summaryCard__q">Does this look right?</p>${active?replyBtn('Proceed','cl4ApproveConfirm'):recordedReply('Proceed')}</div>`);
 /* 4b step: NAMING, settled on its own before any copy exists — same position
    in the sequence as scenario 3's naming card. */
 const CL4_NAMING = (active, direct=false)=> agentMsg(
-  `<div class="chatBubble">I'll add "${CLONE_PREFIX.replace('-','')}" to the start of each name so you can tell the copies apart.${direct?cloneInfoNote():''}<div class="bubble-q">Shall I go ahead?</div>${active?replyBtn('Proceed', direct?'cl4ApproveNamingDirect':'cl4ApproveNaming'):recordedReply('Proceed')}</div>`);
+  `<div class="chatBubble">I'll add "${CLONE_WORD}" to the end of each name so you can tell the copies apart.${direct?cloneInfoNote():''}<div class="bubble-q">Shall I go ahead?</div>${active?replyBtn('Proceed', direct?'cl4ApproveNamingDirect':'cl4ApproveNaming'):recordedReply('Proceed')}</div>`);
 /* 4b PLAN: one task per access-point group, then a final review of everything.
    Named from the groups, so it scales with the selection. */
 const cl4TaskLabels = (G)=>[...G.map(g=>`Clone and review ${g.ap}`),'Review all cloned experiences'];
@@ -3480,31 +3490,38 @@ function cl4PlanRows(G, done=0, loading=-1){
   }).join('');
 }
 const CL4_PLAN = (G, done=0, loading=-1, active=false)=> agentMsg(
-  `<div class="summaryCard"><p class="summaryCard__intro">I will work through the placements in this order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${cl4PlanRows(G,done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you approve.</p>${active?replyBtn('Approve','cl4ApprovePlan'):recordedReply('Approve')}</div>`);
+  `<div class="summaryCard"><p class="summaryCard__intro">I will work through the access points in this order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${cl4PlanRows(G,done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you approve.</p>${active?replyBtn('Approve','cl4ApprovePlan'):recordedReply('Approve')}</div>`);
 
 /* 4b step: the agent starts on a group and asks where it should go. */
 const CL4_ASK_GROUP = (g, groups)=>{
   const grp = groups[g];
   const lead = g===0 ? 'Starting with the first group' : 'Starting on the next group';
-  return agentMsg(`<div class="chatBubble">${lead}: <b>${grp.ap}</b> (${grp.idx.length} experience${grp.idx.length===1?'':'s'}).<div class="bubble-q">What is the new placement for these experiences?</div></div>`);
+  return agentMsg(`<div class="chatBubble">${lead}: <b>${grp.ap}</b> (${grp.idx.length} experience${grp.idx.length===1?'':'s'}).<div class="bubble-q">What is the new access point for these experiences?</div></div>`);
 };
-/* 4b step: playback for ONE group, before it is cloned. */
-/* No per-group playback (user, 2026-09-08): once the destination is named the
-   change is applied directly, so there is no intent card inside a task. */
+/* 4b step: playback for ONE group, before it is cloned (user, 2026-09-11,
+   reversing the 2026-09-08 "no playback inside a task" decision — for 4b only).
+   The group's access point is the ONE thing changing, so the card is a single
+   From/To and an Approve. */
+const CL4_GROUP_INTENT = (g, groups, active)=>{
+  const grp = groups[g], k = grp.idx.length;
+  return agentMsg(
+    disclosure('Mapped the change',['Reading your request','Checking the new access point','Preparing the copies'])
+    + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood changes for this group.</p>${pcFtBlk('Access point:', grp.ap, cl4Dest(g))}<p class="summaryCard__q">Does this look right? I'll clone ${k===1?'it':`these ${k}`} once you approve.</p>${active?replyBtn('Approve','cl4ApproveGroupIntent'):recordedReply('Approve')}</div>`);
+};
 /* 4b step: the group is cloned and every clone in it is flagged. */
 const CL4_GROUP_DONE = (g, groups, active)=>{
   const grp = groups[g], k = grp.idx.length, last = g===groups.length-1;
-  return agentMsg(`<div class="chatBubble">Cloned ${k} experience${k===1?'':'s'} onto ${cl4Dest(g)}, the creative carried over with no issues.${objectCard('edit',`Cloned experiences - ${cl4Dest(g)}`)}<div class="bubble-q">Does this look ok?${last?'' : " I'll move on to the next placement once you approve."}</div>${active?replyBtn('Approve','cl4ApproveGroup'):recordedReply('Approve')}</div>`);
+  return agentMsg(`<div class="chatBubble">Cloned ${k} experience${k===1?'':'s'} onto ${cl4Dest(g)}, the creative carried over with no issues.${objectCard('edit',`Cloned experiences - ${cl4Dest(g)}`)}<div class="bubble-q">Does this look ok?${last?'' : " I'll move on to the next access point once you approve."}</div>${active?replyBtn('Approve','cl4ApproveGroup'):recordedReply('Approve')}</div>`);
 };
-/* 4b final task: everything that was cloned, across every placement. */
+/* 4b final task: everything that was cloned, across every access point. */
 const CL4_ALL_REVIEW = (nSel, G)=> agentMsg(
-  disclosure(`Cloned ${nSel} experience${nSel===1?'':'s'}`,['Collecting the clones','Checking the placements','Compiling the list'])
-  + `<div class="chatBubble">Here are all ${nSel} clones across ${G.length} placement${G.length===1?'':'s'}. ${nSel===1?'The copy is':'The copies are'} in Draft.${objectCard('search',`Cloned experiences - ${CL4_PROJECT}`)}<div class="bubble-q">If you want to publish ${nSel===1?'it':'them'}, go to Campaign Manager.</div><div class="link-cm">Go to Campaign Manager</div></div>`);
+  disclosure(`Cloned ${nSel} experience${nSel===1?'':'s'}`,['Collecting the clones','Checking the access points','Compiling the list'])
+  + `<div class="chatBubble">Here are all ${nSel} clones across ${G.length} access point${G.length===1?'':'s'}. ${nSel===1?'The copy is':'The copies are'} in Draft.${objectCard('search',`Cloned experiences - ${CL4_PROJECT}`)}<div class="bubble-q">If you want to publish ${nSel===1?'it':'them'}, go to Campaign Manager.</div><div class="link-cm">Go to Campaign Manager</div></div>`);
 /* 4a needs NO second confirmation: the "Clone as they are" pill on the choice
    card IS the approval, so it clones straight away. */
 const CL4_DONE = (nSel, groups, changed)=> agentMsg(
   disclosure(`Cloned ${nSel} experience${nSel===1?'':'s'}`,['Grouping the experiences','Copying the settings','Creating the clones'])
-  + `<div class="chatBubble">I've cloned ${nSel} experience${nSel===1?'':'s'} across ${groups.length} placement${groups.length===1?'':'s'}. ${nSel===1?'The copy is':'The copies are'} in Draft.${objectCard('edit',`Cloned experiences - ${CL4_PROJECT}`)}<div class="bubble-q">To make ${nSel===1?'it':'them'} live, publish from Campaign Manager.</div><div class="link-cm">Go to Campaign Manager</div></div>`);
+  + `<div class="chatBubble">I've cloned ${nSel} experience${nSel===1?'':'s'} across ${groups.length} access point${groups.length===1?'':'s'}. ${nSel===1?'The copy is':'The copies are'} in Draft.${objectCard('edit',`Cloned experiences - ${CL4_PROJECT}`)}<div class="bubble-q">To make ${nSel===1?'it':'them'} live, publish from Campaign Manager.</div><div class="link-cm">Go to Campaign Manager</div></div>`);
 
 /* ============================================================
    SCENARIO 3 messages
@@ -3514,34 +3531,39 @@ const CL4_DONE = (nSel, groups, changed)=> agentMsg(
    naming up front, so the user knows what the copies will be called before
    picking either path. */
 const CL3_CHOICE = (active, chose)=> agentMsg(
-  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking their placements'])
-  + `<div class="summaryCard"><p class="summaryCard__q">Do you want to change the placement while I clone them, or clone them as they are?</p>${active
-      ? `<div class="replyRow">${replyBtn('Change the placement','cl3Change')}${replyBtn('Clone as they are','cl3Direct')}</div>`
-      : recordedReply(chose || 'Change the placement')}</div>`);
-/* Step 2: which placement? The user answers with BOTH a placement and a
+  disclosure('Read your request, checked the experiences',['Reading your request','Checking the selected experiences','Checking their access points'])
+  + `<div class="summaryCard"><p class="summaryCard__q">Do you want to change the access point while I clone them, or clone them as they are?</p>${active
+      ? `<div class="replyRow">${replyBtn('Change the access point','cl3Change')}${replyBtn('Clone as they are','cl3Direct')}</div>`
+      : recordedReply(chose || 'Change the access point')}</div>`);
+/* Step 2: which access point? The user answers with BOTH a access point and a
    template, which is what makes the creative break later. */
-const CL3_ASK_TARGET = ()=> agentMsg(`<div class="chatBubble">Which placement do you want the copies on? Tell me the placement and the template to use.</div>`);
+const CL3_ASK_TARGET = ()=> agentMsg(`<div class="chatBubble">Which access point do you want the copies on? Tell me the access point and the template to use.</div>`);
 /* Step 3: what the AI understood, before the plan. */
 const CL3_UNDERSTOOD = (active)=> agentMsg(
-  disclosure('Mapped the change',['Reading your request','Checking the new placement','Checking the new template'])
+  disclosure('Mapped the change',['Reading your request','Checking the new access point','Checking the new template'])
   + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood changes.</p>${
-      pcFtBlk('Placement:', OLD_PLACEMENT, CL3_NEW_PLACEMENT)
+      pcFtBlk('Access point:', OLD_PLACEMENT, CL3_NEW_PLACEMENT)
     + pcFtBlk('Template:', OLD_TEMPLATE, CL3_NEW_TEMPLATE)}<p class="summaryCard__intro" style="font-weight:400">The new template uses different creative fields, so I'll flag anything that doesn't carry over and you can fix it from there.</p>${cloneInfoNote()}<p class="summaryCard__q">Does this look right?</p>${active?replyBtn('Approve','cl3ApproveIntent'):recordedReply('Approve')}</div>`);
 /* Step 3b: NAMING, its own confirmation step (user, 2026-09-09). The naming
    used to ride on the choice card, which meant the user agreed to it before
    they had even said what was changing. It now comes AFTER the intent is
    approved, as the last thing settled before any clone exists. */
 const CL3_NAMING = (active, direct=false)=> agentMsg(
-  `<div class="chatBubble">I'll add "${CLONE_PREFIX.replace('-','')}" to the start of each name so you can tell the copies apart.${direct?cloneInfoNote():''}<div class="bubble-q">Shall I go ahead?</div>${active?replyBtn('Proceed', direct?'cl3ApproveNamingDirect':'cl3ApproveNaming'):recordedReply('Proceed')}</div>`);
+  `<div class="chatBubble">I'll add "${CLONE_WORD}" to the end of each name so you can tell the copies apart.${direct?cloneInfoNote():''}<div class="bubble-q">Shall I go ahead?</div>${active?replyBtn('Proceed', direct?'cl3ApproveNamingDirect':'cl3ApproveNaming'):recordedReply('Proceed')}</div>`);
 /* Step 4: the plan. Task 1 is the PLACEMENT review (one screen, not per
    experience), then the clones, then the finished set. */
-/* NO PLAN and NO single-placement review in this flow (user, 2026-09-08):
-   each experience carries its OWN copy, so reviewing one placement screen
+/* NO PLAN and NO single-access point review in this flow (user, 2026-09-08):
+   each experience carries its OWN copy, so reviewing one access point screen
    would misrepresent them. The agent just clones, and every clone lands with a
    validation error the user resolves experience by experience. */
 /* Task 2: the clones, every one carrying the SAME validation error — the
    template change is what breaks them, so it breaks all of them equally. */
-const CL3_CLONES_ERR = (n)=> agentMsg(`<div class="chatBubble">Created ${n} clone${n===1?'':'s'} on ${CL3_NEW_PLACEMENT}, <span class="issueCount">found ${n} issue${n===1?'':'s'}.</span>${objectCard('search',CL3_VIEW_NAME)}<div class="msgErr">${ERR_ICON}<span>${CL3_ERR_FIELD} is missing on ${n===1?'the clone':`all ${n}`}. The new template needs it.</span></div><div class="bubble-q">Send me the copy for each one, or download the summary to share.</div>${dlLink()}</div>`);
+/* Between the naming card and the clones: the field the new template needs,
+   played back as a readback so the user knows what is coming before anything
+   is created. Same shape as the placement-change build's pc2FieldCard. */
+const CL3_FIELDS_CARD = (n, active)=> agentMsg(
+  `<div class="summaryCard"><p class="summaryCard__intro">The new template needs content this one doesn't carry over.</p><div class="ft-label">Missing fields:</div><div class="ft fldTbl"><div class="ft__row"><div class="ft__k">1.</div><div class="ft__v">${CL3_ERR_FIELD}</div></div></div><p class="summaryCard__intro" style="font-weight:400">I'll create the ${n===1?'clone':`${n} clones`} and flag this field, so you can fill it in as soon as you have the copy.</p>${dlLink()}<p class="summaryCard__q">Shall I go ahead and create the ${n===1?'clone':'clones'}?</p>${active?replyBtn('Proceed','cl3ApproveFields'):recordedReply('Proceed')}</div>`);
+const CL3_CLONES_ERR = (n)=> agentMsg(`<div class="chatBubble">Created ${n} clone${n===1?'':'s'} on ${CL3_NEW_PLACEMENT}, <span class="issueCount">found ${n} issue${n===1?'':'s'}.</span>${objectCard('search',CL3_VIEW_NAME)}<div class="msgErr">${ERR_ICON}<span>${CL3_ERR_FIELD} is missing on ${n===1?'the clone':`all ${n}`}. The new template needs it.</span></div><div class="bubble-q">Send me the copy for each one and I'll update them.</div></div>`);
 /* every clone verified. A new object holds the finished set; publishing is the
    user's call, so the message points at Campaign Manager rather than doing it. */
 const CL3_VERIFIED = (n)=> agentMsg(
@@ -3552,18 +3574,18 @@ const CL3_CLONE_FIXED = (name, remaining, active)=> agentMsg(`<div class="chatBu
 /* Task 3: the finished set, with the summary offered one more time. */
 const CL3_ALL = (n, active)=> agentMsg(`<div class="chatBubble">Here are all ${n} clones on ${CL3_NEW_PLACEMENT}.${objectCard('search',CL3_VIEW_NAME)}<div class="bubble-q">Download the change summary to share the outstanding copy with your marketing team.</div>${dlLink()}<div class="bubble-q" style="margin-top:12px">Does this look ok?</div>${active?replyBtn('Approve','cl3ApproveAll'):recordedReply('Approve')}</div>`);
 const CL3_DONE = (n)=> agentMsg(
-  disclosure(`Cloned ${n} experience${n===1?'':'s'}`,['Updating the placement','Applying the new template','Creating the clones'])
+  disclosure(`Cloned ${n} experience${n===1?'':'s'}`,['Updating the access point','Applying the new template','Creating the clones'])
   + `<div class="chatBubble">I've cloned ${n} experience${n===1?'':'s'} onto ${CL3_NEW_PLACEMENT}. ${n===1?'The copy is':'The copies are'} in Draft. To make ${n===1?'it':'them'} live, add the missing copy and publish from Campaign Manager.<div class="link-cm">Go to Campaign Manager</div></div>`);
 
 /* ============================================================
    SCENARIO 2 messages
    ============================================================ */
-/* Step 1: the AI reads the combined ask (clone + change placement) and offers
+/* Step 1: the AI reads the combined ask (clone + change access point) and offers
    the naming choice. Two ways forward, so this card carries a pill AND invites
    a typed reply — the user can keep the prefix or send their own name. */
 const CL2_NAMING = (active)=> agentMsg(
-  disclosure('Read your request, checked the experiences',['Reading your request','Checking the new placement','Checking the selected experiences'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">I'll clone these experiences and move the copies to ${CL2_NEW_PLACEMENT}.</p><p class="summaryCard__intro" style="font-weight:400">I'll add "${CLONE_PREFIX.replace('-','')}" to the start of each name, or send me a name and I'll use that instead. The template stays the same, so the creative carries over as it is.</p>${cloneInfoNote()}<p class="summaryCard__q">Does this look right? I'll clone once you approve.</p>${active?replyBtn('Use the Clone prefix','cl2KeepPrefix'):recordedReply('Use the Clone prefix')}</div>`);
+  disclosure('Read your request, checked the experiences',['Reading your request','Checking the new access point','Checking the selected experiences'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">I'll clone these experiences and move the copies to ${CL2_NEW_PLACEMENT}.</p><p class="summaryCard__intro" style="font-weight:400">I'll add "${CLONE_WORD}" to the end of each name, or send me a name and I'll use that instead. The template stays the same, so the creative carries over as it is.</p>${cloneInfoNote()}<p class="summaryCard__q">Does this look right? I'll clone once you approve.</p>${active?replyBtn('Add Clone to the name','cl2KeepPrefix'):recordedReply('Add Clone to the name')}</div>`);
 
 /* Step 2: the plan. n+1 tasks — one review per clone, then all of them
    together. Built from the SELECTION, so it scales: 3 selected → 4 tasks.
@@ -3605,8 +3627,8 @@ const CL2_PLAN = (n, done=0, loading=-1, active=false)=> agentMsg(
   `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${cl2PlanRows(n,done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you approve.</p>${active?replyBtn('Approve','cl2ApprovePlan'):recordedReply('Approve')}</div>`);
 
 /* Per-clone review messages. Task 1's carried-over body copy runs over the new
-   placement's limit, so its message reports the error and offers NO approve
-   pill — the copy has to be fixed first (same rule as the placement flow). */
+   access point's limit, so its message reports the error and offers NO approve
+   pill — the copy has to be fixed first (same rule as the access point flow). */
 const CL2_REVIEW_ERR = (name)=> agentMsg(`<div class="chatBubble">Created ${name} on ${CL2_NEW_PLACEMENT}, <span class="issueCount">found 1 issue.</span>${objectCard('edit',name)}<div class="msgErr">${ERR_ICON}<span>${BODY_ERR}</span></div><div class="bubble-q">Send me body copy within ${BODY_LIMIT} characters and I'll update it.</div></div>`);
 const CL2_REVIEW_FIXED = (name, active)=> agentMsg(`<div class="chatBubble">I've updated the body copy. It's now ${BODY_FIXED.length} of ${BODY_LIMIT} characters.${objectCard('edit',name)}<div class="bubble-q">Does this look ok? I'll then move to the next experience.</div>${active?replyBtn('Approve','cl2ApproveTask'):recordedReply('Approve')}</div>`);
 // tasks 2..n pass clean
@@ -3614,7 +3636,7 @@ const CL2_REVIEW_OK = (name, i, n, active)=> agentMsg(`<div class="chatBubble">C
 // final task: all the clones together
 const CL2_REVIEW_ALL = (n, active)=> agentMsg(`<div class="chatBubble">Here are all ${n} clones on ${CL2_NEW_PLACEMENT}.${objectCard('search',CL2_VIEW_NAME)}<div class="bubble-q">Does this look ok?</div>${active?replyBtn('Approve','cl2ApproveAll'):recordedReply('Approve')}</div>`);
 const CL2_DONE = (n)=> agentMsg(
-  disclosure(`Cloned ${n} experience${n===1?'':'s'}`,['Copying the settings','Moving the copies to the new placement','Creating the copies'])
+  disclosure(`Cloned ${n} experience${n===1?'':'s'}`,['Copying the settings','Moving the copies to the new access point','Creating the copies'])
   + `<div class="chatBubble">I've cloned ${n} experience${n===1?'':'s'} onto ${CL2_NEW_PLACEMENT}. ${n===1?'The copy is':'The copies are'} in Draft. To make ${n===1?'it':'them'} live, publish ${n===1?'it':'them'} from Campaign Manager.<div class="link-cm">Go to Campaign Manager</div></div>`);
 
 /* ---- Clone done: the copies in their own view, with a link out to publish ---- */
@@ -3636,7 +3658,7 @@ function pcNameCard(name, active){
     </div></div>${foot}</div>`);
 }
 
-/* ---- Step 2: the extra fields the new placement adds ---- */
+/* ---- Step 2: the extra fields the new access point adds ---- */
 const PC_FIELDS = [
   {key:'subheader', label:'Subheader', ph:'Enter the subheader'},
   {key:'footnote',  label:'Footnote',  ph:'Enter the footnote'},
@@ -3666,7 +3688,7 @@ function pcFieldCard(vals={}, active){
 
 /* ---- Step 3: the plan (2 reviews) ---- */
 const PC_PLAN_TASKS = [
-  'Update placement and template',
+  'Update access point and template',
   'Review the newly created experience',
 ];
 function pcPlanRows(doneCount=0, loadingIndex=-1){
@@ -3680,22 +3702,22 @@ function pcPlanRows(doneCount=0, loadingIndex=-1){
 const PC_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
   `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${pcPlanRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${active?replyBtn('Looks good','pcApprovePlan'):recordedReply('Looks good')}</div>`);
 
-/* ---- Task 1: updated placement + template. The carried-over body copy runs
+/* ---- Task 1: updated access point + template. The carried-over body copy runs
    over the text template's limit, so this message reports the error (Figma
    8327:12515) and its Approve pill is dead until the copy is fixed. ---- */
-const PC_PLACEMENT = ()=> agentMsg(`<div class="chatBubble">Updated the placement to Batch save - hellobox and the template to helloboxText, <span class="issueCount">found 1 issue.</span>${objectCard('thumbnail','Placement - Batch save hellobox')}<div class="msgErr">${ERR_ICON}<span>${BODY_ERR}</span></div><div class="bubble-q">Send me body copy within ${BODY_LIMIT} characters and I'll update it.</div></div>`);
+const PC_PLACEMENT = ()=> agentMsg(`<div class="chatBubble">Updated the access point to Batch save - hellobox and the template to helloboxText, <span class="issueCount">found 1 issue.</span>${objectCard('thumbnail','Placement - Batch save hellobox')}<div class="msgErr">${ERR_ICON}<span>${BODY_ERR}</span></div><div class="bubble-q">Send me body copy within ${BODY_LIMIT} characters and I'll update it.</div></div>`);
 /* ---- Task 1b: the user supplies shorter body copy → this replaces the error ---- */
 const PC_BODYFIX = (active)=> agentMsg(`<div class="chatBubble">I've updated the body copy. It's now ${BODY_FIXED.length} of ${BODY_LIMIT} characters.${objectCard('thumbnail','Placement - Batch save hellobox')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${active?replyBtn('Looks good','pcApproveBodyFix'):recordedReply('Looks good')}</div>`);
 /* ---- Task 2: the newly created experience ---- */
 const PC_EXPERIENCE = (active)=> agentMsg(`<div class="chatBubble">Here's the new experience with the values carried over and the new fields applied.${objectCard('edit','ELM9684-IPD-QBPayroll-BatchSaveHel…')}<div class="bubble-q">Does this look ok?</div>${active?replyBtn('Approve','pcApproveExp'):recordedReply('Approve')}</div>`);
 const PC_DONE = ()=> agentMsg(
-  disclosure('Applied the placement change',['Updated the placement and template','Carried over the creative values','Created the new experience'])
-  + `<div class="chatBubble">I've applied the placement change. The new experience is in Draft. To make it live, publish it from Campaign Manager.<div class="link-cm">Go to Campaign Manager</div></div>`);
+  disclosure('Applied the access point change',['Updated the access point and template','Carried over the creative values','Created the new experience'])
+  + `<div class="chatBubble">I've applied the access point change. The new experience is in Draft. To make it live, publish it from Campaign Manager.<div class="link-cm">Go to Campaign Manager</div></div>`);
 
 const PC_NEW_EID  = 'e3ab45da-9505-11f1-86ec-a3e651c6bc02';
 
 
-/* ---- Scene: experience search results + placement-change conversation ----
+/* ---- Scene: experience search results + access point-change conversation ----
    state: phase (intake) | loading | selected[] | typed | opening
           pc: 'understood' | 'fields' | 'planning' | 'plan' | 'placement'
               | 'building' | 'experience' | 'done'
@@ -3708,15 +3730,15 @@ scenes.pcSearch = (state={})=>{
   // originals are not part of it. No yellow highlight: nothing was edited, these
   // are new objects (row-edited is the EDIT convention in the other builds, so
   // using it for "newly created" would overload it).
-  // scenario 2 also moves the copies to a new placement; scenario 1 keeps theirs
+  // scenario 2 also moves the copies to a new access point; scenario 1 keeps theirs
   const isCl2 = state.cl2!==undefined;
   // scenario 3b also moves the copies AND changes their template
   const isCl3b = state.cl3!==undefined && state.path==='change';
-  /* Scenario 4 searches ACROSS placements, so it has its own result set.
+  /* Scenario 4 searches ACROSS access points, so it has its own result set.
      Everything downstream (grouping, cloning, the table) reads SRC. */
   const isCl4 = state.cl4!==undefined || scenario==='cl4';
-  /* scenario 5 needs the SAME multi-placement data as scenario 4 (a selection
-     has to be able to span placements for the guardrail to fire at all), so it
+  /* scenario 5 needs the SAME multi-access point data as scenario 4 (a selection
+     has to be able to span access points for the guardrail to fire at all), so it
      shares CL4_ROWS and cl4Groups. It never clones, so nothing below the
      transcript branch has to know about it. */
   const isCl5 = state.cl5!==undefined || state.cl5Prior!==undefined || scenario==='cl5';
@@ -3738,7 +3760,7 @@ scenes.pcSearch = (state={})=>{
   const anyFlagged = cl3Flagged || (cl4Changed && !!state.cl4);
   const cloneRows = [...sel].sort((a,b)=>a-b).map((i,k)=>({
     ...SRC[i],
-    exp: CLONE_PREFIX + SRC[i].exp.replace('…',''),
+    exp: SRC[i].exp.replace('…','') + CLONE_SUFFIX,
     eid: CLONE_EIDS[k % CLONE_EIDS.length],
     status: 'Draft',
     ver: 'v1',          // a copy is a new object: version history starts over,
@@ -3811,20 +3833,20 @@ scenes.pcSearch = (state={})=>{
       // conversation scrolls up and the thread starts at the top
       body += `<div class="convoTurn">${tail}</div>`;
     }
-    /* ── Scenario 2: clone AND change the placement ──
+    /* ── Scenario 2: clone AND change the access point ──
        states: reading | naming | planning | plan | then per-task
                t{i} (resting review of clone i) / w{i} (executing task i)
                plus t0's error turn: t0err (error shown) | t0fix (fixing)
                | t0fixed (corrected, awaiting approve)
                then allrev (all clones) | done
        The per-task states carry the index so ONE branch renders every task. */
-    /* ── Scenario 4: the selection spans placements ──
+    /* ── Scenario 4: the selection spans access points ──
        states: reading | grouped
                4a: wall4 | doneall
                4b: g{i}ask | g{i}map | g{i}int | g{i}wcl | g{i}done, then done
        The group index lives IN the state string, so one branch renders every
        group's turn no matter how many groups the selection produced. */
-    /* ── Scenario 5: the guardrail. The agent checks the placements and asks
+    /* ── Scenario 5: the guardrail. The agent checks the access points and asks
        the user to narrow to one. NOT terminal: the user regroups the table
        from the Group by dropdown, re-picks inside one group, and the flow
        carries on into scenario 3's choice. Once that happens `state.cl5` is
@@ -3836,7 +3858,7 @@ scenes.pcSearch = (state={})=>{
       /* Read the counts off the STAMP, never off the live selection. The
          message is a record of what the agent said at the time; regrouping
          CLEARS the selection, so recomputing rewrote the sentence to
-         "spans 0 placements" while the user was picking new rows (bug caught
+         "spans 0 access points" while the user was picking new rows (bug caught
          2026-09-09). Falls back to the live selection for the loader state,
          which runs before the stamp is on screen. */
       const P = state.cl5Prior;
@@ -3844,7 +3866,7 @@ scenes.pcSearch = (state={})=>{
       const G = P ? {length:P.g} : (cl4G.length ? cl4G : cl4Groups([...sel]));
       const c5 = state.cl5;
       // the pill the user pressed, so the recorded reply matches their choice
-      const chose5 = state.path==='direct' ? 'Clone as they are' : 'Change the placement';
+      const chose5 = state.path==='direct' ? 'Clone as they are' : 'Change the access point';
       const CHOICE5 = ()=> CL5_CHOICE(nSel,G,false,chose5);
       let tail = selThread(nSel) + PC_REQ();
       if(c5==='reading') tail += agentLoader('Checking the experiences', state.tasks||[]);
@@ -3854,8 +3876,8 @@ scenes.pcSearch = (state={})=>{
       else if(c5==='naming') tail += CHOICE5() + `<div class="convoTurn">${CL5_NAMING(true)}</div>`;
       else if(c5==='wall') tail += CHOICE5() + `<div class="convoTurn">${CL5_NAMING(false)}</div><div class="convoTurn">${agentLoader(`Cloning ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[])}</div>`;
       else if(c5==='doneall') tail += CHOICE5() + `<div class="convoTurn">${CL5_NAMING(false)}</div><div class="convoTurn">${CL4_DONE(nSel,G,false)}</div>`;
-      // ── "change the placement": the limit bites, so the guardrail lands here
-      else if(c5==='reading2') tail += CHOICE5() + `<div class="convoTurn">${agentLoader('Checking the placements', state.tasks||[])}</div>`;
+      // ── "change the access point": the limit bites, so the guardrail lands here
+      else if(c5==='reading2') tail += CHOICE5() + `<div class="convoTurn">${agentLoader('Checking the access points', state.tasks||[])}</div>`;
       else if(c5==='mixed') tail += CHOICE5() + `<div class="convoTurn">${CL5_MIXED(nSel,G)}</div>`;
       body += `<div class="convoTurn">${tail}</div>`;
     }
@@ -3863,16 +3885,17 @@ scenes.pcSearch = (state={})=>{
       const c = state.cl4;
       const nSel = state.asked || n || 1;
       const G = cl4G.length ? cl4G : cl4Groups([...sel]);
-      const chose4 = state.path==='direct' ? 'Clone as they are' : 'Change the placements';
+      const chose4 = state.path==='direct' ? 'Clone as they are' : 'Change the access points';
       const GROUPED = ()=> CL4_GROUPED(nSel,G,false,chose4);
-      const mm4 = /^g(\d+)(ask|wcl|done)$/.exec(c);
+      const mm4 = /^g(\d+)(ask|map|int|wcl|done)$/.exec(c);
       const mmLoad = /^g(\d+)load$/.exec(c);
       // the transcript of every group already approved, before group `upto`
       const priorGroups = (upto)=>{
         let out='';
         for(let g=0; g<upto; g++){
           out += `<div class="convoTurn">${CL4_ASK_GROUP(g,G)}</div>`
-               + `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${CL4_GROUP_DONE(g,G,false)}</div>`;
+               + `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${CL4_GROUP_INTENT(g,G,false)}</div>`
+               + `<div class="convoTurn">${CL4_GROUP_DONE(g,G,false)}</div>`;
         }
         return out;
       };
@@ -3889,8 +3912,8 @@ scenes.pcSearch = (state={})=>{
       // ── 4a: the pill already said "clone as they are", so clone immediately ──
       else if(c==='wall4')   tail += GROUPED() + `<div class="convoTurn">${CL4_NAMING(false,true)}</div><div class="convoTurn">${agentLoader(`Cloning ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[])}</div>`;
       else if(c==='doneall') tail += GROUPED() + `<div class="convoTurn">${CL4_NAMING(false,true)}</div><div class="convoTurn">${CL4_DONE(nSel,G,false)}</div>`;
-      // ── 4b: a plan naming each placement, then group by group ──
-      else if(c==='confirming') tail += GROUPED() + `<div class="convoTurn">${agentLoader('Checking the placements', state.tasks||[])}</div>`;
+      // ── 4b: a plan naming each access point, then group by group ──
+      else if(c==='confirming') tail += GROUPED() + `<div class="convoTurn">${agentLoader('Checking the access points', state.tasks||[])}</div>`;
       else if(c==='confirm')  tail += GROUPED() + `<div class="convoTurn">${CL4_CONFIRM(nSel,G,true)}</div>`;
       // the naming card sits on BOTH paths; on `direct` there is no confirm card before it
       else if(c==='wnaming')  tail += GROUPED() + (state.path==='direct' ? '' : `<div class="convoTurn">${CL4_CONFIRM(nSel,G,false)}</div>`) + `<div class="convoTurn">${agentLoader('Preparing the copies', state.tasks||[])}</div>`;
@@ -3910,9 +3933,13 @@ scenes.pcSearch = (state={})=>{
         tail += BEFORE4() + `<div class="convoTurn">${PLANNED(stage==='done'?g+1:g, stage==='wcl'?g:-1)}</div>`
              + priorGroups(g) + `<div class="convoTurn">${CL4_ASK_GROUP(g,G)}</div>`;
         if(stage==='ask') { /* waiting on the user's destination */ }
-        // the destination reply applies the change straight away: no playback
-        else if(stage==='wcl')  tail += `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${agentLoader(`Cloning ${G[g].idx.length} experience${G[g].idx.length===1?'':'s'}`, state.tasks||[])}</div>`;
-        else if(stage==='done') tail += `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${CL4_GROUP_DONE(g,G,true)}</div>`;
+        // the destination reply is PLAYED BACK before anything is cloned
+        else if(stage==='map')  tail += `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${agentLoader('Mapping the change', state.tasks||[])}</div>`;
+        else if(stage==='int')  tail += `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${CL4_GROUP_INTENT(g,G,true)}</div>`;
+        else if(stage==='wcl')  tail += `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${CL4_GROUP_INTENT(g,G,false)}</div>`
+                                     + `<div class="convoTurn">${agentLoader(`Cloning ${G[g].idx.length} experience${G[g].idx.length===1?'':'s'}`, state.tasks||[])}</div>`;
+        else if(stage==='done') tail += `<div class="convoTurn">${userBubble(cl4DestPrompt(g))}${CL4_GROUP_INTENT(g,G,false)}</div>`
+                                     + `<div class="convoTurn">${CL4_GROUP_DONE(g,G,true)}</div>`;
       }
       else if(c==='wallrev') tail += BEFORE4() + `<div class="convoTurn">${PLANNED(G.length,G.length)}</div>` + priorGroups(G.length) + agentLoader('Compiling the clones', state.tasks||[]);
       // the final review IS the end: every task done, publish guidance, no pill
@@ -3920,11 +3947,11 @@ scenes.pcSearch = (state={})=>{
         tail += BEFORE4() + `<div class="convoTurn">${PLANNED(G.length+1,-1)}</div>` + priorGroups(G.length) + CL4_ALL_REVIEW(nSel,G);
       body += `<div class="convoTurn">${tail}</div>`;
     }
-    /* ── Scenario 3: the AI offers the choice, then (3b) placement + template ──
+    /* ── Scenario 3: the AI offers the choice, then (3b) access point + template ──
        states: reading | choice
                3a: cloning | done            (same ending as scenario 1)
                3b: asking | targeting | intent | planning | plan
-                   | wplace | place                 (task 1: the placement)
+                   | wplace | place                 (task 1: the access point)
                    | wclones | clonesErr            (task 2: clones, all flagged)
                    | fixing | fixed
                    | wall | allrev | done           (task 3: the finished set)
@@ -3934,15 +3961,15 @@ scenes.pcSearch = (state={})=>{
       const nSel = state.asked || n || 1;
       /* Came from scenario 5's guardrail? Replay that turn first, with the
          count it had at the time (cl5Prior holds the spanning selection's
-         numbers — the live selection is now narrowed to one placement, so
-         recomputing would show "spans 1 placements"). */
+         numbers — the live selection is now narrowed to one access point, so
+         recomputing would show "spans 1 access points"). */
       const cl5Prelude = ()=> state.cl5Prior
         ? `<div class="convoTurn">${selThread(state.cl5Prior.n)}${PC_REQ()}`
-          + CL5_CHOICE(state.cl5Prior.n,{length:state.cl5Prior.g},false,'Change the placement')
+          + CL5_CHOICE(state.cl5Prior.n,{length:state.cl5Prior.g},false,'Change the access point')
           + `<div class="convoTurn">${CL5_MIXED(state.cl5Prior.n,{length:state.cl5Prior.g})}</div></div>`
         : '';
       // the pill the user actually pressed, so the recorded reply matches it
-      const chose3 = state.path==='direct' ? 'Clone as they are' : 'Change the placement';
+      const chose3 = state.path==='direct' ? 'Clone as they are' : 'Change the access point';
       const CHOICE = ()=> CL3_CHOICE(false, chose3);
       const TARGETREQ = ()=> userBubble(CL3_TARGET_PROMPT);
       const FIXREQ3 = ()=> userBubble(USE_BODY_PROMPT);
@@ -3951,6 +3978,8 @@ scenes.pcSearch = (state={})=>{
         + `<div class="convoTurn">${CL3_ASK_TARGET()}</div>`
         + `<div class="convoTurn">${TARGETREQ()}${CL3_UNDERSTOOD(false)}</div>`
         + `<div class="convoTurn">${CL3_NAMING(false)}`;
+      /* everything from `wclones` on also replays the fields readback */
+      const beforeClone3b = ()=> beforeClone3() + CL3_FIELDS_CARD(nSel,false);
       /* The user supplies copy for EVERY flagged clone in ONE prompt, naming
          each one — the creatives differ, so the copy is per experience even
          though it arrives together. */
@@ -3966,26 +3995,28 @@ scenes.pcSearch = (state={})=>{
       // ── 3a: clone as they are ──
       else if(c==='cloning')    tail += CHOICE() + `<div class="convoTurn">${CL3_NAMING(false,true)}</div><div class="convoTurn">${agentLoader(`Cloning ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[])}</div>`;
       else if(c==='done3a')     tail += CHOICE() + `<div class="convoTurn">${CL3_NAMING(false,true)}</div><div class="convoTurn">${CLONE_DONE(nSel)}</div>`;
-      // ── 3b: change placement + template, clone, then supply the copy ──
-      else if(c==='reading2')   tail += CHOICE() + `<div class="convoTurn">${agentLoader('Checking the placements', state.tasks||[])}</div>`;
+      // ── 3b: change access point + template, clone, then supply the copy ──
+      else if(c==='reading2')   tail += CHOICE() + `<div class="convoTurn">${agentLoader('Checking the access points', state.tasks||[])}</div>`;
       else if(c==='asking')     tail += CHOICE() + `<div class="convoTurn">${CL3_ASK_TARGET()}</div>`;
       else if(c==='targeting')  tail += CHOICE() + `<div class="convoTurn">${CL3_ASK_TARGET()}</div><div class="convoTurn">${TARGETREQ()}${agentLoader('Mapping the change', state.tasks||[])}</div>`;
       else if(c==='intent')     tail += CHOICE() + `<div class="convoTurn">${CL3_ASK_TARGET()}</div><div class="convoTurn">${TARGETREQ()}${CL3_UNDERSTOOD(true)}</div>`;
       // the naming card sits on BOTH paths; on `direct` there is no intent card before it
       else if(c==='wnaming')    tail += CHOICE() + (state.path==='direct' ? '' : `<div class="convoTurn">${CL3_ASK_TARGET()}</div><div class="convoTurn">${TARGETREQ()}${CL3_UNDERSTOOD(false)}</div>`) + `<div class="convoTurn">${agentLoader('Preparing the copies', state.tasks||[])}</div>`;
       else if(c==='naming')     tail += CHOICE() + (state.path==='direct' ? '' : `<div class="convoTurn">${CL3_ASK_TARGET()}</div><div class="convoTurn">${TARGETREQ()}${CL3_UNDERSTOOD(false)}</div>`) + `<div class="convoTurn">${CL3_NAMING(true, state.path==='direct')}</div>`;
-      else if(c==='wclones')    tail += beforeClone3() + agentLoader(`Cloning ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[]) + `</div>`;
-      else if(c==='clonesErr')  tail += beforeClone3() + CL3_CLONES_ERR(nSel) + `</div>`;
-      else if(c==='fixingAll')  tail += beforeClone3() + CL3_CLONES_ERR(nSel) + `</div>`
+      else if(c==='wfields')    tail += beforeClone3() + agentLoader('Checking the new template', state.tasks||[]) + `</div>`;
+      else if(c==='fields')     tail += beforeClone3() + CL3_FIELDS_CARD(nSel,true) + `</div>`;
+      else if(c==='wclones')    tail += beforeClone3b() + agentLoader(`Cloning ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[]) + `</div>`;
+      else if(c==='clonesErr')  tail += beforeClone3b() + CL3_CLONES_ERR(nSel) + `</div>`;
+      else if(c==='fixingAll')  tail += beforeClone3b() + CL3_CLONES_ERR(nSel) + `</div>`
                                      + `<div class="convoTurn">${FIXALL()}${agentLoader('Applying the copy', state.tasks||[])}</div>`;
-      else if(c==='verified')   tail += beforeClone3() + CL3_CLONES_ERR(nSel) + `</div>`
+      else if(c==='verified')   tail += beforeClone3b() + CL3_CLONES_ERR(nSel) + `</div>`
                                      + `<div class="convoTurn">${FIXALL()}${CL3_VERIFIED(nSel)}</div>`;
       body += `<div class="convoTurn">${tail}</div>`;
     }
     else if(state.cl2!==undefined){
       const c = state.cl2;
       const nSel = state.asked || n || 1;
-      const cloneName = (i)=>cloneRows[i] ? cloneRows[i].exp : CLONE_PREFIX+'experience';
+      const cloneName = (i)=>cloneRows[i] ? cloneRows[i].exp : 'experience'+CLONE_SUFFIX;
       const NAMING = ()=> CL2_NAMING(false);
       const KEEPREQ = ()=> userBubble(CL2_KEEP_PREFIX_PROMPT);
       const FIXREQ2 = ()=> userBubble(USE_BODY_PROMPT);
@@ -4032,7 +4063,7 @@ scenes.pcSearch = (state={})=>{
     table = canvasBusy
       ? skeletonTable(anyFlagged&&onCloneResults?PC_COLS_QA:PC_COLS,true)
       : tableHTML(anyFlagged&&onCloneResults?PC_COLS_QA:PC_COLS,rows,{checkbox:true,select:true,selected:onCloneResults?new Set():sel,
-          /* scenario 5 only, and only after the USER picks Placement from the
+          /* scenario 5 only, and only after the USER picks Access point from the
              dropdown. cl4Groups gives {ap,idx} with GLOBAL row indices, which
              is exactly the shape tableHTML's group bands want. */
           ...(state.groupBy && isCl5 && !onCloneResults ? {groups: cl4Groups([...Array(SRC.length).keys()]).map(g=>({label:g.ap, idx:g.idx}))} : {})});
@@ -4045,7 +4076,7 @@ scenes.pcSearch = (state={})=>{
       : (state.typed && state.pc===undefined && state.cl2===undefined && state.cl3===undefined && state.cl4===undefined && state.cl5===undefined)
       ? (scenario==='cl2' ? CLONE2_PROMPT : CLONE_PROMPT)
       : (state.cl2==='t0err' && state.fixTyped) ? USE_BODY_PROMPT
-      // scenario 3: the target placement, then the body copy, auto-type in turn
+      // scenario 3: the target access point, then the body copy, auto-type in turn
       : (state.cl3==='asking' && state.tgtTyped) ? CL3_TARGET_PROMPT
       : (state.cl3==='clonesErr' && state.fixTyped) ? USE_BODY_PROMPT : '';
   /* Task tracker at the top of the panel. Scenario 1 has no multi-task plan so
@@ -4071,17 +4102,17 @@ scenes.pcSearch = (state={})=>{
      'plan' are before any task, and 4a ('wall4'/'doneall') has no plan at all.
      The CHECK means the task is FINISHED, so a group only earns it at
      g{i}done, once its clones exist. g{i}ask is IDLE mid-task — the agent has
-     asked which placement to clone to and is waiting on the user — so it shows
+     asked which access point to clone to and is waiting on the user — so it shows
      the dashed NUMBER, not the spinner (a spinner there claims work is running
      when nothing is). Third slot of stepPair carries that number. */
   else if(state.cl4!==undefined && state.path==='change'){
     const G = cl4G.length ? cl4G : cl4Groups([...sel]);
     const labels = cl4TaskLabels(G);
-    const c = state.cl4, mm = /^g(\d+)(load|ask|wcl|done)$/.exec(c);
+    const c = state.cl4, mm = /^g(\d+)(load|ask|map|int|wcl|done)$/.exec(c);
     if(mm){
       const gi = +mm[1], st = mm[2];
       if(labels[gi]) stepPair = [`${gi+1}.  ${labels[gi]}`,
-        (st==='load'||st==='wcl'), st==='ask' ? gi+1 : 0];
+        (st==='load'||st==='map'||st==='wcl'), (st==='ask'||st==='int') ? gi+1 : 0];
     }
     else if(c==='wallrev') stepPair = [`${G.length+1}.  ${labels[G.length]}`, true];
     else if(c==='allrev'||c==='done') stepPair = [`${G.length+1}.  ${labels[G.length]}`, false];
@@ -4101,7 +4132,7 @@ scenes.pcSearch = (state={})=>{
        g{i}done             → THAT batch's clones
        g{i+1}load / ask     → still batch i's clones (nothing new yet)
        wallrev              → skeleton
-       allrev / done        → every clone, grouped by placement (accordion)
+       allrev / done        → every clone, grouped by access point (accordion)
      `cl4Display` is computed here so the row-click drill-down can index the
      SAME rows the table rendered — otherwise it opened the source experience. */
   let cl4Display = null;
@@ -4109,7 +4140,7 @@ scenes.pcSearch = (state={})=>{
     const c = state.cl4;
     const G = cl4G.length ? cl4G : cl4Groups([...sel]);
     const CLONE_COLS = [...PC_COLS.slice(0,4),
-      {label:'Placement',key:'ap',editedKey:'apChanged'},
+      {label:'Access point',key:'ap',editedKey:'apChanged'},
       {label:'Template',key:'tmpl'}, ...PC_COLS.slice(6)];
     // one batch's clones, as rows
     const batchClones = (g)=>{
@@ -4117,14 +4148,14 @@ scenes.pcSearch = (state={})=>{
       let off=0; for(let x=0;x<g;x++) off += G[x].idx.length;
       return grp.idx.map((i,k)=>({
         ...CL4_ROWS[i],
-        exp: CLONE_PREFIX + CL4_ROWS[i].exp.replace('…',''),
+        exp: CL4_ROWS[i].exp.replace('…','') + CLONE_SUFFIX,
         eid: CLONE_EIDS[(off+k) % CLONE_EIDS.length],
         status:'Draft', ver:'v1', ap: cl4Dest(g), mod: CLONE_STAMP,
         apChanged: true,
       }));
     };
     const mDone = /^g(\d+)(wcl|done)$/.exec(c);
-    const mWait = /^g(\d+)(load|ask)$/.exec(c);
+    const mWait = /^g(\d+)(load|ask|map|int)$/.exec(c);
     if(mDone){
       const g=+mDone[1];
       cl4Display = {rows:batchClones(g), cols:CLONE_COLS, groups:null,
@@ -4152,7 +4183,7 @@ scenes.pcSearch = (state={})=>{
              ...(cl4Display.groups?{groups:cl4Display.groups}:{})});
       return `<div class="content">${topbar(CL4_CRUMB)}<div class="scroll"><div class="pad">
         <h2 class="page-h">${cl4Display.title}</h2>
-        ${rxToolbarCl4(cl4Display.groups?'Placements':'')}
+        ${rxToolbarCl4(cl4Display.groups?'Access points':'')}
         ${table}
       </div></div></div>` + panel();
     }
@@ -4167,7 +4198,7 @@ scenes.pcSearch = (state={})=>{
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
     /* On a scenario-4 canvas the table renders `cl4Display.rows`, not `rows`,
        so the drill-down has to index THAT array — otherwise clicking a clone
-       opened its source experience (Published / v3 / old placement). */
+       opened its source experience (Published / v3 / old access point). */
     const dr = (cl4Display && cl4Display.rows[state.expDrill]) || rows[state.expDrill];
     /* A flagged clone must drill in LOOKING flagged: the QA badge next to
        Draft, the field error under BODY, and the un-fixed copy. Without these
@@ -4195,23 +4226,23 @@ scenes.pcSearch = (state={})=>{
   // (it's a result, not a picker), so the selection bar reads 0 of n.
   // the heading has room for the full name; the crumb above it already ends in
   // the search project (…- Banking hellobox), so it stays short there
-  // scenario 2 moved the copies to a new placement, so the view is named for THAT
+  // scenario 2 moved the copies to a new access point, so the view is named for THAT
   const heading = onCloneResults
     ? (isCl4 ? 'Cloned experiences'
       : (state.cl5==='doneall') ? `Cloned experiences - ${CL4_PROJECT}`
       : isCl2 ? CL2_VIEW_NAME : isCl3b ? CL3_VIEW_NAME : CLONE_VIEW_NAME)
-    : ((isCl4||isCl5) ? 'QB Payroll IPD experiences' : 'QB Payroll IPD experiences using Banking - hellobox placement');
+    : ((isCl4||isCl5) ? 'QB Payroll IPD experiences' : 'QB Payroll IPD experiences using Banking - hellobox access point');
   const crumb = (isCl4||isCl5) ? CL4_CRUMB : (onCloneResults ? CLONE_CRUMB : PC_CRUMB);
   /* This scene's table is always FLAT — scenario 4's grouping lives on the
      cl4Display canvas (the final accordion), not on the search results — so
      the control shows the unset placeholder here. It is a string, not a
      boolean, so a future grouped view on this table just names its key. */
   /* Scenario 5 is the one flow where the USER sets the grouping: the guardrail
-     message tells them their selection spans several placements, and they
+     message tells them their selection spans several access points, and they
      regroup the table themselves from this dropdown. The agent never regroups
      it (the canvas changes only when the agent PRODUCES something), so the
      label is driven by state.groupBy, which only a click sets. */
-  const pcGroupedBy = state.groupBy || '';
+  const pcGroupedBy = (state.groupBy && !onCloneResults) ? state.groupBy : '';
   const selCount = onCloneResults ? 0 : n;
   const actN = (ic,label)=>`<span class="act ${selCount?'act--on':'act--off'}">${ic} ${label} (${selCount})</span>`;
   const content = `<div class="content${state.opening?' content--opening':''}">
@@ -4276,7 +4307,7 @@ function runPCStep(base, label, subs, dur, nextState){
 function runPCUnderstand(){
   const st=current.state, sel=[...(st.selected||[])];
   const base={selected:sel,asked:sel.length,typed:true,pc:'reading'};
-  runPCStep(base,'Reading your request',['Reading your request','Checking the selected experiences','Checking the placement'],2600,
+  runPCStep(base,'Reading your request',['Reading your request','Checking the selected experiences','Checking the access point'],2600,
     {...base,pc:'understood'});
 }
 /* "Looks good" on the confirmation → clone them → done. Scenario 1's only
@@ -4303,7 +4334,7 @@ const cl2N = ()=> { const st=current.state||{}; return (st.selected||[]).length 
 function runCl2Understand(){
   const base={...cl2Base(),cl2:'reading'};
   runPCStep(base,'Reading your request',
-    ['Reading your request','Checking the new placement','Checking the selected experiences'],2600,
+    ['Reading your request','Checking the new access point','Checking the selected experiences'],2600,
     {...base,cl2:'naming'});
 }
 /* "Use the Clone prefix" → planning loader → the n+1 task plan */
@@ -4317,7 +4348,7 @@ function runCl2Plan(){
 function runCl2Task0(){
   const base={...cl2Base(),cl2:'w0'};
   runPCStep(base,'Creating the first clone',
-    ['Copying the settings','Moving it to the new placement','Checking the creative'],2900,
+    ['Copying the settings','Moving it to the new access point','Checking the creative'],2900,
     {...base,cl2:'t0err'});
 }
 /* the user sends shorter copy → canvas + panel both load → corrected */
@@ -4333,13 +4364,13 @@ function runCl2Task(i){
   if(i>=n){                      // past the per-clone tasks: review them all
     const base={...cl2Base(),cl2:'wall'};
     runPCStep(base,'Reviewing all the clones',
-      ['Collecting the clones','Checking the placements','Compiling the list'],2600,
+      ['Collecting the clones','Checking the access points','Compiling the list'],2600,
       {...base,cl2:'allrev'});
     return;
   }
   const base={...cl2Base(),cl2:'w'+i};
   runPCStep(base,`Creating clone ${i+1}`,
-    ['Copying the settings','Moving it to the new placement','Checking the creative'],2600,
+    ['Copying the settings','Moving it to the new access point','Checking the creative'],2600,
     {...base,cl2:'t'+i});
 }
 /* Approve on the all-clones review → done */
@@ -4365,7 +4396,7 @@ function cl3Base(){
 function runCl3Understand(extra={}){
   const base={...cl3Base(),...extra,cl3:'reading'};
   runPCStep(base,'Reading your request',
-    ['Reading your request','Checking the selected experiences','Checking their placements'],2600,
+    ['Reading your request','Checking the selected experiences','Checking their access points'],2600,
     {...base,cl3:'choice'});
 }
 /* 3a: "Clone as they are" → settle the NAMING first (user, 2026-09-09: the
@@ -4384,19 +4415,19 @@ function runCl3Direct(){
     ['Reading the selected experiences','Copying the settings','Creating the copies'],2900,
     {...base,cl3:'done3a'});
 }
-/* 3b: "Change the placement" → the AI asks WHICH placement (no loader: it is
+/* 3b: "Change the access point" → the AI asks WHICH access point (no loader: it is
    a question, not work) */
 function runCl3Ask(){
   const base={...cl3Base(),path:'change',cl3:'reading2'};
-  runPCStep(base,'Checking the placements',
-    ['Reading your choice','Checking the selected experiences','Checking the placements'],2200,
+  runPCStep(base,'Checking the access points',
+    ['Reading your choice','Checking the selected experiences','Checking the access points'],2200,
     {...base,cl3:'asking'});
 }
-/* the user names the placement AND template → AI maps the change */
+/* the user names the access point AND template → AI maps the change */
 function runCl3Target(){
   const base={...cl3Base(),path:'change',cl3:'targeting'};
   runPCStep(base,'Mapping the change',
-    ['Reading your request','Checking the new placement','Checking the new template'],2600,
+    ['Reading your request','Checking the new access point','Checking the new template'],2600,
     {...base,cl3:'intent'});
 }
 /* approve the intent → settle the NAMING before anything is created */
@@ -4406,12 +4437,19 @@ function runCl3Naming(){
     ['Reading the change','Checking naming conventions','Preparing the copies'],2200,
     {...base,cl3:'naming'});
 }
-/* approve the naming → clone (no plan, no placement review) */
+/* approve the naming → clone (no plan, no access point review) */
+/* naming approved → the fields the new template needs, as a readback */
+function runCl3Fields(){
+  const base={...cl3Base(),path:'change',cl3:'wfields'};
+  runPCStep(base,'Checking the new template',
+    ['Saving the naming','Reading the template','Finding the fields it needs'],2400,
+    {...base,cl3:'fields'});
+}
 function runCl3Clones(){
   const n=(current.state.selected||[]).length||1;
   const base={...cl3Base(),path:'change',cl3:'wclones'};
   runPCStep(base,`Cloning ${n} experience${n===1?'':'s'}`,
-    ['Copying the settings','Moving them to the new placement','Checking each creative'],2900,
+    ['Copying the settings','Moving them to the new access point','Checking each creative'],2900,
     {...base,cl3:'clonesErr'});
 }
 /* the user supplies copy for EVERY flagged clone in one prompt */
@@ -4425,7 +4463,7 @@ function runCl3Done(){ const f=[...(current.state.fixes||[])];
   go('pcSearch',{...cl3Base(),path:'change',cl3:'done',fixes:f}); }
 
 /* ============================================================
-   SCENARIO 4 runners (varying placements).
+   SCENARIO 4 runners (varying access points).
    ============================================================ */
 function cl4Base(){
   const st=current.state||{}, sel=[...(st.selected||[])];
@@ -4434,17 +4472,17 @@ function cl4Base(){
   return b;
 }
 const cl4NGroups = ()=> cl4Groups([...(current.state.selected||[])]).length;
-/* scenario 5: the clone ask → the agent checks the placements and declines.
+/* scenario 5: the clone ask → the agent checks the access points and declines.
    No cloning runner follows: `mixed` is the end of the flow. */
 function runCl5Understand(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   /* Stamp the spanning selection's counts NOW. By the time the flow continues
-     the user has narrowed to one placement, so recomputing later would render
-     "spans 1 placements" in the replayed history. */
+     the user has narrowed to one access point, so recomputing later would render
+     "spans 1 access points" in the replayed history. */
   const base={selected:sel, asked:sel.length||1, typed:true, cl5:'reading',
               cl5Prior:{n:sel.length||1, g:cl4Groups(sel).length}};
   runPCStep(base,'Checking the experiences',
-    ['Reading your request','Checking the selected experiences','Comparing their placements'],2600,
+    ['Reading your request','Checking the selected experiences','Comparing their access points'],2600,
     {...base,cl5:'choice'});
 }
 /* cl5 base, preserving the stamp and the user's grouping across transitions */
@@ -4474,19 +4512,19 @@ function runCl5Direct(){
     ['Reading each group','Copying the settings','Creating the copies'],2900,
     {...base,cl5:'doneall'});
 }
-/* "Change the placement" → THIS is where the one-placement-at-a-time limit
+/* "Change the access point" → THIS is where the one-access point-at-a-time limit
    bites, so the guardrail message lands here and nowhere else. */
 function runCl5Change(){
   const base={...cl5Base(),path:'change',cl5:'reading2'};
-  runPCStep(base,'Checking the placements',
-    ['Reading your request','Checking the selected experiences','Comparing their placements'],2400,
+  runPCStep(base,'Checking the access points',
+    ['Reading your request','Checking the selected experiences','Comparing their access points'],2400,
     {...base,cl5:'mixed'});
 }
 /* the clone ask → the agent groups the selection and plays it back */
 function runCl4Understand(){
   const base={...cl4Base(),cl4:'reading'};
   runPCStep(base,'Reading your request',
-    ['Reading your request','Checking the selected experiences','Checking their placements'],2900,
+    ['Reading your request','Checking the selected experiences','Checking their access points'],2900,
     {...base,cl4:'grouped'});
 }
 /* 4a: clone as they are → settle the NAMING first, same as 4b */
@@ -4511,10 +4549,10 @@ function runCl4AskGroup(g){
     ['Reading the group','Checking its experiences','Preparing the change'],2200,
     {...base,cl4:'g'+g+'ask'});
 }
-/* "Change the placements" → the confirmation that stands in for a playback */
+/* "Change the access points" → the confirmation that stands in for a playback */
 function runCl4Confirm(){
   const base={...cl4Base(),path:'change',cl4:'confirming'};
-  runPCStep(base,'Checking the placements',
+  runPCStep(base,'Checking the access points',
     ['Reading your choice','Checking each group','Preparing the changes'],2400,
     {...base,cl4:'confirm'});
 }
@@ -4525,28 +4563,35 @@ function runCl4Naming(){
     ['Reading the change','Checking naming conventions','Preparing the copies'],2200,
     {...base,cl4:'naming'});
 }
-/* Proceed on the naming → a plan naming every placement */
+/* Proceed on the naming → a plan naming every access point */
 function runCl4Plan(){
   const base={...cl4Base(),path:'change',cl4:'planning'};
   runPCStep(base,'Creating a plan',
-    ['Reading the groups','Ordering the placements','Preparing the tasks'],3400,
+    ['Reading the groups','Ordering the access points','Preparing the tasks'],3400,
     {...base,cl4:'plan'});
 }
 /* after the last group → the final review of everything cloned */
 function runCl4AllReview(){
   const base={...cl4Base(),path:'change',cl4:'wallrev'};
   runPCStep(base,'Compiling the clones',
-    ['Collecting the clones','Checking the placements','Compiling the list'],2600,
+    ['Collecting the clones','Checking the access points','Compiling the list'],2600,
     {...base,cl4:'allrev'});
 }
-/* the user names the destination for group g */
-/* the destination reply APPLIES the change directly — no playback inside a task */
+/* the user names the destination for group g → the agent plays the change back
+   (user, 2026-09-11). It no longer clones straight from the reply. */
 function runCl4MapGroup(g){
+  const base={...cl4Base(),path:'change',cl4:'g'+g+'map'};
+  runPCStep(base,'Mapping the change',
+    ['Reading your request','Checking the new access point','Preparing the copies'],2400,
+    {...base,cl4:'g'+g+'int'});
+}
+/* Approve on the group's playback → clone that group */
+function runCl4CloneGroup(g){
   const G=cl4Groups([...(current.state.selected||[])]);
   const k=G[g]?G[g].idx.length:1;
   const base={...cl4Base(),path:'change',cl4:'g'+g+'wcl'};
   runPCStep(base,`Cloning ${k} experience${k===1?'':'s'}`,
-    ['Reading your request','Applying the new placement','Creating the copies'],2600,
+    ['Reading your request','Applying the new access point','Creating the copies'],2600,
     {...base,cl4:'g'+g+'done'});
 }
 /* approve group g → the next group, or finish */
@@ -4556,7 +4601,7 @@ function runCl4NextGroup(g){
 }
 
 /* "Looks good" on the understanding → AI asks for the new fields (no loader:
-   it already knows which fields the placement adds) */
+   it already knows which fields the access point adds) */
 function runPCNaming(){
   const base={...pcBase(),pc:'namingWait',expName:current.state.expName};
   runPCStep(base,'Naming the new experience',['Reading the change','Checking naming conventions','Drafting a name'],2400,{...base,pc:'naming'});
@@ -4571,10 +4616,10 @@ function runPCPlan(){
   const base={...pcBase(),pc:'planning'};
   runPCStep(base,'Creating a plan',['Reading your inputs','Mapping requested changes','Ordering the tasks'],3400,{...base,pc:'plan'});
 }
-/* "Looks good" on the plan → task 1: update the placement AND template */
+/* "Looks good" on the plan → task 1: update the access point AND template */
 function runPCPlacement(){
   const base={...pcBase(),pc:'updating'};
-  runPCStep(base,'Updating the placement and template',['Updating the placement','Applying the new template','Carrying over the creative values'],2900,{...base,pc:'placement'});
+  runPCStep(base,'Updating the access point and template',['Updating the access point','Applying the new template','Carrying over the creative values'],2900,{...base,pc:'placement'});
 }
 /* the user supplies shorter body copy → canvas + panel both load → fixed copy */
 function runPCBodyFix(){
@@ -4627,7 +4672,7 @@ const FLOW_STATE = {
 /* arrow-key navigation walks KEY STATES, not just scenes — every step of this
    flow lives inside pcSearch keyed by state. */
 // scenario 1 clones MULTIPLE experiences, so the walked-through demo selects
-// three rows rather than the single row the placement-change flow used
+// three rows rather than the single row the access point-change flow used
 const CLONE_SEL = [1,2,4];
 const PC_S = (pc,extra={})=>['pcSearch',{selected:[...CLONE_SEL],asked:CLONE_SEL.length,typed:true,pc,...extra}];
 const STEPS_PC = [
@@ -4652,7 +4697,7 @@ const STEPS_CL2 = [
 ];
 /* scenario 3 walks the CHOICE, then the 3b path end to end */
 const CL3_S = (cl3,extra={})=>['pcSearch',{selected:[...CLONE_SEL],asked:CLONE_SEL.length,typed:true,path:'change',cl3,...extra}];
-const CL3_ORDER = ['choice','asking','intent','naming','clonesErr','verified'];
+const CL3_ORDER = ['choice','asking','intent','naming','fields','clonesErr','verified'];
 const STEPS_CL3 = [
   ['home',{}],
   ['pcSearch',{}],
@@ -4660,14 +4705,14 @@ const STEPS_CL3 = [
   ['pcSearch',{selected:[...CLONE_SEL],asked:CLONE_SEL.length,typed:true,cl3:'choice'}],
   ...CL3_ORDER.slice(1).map(c=>CL3_S(c)),
 ];
-/* scenario 4's demo selection spans THREE placements (CL4_ROWS is 3 rows per
+/* scenario 4's demo selection spans THREE access points (CL4_ROWS is 3 rows per
    AP, so 0-2 = AP1, 3-5 = AP2, 6-8 = AP3) — enough to show the per-group loop
    without making it endless. */
 const CL4_SEL = [0,1,3,4,6];
 const CL4_NG = 3;
 const CL4_S = (cl4)=>['pcSearch',{selected:[...CL4_SEL],asked:CL4_SEL.length,typed:true,path:'change',cl4}];
 const CL4_ORDER = ['grouped','confirm','naming','plan',
-  ...Array.from({length:CL4_NG},(_,g)=>['g'+g+'ask','g'+g+'done']).flat(),
+  ...Array.from({length:CL4_NG},(_,g)=>['g'+g+'ask','g'+g+'int','g'+g+'done']).flat(),
   'allrev'];
 const STEPS_CL4 = [
   ['home',{}],
@@ -4681,13 +4726,22 @@ const STEPS_CL4 = [
 const CL5_S = (cl5)=>['pcSearch',{selected:[...CL4_SEL],asked:CL4_SEL.length,typed:true,
   cl5Prior:{n:CL4_SEL.length,g:CL4_NG},
   ...(cl5==='mixed'?{path:'change'}:{}), cl5}];
-// the nav walks the CHANGE branch, since the limit is what this scenario shows
 const CL5_ORDER = ['choice','mixed'];
+/* the narrowing the user performs by hand: regroup by access point, then
+   reselect inside ONE group. Carries groupBy so the table renders grouped and
+   cl5Prior so the guardrail turn stays in the transcript. */
+const CL5_NARROW = [0,1,2];
+const CL5_NARROWED = (extra={})=>['pcSearch',{selected:[...CL5_NARROW],asked:CL5_NARROW.length,
+  typed:true, groupBy:'Access points', cl5Prior:{n:CL4_SEL.length,g:CL4_NG},
+  ...(extra.cl3 ? {} : {path:'change', cl5:'mixed'}), ...extra}];
 const STEPS_CL5 = [
   ['home',{}],
   ['pcSearch',{}],
   ['pcSearch',{selected:[...CL4_SEL],typed:true}],
   ...CL5_ORDER.map(CL5_S),
+  CL5_NARROWED(),                                   // regrouped + reselected
+  ...['choice','asking','intent','naming','fields','clonesErr','verified']
+      .map(c=>CL5_NARROWED({path: c==='choice'?undefined:'change', cl3:c})),
 ];
 function FLOW_STEPS(){
   if(scenario==='cl5') return STEPS_CL5;
@@ -4707,7 +4761,18 @@ function stepIndex(){
     const i = PC_ORDER.indexOf(resolved);
     return i===-1 ? 3 : i+3;
   }
+  if(scenario==='cl5' && st.cl3!==undefined){
+    const R={reading:'choice', reading2:'asking', targeting:'intent',
+             wnaming:'naming', wfields:'fields', wclones:'clonesErr',
+             fixingAll:'verified'};
+    const ORD=['choice','asking','intent','naming','fields','clonesErr','verified'];
+    const i = ORD.indexOf(R[st.cl3]||st.cl3);
+    return i===-1 ? 6 : i+6;          // step 5 is the narrowed selection
+  }
   if(st.cl5!==undefined){
+    // the narrowing step shares cl5:'mixed' with the guardrail; what separates
+    // them is that the user has regrouped the table by then
+    if(st.cl5==='mixed' && st.groupBy) return 5;
     // executing states resolve to the resting state they are heading for
     const R={reading:'choice', reading2:'mixed', wnaming:'choice', naming:'choice',
              wall:'choice', doneall:'choice'};
@@ -4719,15 +4784,15 @@ function stepIndex(){
              confirming:'confirm',wnaming:'naming',planning:'plan',wallrev:'allrev'};
     let r=R[st.cl4]||st.cl4;
     // executing group stages resolve to the resting stage they head for
-    const m=/^g(\d+)(ask|wcl|done|load)$/.exec(r);
-    if(m){ const st2={wcl:'done',load:'ask'}[m[2]]||m[2]; r='g'+m[1]+st2; }
+    const m=/^g(\d+)(ask|map|int|wcl|done|load)$/.exec(r);
+    if(m){ const st2={wcl:'done',load:'ask',map:'int'}[m[2]]||m[2]; r='g'+m[1]+st2; }
     const i=CL4_ORDER.indexOf(r);
     return i===-1 ? 3 : i+3;
   }
   if(st.cl3!==undefined){
     // executing states resolve to the resting state they are heading for
     const R={reading:'choice',cloning:'done3a',targeting:'intent',
-             wnaming:'naming',wclones:'clonesErr',fixing:'clonesErr'};
+             wnaming:'naming',wfields:'fields',wclones:'clonesErr',fixing:'clonesErr'};
     const r=R[st.cl3]||st.cl3;
     if(r==='done3a') return 3;                 // 3a ends right after the choice
     const i=CL3_ORDER.indexOf(r);

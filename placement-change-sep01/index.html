@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Marketing Studio — Placement Change</title>
+<title>Marketing Studio — Access Point Change</title>
 <style>
 /* ============================================================
    MS 2.0 — Change Order Use Case 1
@@ -298,6 +298,16 @@ button{font-family:inherit}
 .planTable__row:last-child{border-bottom:0}
 .planTable__head{font-size:16px;color:#656a81}
 .planTable__row{font-size:16px;font-weight:500;color:var(--text-primary)}
+/* single-column "Missing fields" table. Styled off .planTable rather than .ft
+   so the header reads as a HEADER ROW inside the box, not a floating label
+   above it (the .ft variant had no header row and a heavier 12px radius). */
+/* missing-field readback: a two-column .ft table, index left / name right.
+   .ft__row's 125px key column is sized for "From"/"To" labels, so narrow it. */
+.fldTbl{margin:0}
+.fldTbl .ft__row{grid-template-columns:56px 1fr}
+/* inside a summaryCard the flex gap (12px) provides the spacing, so the label
+   and table carry no margins of their own or the gap doubles up */
+.summaryCard .ft-label{margin-bottom:0}
 .planNum{width:22px;height:22px;border-radius:50%;border:1px dashed #c7c9d1;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#656a81;justify-self:start}
 .planNum--done{background:#029900;border-color:#029900;color:#fff}
 /* loading step: no border, just the II spinner */
@@ -364,6 +374,7 @@ button{font-family:inherit}
    radius 4, padding 2px 8px. Colors resolved to hex from get_variable_defs. */
 .badge{display:inline-flex;align-items:center;font-size:12px;font-weight:500;border-radius:4px;padding:2px 8px;line-height:1.4}
 .badge--pos{background:#e5f4d9;color:#108000}        /* Positive / Published / Verified */
+.badge--err{background:#fad7d6;color:#d52b1e}        /* Error (Ui/Negative, matches .qaBadge--err) */
 .badge--draft{background:#d6ebff;color:#0a73dc}      /* Draft */
 .badge--edited{background:#ffff80;color:#393a3d}     /* Edited (Ui/Edited) */
 .badge--info{background:#ddd6fe;color:#6f5ade}       /* Info */
@@ -724,7 +735,11 @@ select.fbsel--active{border-color:#7b61ff}
   cursor:text}
 .promptBox__content{display:flex;flex-direction:column;gap:12px;padding:20px 24px}
 .promptBox__input{border:0;outline:0;width:100%;background:transparent;font-family:inherit;font-size:16px;line-height:1.5;letter-spacing:.01em;color:var(--text-primary);min-height:24px}
-.promptBox__input--filled{color:var(--text-primary)}
+.promptBox__input--filled{color:var(--text-primary);white-space:pre-wrap}
+.msgList{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.msgList li{display:flex;flex-direction:column;gap:2px}
+.msgList__k{font-weight:500}
+.msgList__v{opacity:.85}
 .promptBox__actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .promptBox__ctrl{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid #dddee3;border-radius:12px;background:transparent;cursor:pointer;padding:0}
 .promptBox__ctrl:hover{background:rgba(0,0,0,.04)}
@@ -815,6 +830,7 @@ select.fbsel--active{border-color:#7b61ff}
 .simMenu{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:20;background:#fff;border:1px solid #dddee3;border-radius:12px;box-shadow:0 8px 24px rgba(13,15,26,.12);padding:6px;display:flex;flex-direction:column;min-width:260px}
 .simMenu__item{display:flex;align-items:center;gap:8px;text-align:left;padding:10px 14px;border:0;background:transparent;border-radius:8px;font-family:inherit;font-size:14px;color:var(--text-primary);cursor:pointer}
 .simMenu__item:hover{background:#f5f3ff;color:#5d47d5}
+.simMenu__item--muted{color:#8a8b93}
 
 .hidden{display:none!important}
 </style>
@@ -826,6 +842,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=33"></script>
+<script src="app.js?v=59"></script>
 </body>
 </html>

@@ -252,7 +252,8 @@ function agentLoader(label, tasks, bare=false){
 /* status badge */
 const badge = (t)=>{
   if(t==='Published'||t==='Verified') return `<span class="badge badge--pos">${t}</span>`;
-  if(t==='Draft') return `<span class="badge badge--draft">${t}</span>`;   // blue #d6ebff/#0a73dc (nodes 25033/25303)
+  if(t==='Draft') return `<span class="badge badge--draft">${t}</span>`;
+  if(t==='Error') return `<span class="badge badge--err">${t}</span>`;   // blue #d6ebff/#0a73dc (nodes 25033/25303)
   if(t==='Edited') return `<span class="badge badge--edited">${t}</span>`;
   return `<span class="badge badge--neutral">${t}</span>`;
 };
@@ -355,7 +356,7 @@ const COL = {
   search:[{label:'Campaign name',key:'name'},{label:'Campaign ID',key:'id'},{label:'Status',key:'status',badge:1},{label:'Start date',key:'start'},{label:'End date',key:'end'},{label:'Last modified',key:'mod',info:1}],
   aud:[{label:'Audience name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Description',key:'desc'},{label:'Size',key:'size'}],
   billing:[{label:'Billing code',key:'code',info:1},{label:'QA status',key:'status',badge:1},{label:'Title',key:'title'},{label:'No. of offers',key:'off'},{label:'Start date',key:'start'},{label:'End date',key:'end',editedKey:'edited'},{label:'SKU',key:'sku'}],
-  place:[{label:'Placement name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Template',key:'tmpl'},{label:'Impression cap',key:'cap'},{label:'No. of offers',key:'off'}],
+  place:[{label:'Access point name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'Template',key:'tmpl'},{label:'Impression cap',key:'cap'},{label:'No. of offers',key:'off'}],
   exp:[{label:'Experiment name',key:'name',info:1},{label:'QA status',key:'status',badge:1},{label:'ID',key:'id'},{label:'Start date',key:'start'},{label:'End date',key:'end',editedKey:'edited'}],
 };
 
@@ -365,7 +366,7 @@ const withMod = (cols)=>[...cols,{label:'Last updated',key:'mod'}];
 function campaignDataTables(endDate, edited){
   return `
     <div class="sec-label">Audiences</div>${tableHTML(withMod(COL.aud),AUDIENCES)}
-    <div class="sec-label">Placement</div>${tableHTML(withMod(COL.place),PLACEMENTS)}
+    <div class="sec-label">Access point</div>${tableHTML(withMod(COL.place),PLACEMENTS)}
     <div class="sec-label">Experiments</div>${tableHTML(withMod(COL.exp),experimentRows(endDate,edited))}`;
 }
 
@@ -382,7 +383,7 @@ function viewToggle(active){ // active: 'table' | 'tree'
 }
 
 /* ---------- TREE view — data model + real expand/collapse ---------- */
-const NODE_COLORS={segment:'var(--node-segment)',experiment:'var(--node-experiment)',billing:'var(--node-billing)',placement:'var(--node-placement)',campaign:'var(--node-campaign)',treatment:'var(--node-experiment)',uipattern:'var(--node-placement)',template:'var(--node-placement)'};
+const NODE_COLORS={segment:'var(--node-segment)',experiment:'var(--node-experiment)',billing:'var(--node-billing)',placement:'var(--node-access point)',campaign:'var(--node-campaign)',treatment:'var(--node-experiment)',uipattern:'var(--node-access point)',template:'var(--node-access point)'};
 // tile glyphs = real DS icons tinted WHITE (Figma: icon-inverse on the colored tile)
 const whiteIcon=(name)=>`<span class="tile-ico">${icon(name,16)}</span>`;
 const NODE_ICON={segment:whiteIcon('personThree'),experiment:whiteIcon('beaker'),billing:whiteIcon('percent'),placement:whiteIcon('thumbnail'),campaign:whiteIcon('megaphone'),treatment:whiteIcon('beaker'),uipattern:whiteIcon('thumbnail'),template:whiteIcon('thumbnail')};
@@ -390,7 +391,7 @@ const NODE_ICON={segment:whiteIcon('personThree'),experiment:whiteIcon('beaker')
 let treeExpanded = new Set();
 /* render one data node. n = {id,type,k,v,meta,children[],pre,extra}
    pre  = HTML rendered ABOVE children (e.g. segment LABEL/Value grid)
-   extra= HTML rendered BELOW children (e.g. placement preview card) */
+   extra= HTML rendered BELOW children (e.g. access point preview card) */
 function treeNode(n){
   const hasKids = (n.children&&n.children.length) || n.extra || n.pre;
   const open = treeExpanded.has(n.id);
@@ -553,7 +554,7 @@ function buildTree(){
   // edit-flow leaves keep the plain preview card.
   const leafNode=(o,parentId,i)=>{
     const id=`${parentId}/leaf${i}`;
-    return {id,type:'placement',k:'Placement/Template',v:o.placement,meta:o.template,
+    return {id,type:'placement',k:'Access point/Template',v:o.placement,meta:o.template,
       extra:treeRichMode?richLeafExtra(o,id):previewCard()};
   };
   // group-node attribute panel: rich mode shows the REAL per-level attributes,
@@ -617,7 +618,7 @@ const TREE_DIMS = [
   {key:'experiment',label:'Experiment', type:'experiment'},
   {key:'segment',   label:'Segment',    type:'segment'},
   {key:'treatment', label:'Treatment',  type:'treatment'},
-  {key:'placement', label:'Placement',  type:'placement'},
+  {key:'placement', label:'Access point',  type:'placement'},
   {key:'uipattern', label:'UI Pattern', type:'uipattern'},
   {key:'template',  label:'Template',   type:'template'},
 ];
@@ -732,7 +733,7 @@ scenes.home = (state={})=>{
   const shortcuts = [
     ['Create campaign','Build email, push, or in-app campaigns with AI-assisted copy.', scCampaign],
     ['Run experiment','A/B test subject lines, offers and send times at scale.', scExperiment],
-    ['Create IPD','Design in-product display creatives for targeted placements.', scIpd],
+    ['Create IPD','Design in-product display creatives for targeted access points.', scIpd],
   ].map(([t,d,ic])=>`<div class="scard"><div class="si">${ic}</div><div><div class="st">${t}</div><div class="sd">${d}</div></div></div>`).join('');
   return `<div class="content">
     ${topbar('<span>Home</span>')}
@@ -750,11 +751,12 @@ scenes.home = (state={})=>{
             </div>
           </div>
         </div>
-        <!-- Simulate a scenario: dashed pill → the placement-change scenario -->
+        <!-- Simulate a scenario: dashed pill → the access point-change scenario -->
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
-            <button class="simMenu__item" data-sim="pc">Change placement template on an experience</button>
+            <button class="simMenu__item" data-sim="pc2">Change access point and template on an experience</button>
+            <button class="simMenu__item simMenu__item--muted" data-sim="pc">Change access point, fill fields up front (earlier draft)</button>
           </div>
         </div>
       </div>
@@ -918,7 +920,7 @@ function p2SummaryTables(hl=true){
   const placeHi=new Set([0,1,3,5]);
   const place = PLACEMENTS.map((r,i)=>({...r,editedRow:hl&&placeHi.has(i)}));
   return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
-    <div class="sec-label">Placement</div>${tableHTML(COL.place,place)}
+    <div class="sec-label">Access point</div>${tableHTML(COL.place,place)}
     <div class="sec-label">Experiments</div>${tableHTML(COL.exp,experimentRows('04/22/2026',false))}`;
 }
 
@@ -1237,7 +1239,7 @@ scenes.campaignTree = (state={view:'tree',tab:'experiences'})=>{
 /* ============================================================
    SCENARIO 2 — WORKBOOK SCENES
    Reuses artifactScreen, tableHTML (edited highlights), plan/step spinners,
-   cumulative WB_* transcript. Placement rows drill down to a content table.
+   cumulative WB_* transcript. Access point rows drill down to a content table.
    ============================================================ */
 const WB_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>Change order - DIWM QB Live campaign</span>';
 
@@ -1284,7 +1286,7 @@ function contentDetail(hl=false){
 // PREVIEW view: 9 creative cards rendering the actual creative. No edit
 // highlights in the create flow.
 function helloboxCreative(hl=false, opts={}){
-  // opts.sub / opts.foot are the fields the hellobox image placement adds — rendered
+  // opts.sub / opts.foot are the fields the hellobox image access point adds — rendered
   // with the inline highlight so the yellow hugs the text, not the whole row.
   const mark = (t)=> opts.hl===false ? t : `<span class="cd-hl">${t}</span>`;
   const sub  = opts.sub  ? `<div class="hb-sub">${mark(opts.sub)}</div>` : '';
@@ -1314,7 +1316,7 @@ function contentPreview(hl=false){
   return `<div class="cd-list">${cards}</div>`;
 }
 // experience drill-down Creative tab: ONE creative, bare — the .cd-card outline
-// only groups multiple creatives on a placement, so it's dropped here.
+// only groups multiple creatives on a access point, so it's dropped here.
 function singleCreative(view){
   if(view==='preview') return `<div class="creativeCenter">${helloboxCreative()}</div>`;
   return `<div class="cd-row">${cdPair('HEADLINE',CREATIVE_HEADLINE,false)}${cdPair('BODY',CREATIVE_BODY,false)}</div>
@@ -1323,7 +1325,7 @@ function singleCreative(view){
 // dispatch by view
 function creativesBody(view, hl=false){ return view==='preview' ? contentPreview(hl) : contentDetail(hl); }
 
-// placement table where each row drills into the content table (steps 2 & 3).
+// access point table where each row drills into the content table (steps 2 & 3).
 // rows 0,1,3,5 highlighted; every row clickable (data-drillplace) to open content.
 function placementDrill(hl=true){
   // rows 1,2,4,6 (1-indexed) highlighted; the rest stay white
@@ -1378,8 +1380,8 @@ scenes.billingIDs = (state={})=>{
   return artifactScreen({crumb:WB_CRUMB,title:'Billing offers - DIWM QB Live campaign',table:billTbl,step:'1.  Change billing offer IDs',body,stepLoading:loading});
 };
 
-/* WB step 2 & 3 share a placement table that drills into the content table.
-   state.drill = index of the placement row being viewed (content table shown). */
+/* WB step 2 & 3 share a access point table that drills into the content table.
+   state.drill = index of the access point row being viewed (content table shown). */
 function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loading,tasks,mode,drill,drillLoading,crumb:crumbIn,creativeView,hl=true}){
   let canvas, title, crumb=crumbIn||WB_CRUMB, backForDrill=false;
   if(drill!==undefined && drill!==null){
@@ -1396,8 +1398,8 @@ function wbPlacementScene({step,stepNum,conv,activeReply,replyId,loaderLabel,loa
       ${drillLoading?'':hlBar(hl)}`;
     crumb = '<span>Home</span> <span class="sep">/</span> <span>DIWM QB Live campaign</span>';
   } else {
-    title=`Placement - DIWM QB Live campaign`;
-    canvas = `<div class="detail-h"><span class="title">Placement - DIWM QB Live campaign</span></div><div style="height:16px"></div>${loading?skeletonTable(COL.place,false):placementDrill(hl)+hlBar(hl)}`;
+    title=`Access point - DIWM QB Live campaign`;
+    canvas = `<div class="detail-h"><span class="title">Access point - DIWM QB Live campaign</span></div><div style="height:16px"></div>${loading?skeletonTable(COL.place,false):placementDrill(hl)+hlBar(hl)}`;
   }
   const bodyFull = loading ? conv + agentLoader(loaderLabel, tasks||[]) : conv + activeReply;
   const content = `<div class="content">${topbar(crumb)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
@@ -1423,7 +1425,7 @@ scenes.campaignObjectWB = (state={view:'table'})=>{
   let body;
   if(loading){ body = priorConv + agentLoader('Reviewing change summary', state.tasks||[]); }
   else { body = priorConv + (reveal>=1?summaryMsg:'') + (reveal>=2?reviewMsg:''); }
-  // campaign summary canvas with billing + placement rows highlighted yellow
+  // campaign summary canvas with billing + access point rows highlighted yellow
   const hl = state.hl!==false;
   const canvas = loading ? summarySkeleton() : `<div class="detail-h"><span class="title">Campaign summary - DIWM QB Live campaign</span></div>
     <div style="height:10px"></div>
@@ -1435,7 +1437,7 @@ ${metaGrid()}
   return content + aiPanel({step:'2.  Review change summary',body,stepLoading:loading});
 };
 
-// summary tables for WB review: audiences (plain), billing (2 rows yellow), placement (all yellow), experiments
+// summary tables for WB review: audiences (plain), billing (2 rows yellow), access point (all yellow), experiments
 function wbSummaryTables(hl=true){
   // billing-ID/IPD flow does NOT change end dates → keep original 04/22 (unchanged);
   // the whole-row highlight flags the billing offers whose IDs changed.
@@ -1443,7 +1445,7 @@ function wbSummaryTables(hl=true){
   const placeHi=new Set([0,1,3,5]);
   const place = PLACEMENTS.map((r,i)=>({...r,editedRow:hl&&placeHi.has(i)}));
   return `<div class="sec-label">Audiences</div>${tableHTML(COL.aud,AUDIENCES)}
-    <div class="sec-label">Placement</div>${tableHTML(COL.place,place)}
+    <div class="sec-label">Access point</div>${tableHTML(COL.place,place)}
     <div class="sec-label">Experiments</div>${tableHTML(COL.exp,experimentRows('04/22/2026',false))}`;
 }
 
@@ -1460,7 +1462,7 @@ scenes.campaignTreeWB = (state={view:'tree',tab:'experiences'})=>{
   } else if(state.tab==='insights'){
     mainInner = insightsPanel();
   } else {
-    // Campaign meta tab reflects the WORKBOOK edits (billing IDs + placement highlights), not the prompt-flow end-date diff
+    // Campaign meta tab reflects the WORKBOOK edits (billing IDs + access point highlights), not the prompt-flow end-date diff
     mainInner = `${metaGrid()}<div class="data-head"><span class="h">Campaign data</span>${viewToggle(state.view)}</div><div id="dataZone">${state.view==='tree'?treeView(true):wbSummaryTables()}</div>`;
   }
   const content = `<div class="content">${topbar(WB_CRUMB)}<div class="scroll"><div class="pad">
@@ -1517,7 +1519,7 @@ scenes.p2Billing = (state={})=>{
   return artifactScreen({crumb:P2_CRUMB,title:'Billing offers - DIWM QB Live campaign',table:billTbl,step:'1.  Change billing offer ID',body,stepLoading:loading});
 };
 
-/* ---- P2 step 2: Change IPD content and images (placement drill-down) ---- */
+/* ---- P2 step 2: Change IPD content and images (access point drill-down) ---- */
 scenes.p2Ipd = (state={})=>{
   const loading=state.loading;
   const conv = P2_TO_IPD(loading?0:1, loading?0:-1);
@@ -1619,7 +1621,7 @@ const CR_CRUMB = '<span>Home</span> <span class="sep">/</span> <span>DIWM QB Liv
 const CR_PLAN_TASKS = [
   'Parse and validate campaign meta',
   'Parse and validate audiences',
-  'Parse and validate placements',
+  'Parse and validate access points',
   'Parse and validate experiments',
   'Review campaign summary',
   'Create experiences',
@@ -1647,7 +1649,7 @@ const CR_PLAN = (done=0, loading=-1)=> agentMsg(`<div class="summaryCard"><p cla
 const CR_META    = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the campaign meta.${objectCard('megaphone','Campaign meta - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
 const CR_AUD     = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the audiences.${objectCard('personThree','Audience - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Approved')}</div>`);
 const CR_BILLING = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the billing offers.${objectCard('percent','Billing offer - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
-const CR_CREATIVE= ()=> agentMsg(`<div class="chatBubble">Parsed and validated the placements.${objectCard('thumbnail','Placements - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
+const CR_CREATIVE= ()=> agentMsg(`<div class="chatBubble">Parsed and validated the access points.${objectCard('thumbnail','Access points - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${recordedReply('Approved')}</div>`);
 const CR_EXP     = ()=> agentMsg(`<div class="chatBubble">Parsed and validated the experiments.${objectCard('beaker','Experiments - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 5.</div>${recordedReply('Approved')}</div>`);
 // composed "history up to" helpers
 const CR_TO_PLAN     = ()=> CR_USER() + CR_CREATED() + CR_UNDERSTOOD();
@@ -1779,13 +1781,13 @@ function metaGrid2(pairs){
   return `<div class="meta meta--bare">${pairs.map(([k,v])=>`<div><div class="meta__k">${k}</div><div class="meta__v">${v}</div></div>`).join('')}</div>`;
 }
 
-/* ---- CR task 4: Creative, placements and content (Placement table → Creatives drill) ---- */
+/* ---- CR task 4: Creative, access points and content (Access point table → Creatives drill) ---- */
 scenes.crCreative = (state={})=>{
   const loading=state.loading;
   const conv = CR_TO_CREATIVE(loading?2:3, loading?2:-1);
   const body = loading
-    ? conv + agentLoader('Creating creative, placements and content', state.tasks||[])
-    : conv + agentMsg(`<div class="chatBubble">Parsed and validated the placements.${objectCard('thumbnail','Placements - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${replyBtn('Approve','crApproveCreative')}</div>`);
+    ? conv + agentLoader('Creating creative, access points and content', state.tasks||[])
+    : conv + agentMsg(`<div class="chatBubble">Parsed and validated the access points.${objectCard('thumbnail','Access points - DIWM QB Live campaign')}<div class="bubble-q">Does this look ok? I'll then proceed to task 4.</div>${replyBtn('Approve','crApproveCreative')}</div>`);
   let canvas;
   if(state.drill!==undefined && state.drill!==null){
     const view = state.creativeView==='preview' ? 'preview' : 'detail';
@@ -1797,10 +1799,10 @@ scenes.crCreative = (state={})=>{
       <div style="height:16px"></div>${drillBody}`;
   } else {
     const tbl = loading ? skeletonTable(COL.place,false) : tableHTML(COL.place, PLACEMENTS, {drillrow:true});
-    canvas = `<div class="detail-h"><span class="title">Placements - DIWM QB Live campaign</span></div><div style="height:16px"></div>${tbl}`;
+    canvas = `<div class="detail-h"><span class="title">Access points - DIWM QB Live campaign</span></div><div style="height:16px"></div>${tbl}`;
   }
   const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">${canvas}</div></div></div>`;
-  return content + aiPanel({step:'3.  Parse and validate placements',body,stepLoading:loading});
+  return content + aiPanel({step:'3.  Parse and validate access points',body,stepLoading:loading});
 };
 
 /* ---- CR task 5: Experiment (table → treatments drill) ---- */
@@ -2018,7 +2020,7 @@ function runIntakeWB(){
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),ldr+Math.round(slot*(i+1)))));
   timers.push(setTimeout(()=>go('coIntentWB',{phase:'msg-understood'}),ldr+dur));
 }
-// placement row → content drill-down: skeleton flash (~1100ms) then the content table
+// access point row → content drill-down: skeleton flash (~1100ms) then the content table
 function drillInto(scene, idx){
   clearTimers();
   go(scene,{drill:idx,drillLoading:true});
@@ -2146,7 +2148,7 @@ function render(scene, state){
    click to drive it manually; toggle autopilot with the 'p' key.
    ============================================================ */
 // single scenario in this build: change the template on one experience
-let scenario = 'pc';
+let scenario = 'pc2';   // workflow 2 is the current one; 'pc' is the earlier draft
 const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','changeMeta','campaignObject','campaignTree'];
 const FLOW_WORKBOOK = ['home','coIntentWB','ipdContent','campaignObjectWB','campaignTreeWB'];
 const FLOW_PROMPTCO = ['home','p2Intent','p2Ipd','p2Review','p2Tree'];
@@ -2222,7 +2224,7 @@ function go(name, state={}){
 function scheduleAuto(name, state){
   const t=(fn,ms)=>timers.push(setTimeout(fn,ms));
   if(name==='home') t(()=>trigger.home(),900);
-  // placement change: pick one row → send the ask → confirm each card in turn
+  // access point change: pick one row → send the ask → confirm each card in turn
   else if(name==='pcSearch' && !state.loading && !state.phase){
     const p=state.pc;
     if(p==='understood')      t(()=>trigger.pcLooksGood(),1600);
@@ -2258,9 +2260,10 @@ const trigger = {
   viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
   // ── PLACEMENT CHANGE triggers ──
   // composer SEND with a selection → AI reads it → intent + carry-over in one response
-  pcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runPCUnderstand(); },
+  pcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers();
+    (scenario==='pc2' ? runPC2Understand : runPCUnderstand)(); },
   // "Looks good" on the understanding → AI proposes a name for the new experience
-  pcLooksGood:()=>{ recordPillThen(()=>runPCNaming()); },
+  pcLooksGood:()=>{ recordPillThen(()=> (current.state.pc2 ? runPC2Naming() : runPCNaming())); },
   // Proceed on the name card → the fields the new template adds
   pcNameProceed:()=>{ recordPillThen(()=>runPCFields()); },
   // composer SEND carrying the corrected body copy → canvas + panel both load
@@ -2269,10 +2272,16 @@ const trigger = {
   pcApproveBodyFix:()=>{ recordPillThen(()=>runPCExperience()); },
   // Proceed on the field card → planning loader → plan
   pcProceed:()=>{ recordPillThen(()=>runPCPlan()); },
-  // "Looks good" on the plan → task 1 (update the placement)
+  // "Looks good" on the plan → task 1 (update the access point)
   pcApprovePlan:()=>{ recordPillThen(()=>runPCPlacement()); },
   // Approve on task 2 → done
   pcApproveExp:()=>{ recordPillThen(()=>runPCDone()); },
+  /* ── workflow 2 (pc2). Its field card is a READBACK, so Proceed needs no
+     collected values; and there is no plan, so Proceed builds the experience
+     directly. ── */
+  pc2NameProceed:()=>{ recordPillThen(()=>runPC2Fields()); },
+  pc2Proceed:()=>{ recordPillThen(()=>runPC2Experience()); },
+  pc2SendContent:()=>{ clearTimers(); runPC2Content(); },
   // autopilot only: fill the two fields, then Proceed
   pcAutofill:()=>{ const st=current.state;
     render('pcSearch',{...st,fields:{...PC_FIELD_VALUES}});
@@ -2287,14 +2296,14 @@ const trigger = {
   // ── WORKBOOK triggers ──
   wbApproveUnderstood:()=>{ recordPillThen(()=>runWBPlan()); },
   wbApprovePlan:()=>{ recordPillThen(()=>runWBStep('ipdContent','Changing IPD content and images','ipdContent',{})); },
-  wbApproveBilling:()=>{ recordPillThen(()=>runWBStep('ipdContent','Loading placements','ipdContent',{})); },   // loader → placement table (merged step 2)
+  wbApproveBilling:()=>{ recordPillThen(()=>runWBStep('ipdContent','Loading access points','ipdContent',{})); },   // loader → access point table (merged step 2)
   wbApproveIpd:()=>{ recordPillThen(()=>runWBReview()); },                                                       // step 2 done → review (step 3)
   wbApproveReview:()=>{ recordPillThen(()=>runLoader('campaignTreeWB',LOADERS.saving,'campaignTreeWB',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
   wbLooksGoodFinal:()=>{ autopilot=false; go('home'); },
   // ── SCENARIO 3 (prompt CO) triggers ──
   p2ApproveUnderstood:()=>{ recordPillThen(()=>runP2Plan()); },
   p2ApprovePlan:()=>{ recordPillThen(()=>runP2Step('p2Ipd','Changing IPD content and images','p2Ipd',{})); },
-  p2ApproveBilling:()=>{ recordPillThen(()=>runP2Step('p2Ipd','Loading placements','p2Ipd',{})); },
+  p2ApproveBilling:()=>{ recordPillThen(()=>runP2Step('p2Ipd','Loading access points','p2Ipd',{})); },
   p2ApproveIpd:()=>{ recordPillThen(()=>runP2Review()); },
   p2ApproveReview:()=>{ recordPillThen(()=>runLoader('p2Tree',LOADERS.saving,'p2Tree',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
   p2LooksGoodFinal:()=>{ autopilot=false; go('home'); },
@@ -2302,8 +2311,8 @@ const trigger = {
   crApproveUnderstood:()=>{ recordPillThen(()=>runCRPlan()); },
   crApprovePlan:()=>{ recordPillThen(()=>runCRStep('crMeta','Parsing and validating campaign meta','crMeta',{})); },
   crApproveMeta:()=>{ recordPillThen(()=>runCRStep('crAudience','Parsing and validating audiences','crAudience',{})); },
-  crApproveAud:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating placements','crCreative',{})); },
-  crApproveBilling:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating placements','crCreative',{})); },
+  crApproveAud:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating access points','crCreative',{})); },
+  crApproveBilling:()=>{ recordPillThen(()=>runCRStep('crCreative','Parsing and validating access points','crCreative',{})); },
   crApproveCreative:()=>{ recordPillThen(()=>runCRStep('crExperiment','Parsing and validating experiments','crExperiment',{})); },
   crApproveExp:()=>{ recordPillThen(()=>runCRStep('crSummary','Creating campaign summary','crSummary',{})); },
   crApproveSummary:()=>{ recordPillThen(()=>runLoader('crTree',{label:'Creating experiences',tasks:LOADERS.saving.tasks,after:2900},'crTree',{view:'tree',tab:'experiences'},{tab:'experiences'})); },
@@ -2343,10 +2352,10 @@ function bindToggle(main, name, state){
         // preview card only on the final tree scenes; Create's tree runs in RICH mode
         zone.innerHTML = treeView(name==='campaignTree'||name==='campaignTreeWB'||name==='p2Tree'||name==='crTree'||name==='crSummary', name==='crTree'||name==='crSummary');
       } else if(name==='campaignTreeWB'||name==='campaignObjectWB'){
-        // Workbook flow Table view = billing-ID + placement edits, NOT the end-date diff
+        // Workbook flow Table view = billing-ID + access point edits, NOT the end-date diff
         zone.innerHTML = wbSummaryTables(current.state.hl!==false);
       } else if(name==='p2Tree'||name==='p2Review'){
-        // Scenario 2 (prompt billing) Table view = single billing-ID + placement edits
+        // Scenario 2 (prompt billing) Table view = single billing-ID + access point edits
         zone.innerHTML = p2SummaryTables(current.state.hl!==false);
       } else if(name==='crTree'||name==='crSummary'){
         // Create flow Table view: newly created data, nothing edited
@@ -2514,7 +2523,8 @@ function wire(name, state){
     // drill-down bindings: back, sub-tabs, creative Detail | Preview toggle.
     // The task-2 review canvas has no back button but keeps its tabs.
     const onTask1 = state.pc==='placement';
-    const onTask2 = state.pc==='building'||state.pc==='experience'||state.pc==='done';
+    const onTask2 = state.pc==='building'||state.pc==='experience'||state.pc==='done'
+      || ['building','experience','fixing','verified','done'].includes(state.pc2);
     if(onTask1) wireCreativeToggle(main,'pcSearch',state);
     if(state.expDrill!==undefined && state.expDrill!==null){
       const bk=main.querySelector('[data-expback]');
@@ -2524,15 +2534,17 @@ function wire(name, state){
       main.querySelectorAll('[data-exptab]').forEach(tb=>tb.onclick=()=>{ autopilot=false; go('pcSearch',{...state,expDrillLoading:false,expTab:tb.dataset.exptab}); });
       wireCreativeToggle(main,'pcSearch',state);
     }
-    if(!state.pc && sel.size && !state.typed) scheduleAskType('pcSearch', CHANGE_TMPL_PROMPT);
+    if(!state.pc && !state.pc2 && sel.size && !state.typed) scheduleAskType('pcSearch', CHANGE_TMPL_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{
       e.stopPropagation(); autopilot=false;
       // while task 1 shows the over-limit error, Send carries the corrected copy
-      if(state.pc==='placement') trigger.pcSendBodyFix(); else trigger.pcSend();
+      if(state.pc==='placement') trigger.pcSendBodyFix();
+      else if(state.pc2==='experience') trigger.pc2SendContent();
+      else trigger.pcSend();
     };
     const chipX=main.querySelector('[data-chipclear]');
-    if(chipX) chipX.onclick=()=>{ if(state.pc) return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
+    if(chipX) chipX.onclick=()=>{ if(state.pc||state.pc2) return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
     // ── name card: arrives prefilled with the AI's proposal (no typing
     //    animation). Editing it keeps the value on state; emptying it disables
     //    Proceed, since a new experience has to be called something. ──
@@ -2546,17 +2558,24 @@ function wire(name, state){
         if(nameBtn){ nameBtn.disabled=!v; nameBtn.style.opacity=v?'':'.45'; nameBtn.style.cursor=v?'':'default'; }
       };
       nameEl.onkeydown=(e)=>{ if(e.key==='Enter'){ e.preventDefault(); nameEl.blur(); } };
-      if(nameBtn) nameBtn.onclick=()=>{ if(nameBtn.disabled) return; autopilot=false; trigger.pcNameProceed(); };
+      if(nameBtn) nameBtn.onclick=()=>{ if(nameBtn.disabled) return; autopilot=false;
+        (state.pc2 ? trigger.pc2NameProceed : trigger.pcNameProceed)(); };
     }
 
     // ── the body-copy fix: with the error showing, the ask auto-types into the
     //    composer so the user only has to send it. ──
     if(state.pc==='placement' && !state.fixTyped) scheduleAskType('pcSearch', USE_BODY_PROMPT, 'fixTyped');
+    if(state.pc2==='experience' && !state.fixTyped) scheduleAskType('pcSearch', pc2ContentPrompt(), 'fixTyped');
 
     // ── field card: this is a guided demo, so clicking into the FIRST field
     //    types out both answers (same 18ms/char cadence as the composer) rather
     //    than making the reviewer type them. Values are held live in `vals` and
     //    synced to state without a re-render, so the caret never jumps. ──
+    /* Workflow 2's pills. Bound OUTSIDE the inputs block below: pc2's field
+       card is a readback with NO [data-field] inputs, so anything inside
+       `if(inputs.length)` never runs for it. */
+    const p2p=main.querySelector('#pc2Proceed');
+    if(p2p) p2p.onclick=()=>{ autopilot=false; trigger.pc2Proceed(); };
     const inputs=[...main.querySelectorAll('[data-field]')];
     if(inputs.length){
       const vals={...(state.fields||{})};
@@ -2664,7 +2683,7 @@ function wire(name, state){
     const lg=main.querySelector('#looksGoodFinal'); if(lg) lg.onclick=()=>{autopilot=false;go('home');};
   }
 
-  // ── WORKBOOK flow reply pills + placement drill-down ──
+  // ── WORKBOOK flow reply pills + access point drill-down ──
   const wbPill=(id,fn)=>{const b=main.querySelector('#'+id); if(b) b.onclick=()=>{autopilot=false;fn();};};
   if(name==='coIntentWB'){
     wbPill('wbApproveUnderstood',()=>trigger.wbApproveUnderstood());  // understanding → plan
@@ -2680,7 +2699,7 @@ function wire(name, state){
   if(name==='campaignObjectWB' && !state.loading) wbPill('wbApproveReview',()=>trigger.wbApproveReview());
   if(name==='campaignTreeWB' && !state.loading) wbPill('wbLooksGoodFinal',()=>trigger.wbLooksGoodFinal());
 
-  // ── SCENARIO 3 (prompt CO) reply pills + placement drill-down ──
+  // ── SCENARIO 3 (prompt CO) reply pills + access point drill-down ──
   if(name==='p2Intent'){
     wbPill('p2ApproveUnderstood',()=>trigger.p2ApproveUnderstood());
     wbPill('p2ApprovePlan',()=>trigger.p2ApprovePlan());
@@ -2743,21 +2762,21 @@ function wire(name, state){
 
 /* ============================================================
    PLACEMENT CHANGE FLOW (1 Sep)
-   Find QB Payroll IPD experiences on the Banking - hellobox placement →
+   Find QB Payroll IPD experiences on the Banking - hellobox access point →
    single-select one → ask to change its template to hellobox image →
    AI states what it understood AND that it carries over the values
    from the previous template → "Looks good" → AI asks for the extra
-   fields the new placement adds (the user fills them, then Proceed) →
-   plan of 2 reviews: the updated placement, then the newly created
+   fields the new access point adds (the user fills them, then Proceed) →
+   plan of 2 reviews: the updated access point, then the newly created
    experience (drill-down view, no back button).
    ============================================================ */
-const FIND_EXP_PROMPT = 'Find all QB Payroll IPD experiences using Banking - hellobox placement.';
-const CHANGE_TMPL_PROMPT = 'Change placement to Batch save - hellobox and template to hellobox - text.';
+const FIND_EXP_PROMPT = 'Find all QB Payroll IPD experiences using Banking - hellobox access point.';
+const CHANGE_TMPL_PROMPT = 'Change access point to Batch save - hellobox and template to hellobox - text.';
 const NEW_TEMPLATE = 'helloboxText';
 const OLD_TEMPLATE = 'helloboxThirdParty';
 const OLD_PLACEMENT = 'Banking -hellobox';
 const NEW_PLACEMENT = 'Batch save -hellobox';
-// the new experience the placement change creates; the selected one is untouched
+// the new experience the access point change creates; the selected one is untouched
 const PC_PROPOSED_NAME = 'ELM9684-IPD-QBPayroll-BatchSaveHellobox-HighPS-US';
 // body copy limit for the text template — the carried-over copy runs over it
 const BODY_LIMIT = 100;
@@ -2830,7 +2849,7 @@ function expDrillCanvas(crumb, r, state, opts={}){
           <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
         </div></div>
       <div class="cd-attr">
-        <div><div class="cd-attr__k">PLACEMENT</div><div class="cd-attr__v">${opts.ap||r.ap}</div></div>
+        <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v">${opts.ap||r.ap}</div></div>
         <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v">${opts.hlTmpl?`<span class="cd-hl">${tmpl}</span>`:tmpl}</div></div>
       </div>` + (opts.newFields ? newFieldDetail(view, opts) : singleCreative(view));
   } else if(t==='experiment'){
@@ -2849,10 +2868,24 @@ function expDrillCanvas(crumb, r, state, opts={}){
 }
 
 /* Creative tab for the NEW experience: the carried-over values plus the two
-   fields the hellobox image placement adds, both marked as changed. */
+   fields the hellobox image access point adds, both marked as changed. */
 function newFieldDetail(view, opts){
   const f = opts.fields||{};
   const hl = opts.hl!==false;
+  /* Workflow 2: the new fields are still EMPTY (the user supplies the content
+     later) and the body copy is over its limit until they send a shorter one,
+     so each renders with its own field-level error instead of a value. */
+  if(opts.pending){
+    const fixed = !!opts.bodyFixed;
+    const bodyCopy = fixed ? BODY_FIXED : CREATIVE_BODY;
+    if(view==='preview') return `<div class="creativeCenter">${helloboxCreative(false,{sub:'',foot:'',tmpl:NEW_TEMPLATE,hl,body:bodyCopy})}</div>`;
+    const err = (msg)=>`<div class="cd-pair__err">${ERR_ICON}<span>${msg}</span></div>`;
+    const pendingPair = (k)=>`<div class="cd-pair"><div class="cd-pair__k">${k}</div><span class="cd-pair__v">-</span>${err(k.charAt(0)+k.slice(1).toLowerCase()+' needs content.')}</div>`;
+    const bodyPair = `<div class="cd-pair"><div class="cd-pair__k">BODY</div><span class="cd-pair__v${fixed&&hl?' cd-hl':''}">${bodyCopy}</span>${fixed?'':err(BODY_ERR)}</div>`;
+    return `<div class="cd-row">${cdPair('HEADLINE',CREATIVE_HEADLINE,false)}${bodyPair}</div>
+      <div class="cd-row" style="margin-top:16px">${pendingPair('SUBHEADER')}${cdPair('CTA',CREATIVE_CTA,false)}</div>
+      <div class="cd-row" style="margin-top:16px">${pendingPair('FOOTNOTE')}${cdPair('',' ',false)}</div>`;
+  }
   const sub  = f.subheader || PC_FIELD_VALUES.subheader;
   const foot = f.footnote  || PC_FIELD_VALUES.footnote;
   // by task 2 the body copy has been corrected, so it carries the highlight too
@@ -2862,7 +2895,7 @@ function newFieldDetail(view, opts){
     <div class="cd-row" style="margin-top:16px">${cdPair('FOOTNOTE',foot,hl)}${cdPair('',' ',false)}</div>`;
 }
 
-// QB Payroll IPD experiences on the Banking - hellobox placement (the search filter).
+// QB Payroll IPD experiences on the Banking - hellobox access point (the search filter).
 const PC_ROWS = [
   ['ELM9684-IPD-QBPayroll-Banking-MedPS…','4d738ef0-9505-11f1-86ec-a3e65…'],
   ['ELM9684-IPD-QBPayroll-Banking-HighPS…','5a12bc41-9505-11f1-86ec-a3e65…'],
@@ -2877,7 +2910,7 @@ const PC_ROWS = [
 ].map(([exp,eid])=>({exp,eid,status:'Published',ap:'Banking -hellobox',tmpl:OLD_TEMPLATE,prio:'13.0',by:'Stroupe, Kristin',mod:'06/30 18:30PST'}));
 const PC_COLS = [
   {label:'Experience',key:'exp',info:1},{label:'Experience ID',key:'eid'},
-  {label:'Status',key:'status',badge:1},{label:'Placement',key:'ap'},
+  {label:'Status',key:'status',badge:1},{label:'Access point',key:'ap'},
   {label:'Template',key:'tmpl'},{label:'Priority',key:'prio'},
   {label:'Created by',key:'by'},{label:'Last updated',key:'mod'},
 ];
@@ -2900,14 +2933,14 @@ const pcFtBlk=(label,from,to)=>`<div class="ft-label" style="margin:0">${label}<
     <div class="ft__row"><div class="ft__k">From</div><div class="ft__v">${from}</div></div>
     <div class="ft__row"><div class="ft__k">To</div><div class="ft__v">${to}</div></div></div>`;
 const PC_UNDERSTOOD_TABLE = (r)=>
-  pcFtBlk('Placement:', OLD_PLACEMENT, NEW_PLACEMENT)
+  pcFtBlk('Access point:', OLD_PLACEMENT, NEW_PLACEMENT)
   + pcFtBlk('Template:', OLD_TEMPLATE, NEW_TEMPLATE);
-// A placement change can't be applied in place, so it forks a new experience.
+// A access point change can't be applied in place, so it forks a new experience.
 // Informational, not a warning: nothing is lost and nothing needs deciding.
-const pcInfoNote = ()=>`<div class="infoNote">${INFO_ICON}<span>Changing the placement creates a new experience. The one you selected stays as it is.</span></div>`;
+const pcInfoNote = ()=>`<div class="infoNote">${INFO_ICON}<span>Changing the access point creates a new experience. The one you selected stays as it is.</span></div>`;
 // active=true → live reply pill; otherwise the recorded reply
 const PC_UNDERSTOOD = (r, active)=> agentMsg(
-  disclosure('Read your request, mapped the change',['Reading your request','Checking the new placement and template','Mapping the values to carry over'])
+  disclosure('Read your request, mapped the change',['Reading your request','Checking the new access point and template','Mapping the values to carry over'])
   + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood will be changed.</p>${PC_UNDERSTOOD_TABLE(r)}<p class="summaryCard__intro" style="font-weight:400">By default I'll carry over the headline, body, and CTA values from the previous template.</p>${pcInfoNote()}<p class="summaryCard__q">Does this look right? I'll continue once you confirm.</p>${active?replyBtn('Looks good','pcLooksGood'):recordedReply('Looks good')}</div>`);
 
 /* ---- Step 1b: confirm the name of the new experience ----
@@ -2924,7 +2957,7 @@ function pcNameCard(name, active){
     </div></div>${foot}</div>`);
 }
 
-/* ---- Step 2: the extra fields the new placement adds ---- */
+/* ---- Step 2: the extra fields the new access point adds ---- */
 const PC_FIELDS = [
   {key:'subheader', label:'Subheader', ph:'Enter the subheader'},
   {key:'footnote',  label:'Footnote',  ph:'Enter the footnote'},
@@ -2952,9 +2985,32 @@ function pcFieldCard(vals={}, active){
   return agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">The new template needs ${count} more fields. Fill these in and I'll put together a plan.</p><div class="fieldSet">${rows}</div>${foot}</div>`);
 }
 
+/* ============================================================
+   WORKFLOW 2 (pc2, 2026-09-11). Same change as the original, but:
+   - the fields the new template adds are PLAYED BACK AS A TABLE the user will
+     have to supply content for later, with a download, instead of inputs to
+     fill in on the spot. The agent does not block on content it does not need
+     yet.
+   - NO plan widget. Nothing is being sequenced for the user's benefit here, so
+     approving the readback goes straight to the new experience and its errors.
+   States: reading → understood → namingWait → naming → fieldsWait → fields
+           → building → experience → fixing → bodyfixed → done
+   ============================================================ */
+/* The fields as a READBACK, not a form. Each row names a field and says it
+   needs content; the download is how the user takes the list away. */
+function pc2FieldCard(active){
+  const rows = `<div class="ft-label">Missing fields:</div><div class="ft fldTbl">`
+    + PC_FIELDS.map((f,i)=>`<div class="ft__row"><div class="ft__k">${i+1}.</div><div class="ft__v">${f.label}</div></div>`).join('')
+    + `</div>`;
+  const count = PC_FIELDS.length===2 ? 'two' : String(PC_FIELDS.length);
+  return agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">The new template adds ${count} fields.</p>${rows}<p class="summaryCard__intro" style="font-weight:400">I'll create the experience and flag ${PC_FIELDS.length===1?'this field':`these ${count} fields`}, so you can fill ${PC_FIELDS.length===1?'it':'them'} in as soon as you have the content.</p>${dlLink2()}<p class="summaryCard__q">Shall I go ahead and create the experience?</p>${active?replyBtn('Proceed','pc2Proceed'):recordedReply('Proceed')}</div>`);
+}
+/* the download names what it contains: the fields still needing content */
+const dlLink2 = ()=>`<span class="link-dl">Download missing field summary ${DL_ICON}</span>`;
+
 /* ---- Step 3: the plan (2 reviews) ---- */
 const PC_PLAN_TASKS = [
-  'Update placement and template',
+  'Update access point and template',
   'Review the newly created experience',
 ];
 function pcPlanRows(doneCount=0, loadingIndex=-1){
@@ -2968,22 +3024,43 @@ function pcPlanRows(doneCount=0, loadingIndex=-1){
 const PC_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
   `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${pcPlanRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${active?replyBtn('Looks good','pcApprovePlan'):recordedReply('Looks good')}</div>`);
 
-/* ---- Task 1: updated placement + template. The carried-over body copy runs
+/* ---- Task 1: updated access point + template. The carried-over body copy runs
    over the text template's limit, so this message reports the error (Figma
    8327:12515) and its Approve pill is dead until the copy is fixed. ---- */
-const PC_PLACEMENT = ()=> agentMsg(`<div class="chatBubble">Updated the placement to Batch save - hellobox and the template to helloboxText, <span class="issueCount">found 1 issue.</span>${objectCard('thumbnail','Placement - Batch save hellobox')}<div class="msgErr">${ERR_ICON}<span>${BODY_ERR}</span></div><div class="bubble-q">Send me body copy within ${BODY_LIMIT} characters and I'll update it.</div></div>`);
+const PC_PLACEMENT = ()=> agentMsg(`<div class="chatBubble">Updated the access point to Batch save - hellobox and the template to helloboxText, <span class="issueCount">found 1 issue.</span>${objectCard('thumbnail','Access point - Batch save hellobox')}<div class="msgErr">${ERR_ICON}<span>${BODY_ERR}</span></div><div class="bubble-q">Send me body copy within ${BODY_LIMIT} characters and I'll update it.</div></div>`);
 /* ---- Task 1b: the user supplies shorter body copy → this replaces the error ---- */
-const PC_BODYFIX = (active)=> agentMsg(`<div class="chatBubble">I've updated the body copy. It's now ${BODY_FIXED.length} of ${BODY_LIMIT} characters.${objectCard('thumbnail','Placement - Batch save hellobox')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${active?replyBtn('Looks good','pcApproveBodyFix'):recordedReply('Looks good')}</div>`);
+const PC_BODYFIX = (active)=> agentMsg(`<div class="chatBubble">I've updated the body copy. It's now ${BODY_FIXED.length} of ${BODY_LIMIT} characters.${objectCard('thumbnail','Access point - Batch save hellobox')}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${active?replyBtn('Looks good','pcApproveBodyFix'):recordedReply('Looks good')}</div>`);
 /* ---- Task 2: the newly created experience ---- */
 const PC_EXPERIENCE = (active)=> agentMsg(`<div class="chatBubble">Here's the new experience with the values carried over and the new fields applied.${objectCard('edit','ELM9684-IPD-QBPayroll-BatchSaveHel…')}<div class="bubble-q">Does this look ok?</div>${active?replyBtn('Approve','pcApproveExp'):recordedReply('Approve')}</div>`);
+/* workflow 2: the experience exists and carries its errors, so this message
+   replaces both the plan and the separate access-point-review step. */
+const PC2_EXPERIENCE = ()=> agentMsg(
+  disclosure('Updated the access point and created the experience',['Updating the access point','Applying the new template','Carrying over the creative values'])
+  + `<div class="chatBubble">Here's the new experience on Batch save - hellobox, <span class="issueCount">found ${PC_FIELDS.length+1} issues.</span>${objectCard('edit','ELM9684-IPD-QBPayroll-BatchSaveHel…')}<div class="msgErr">${ERR_ICON}<span>Body copy is over the limit and ${PC_FIELDS.length===1?'one field has':(PC_FIELDS.length===2?'two fields have':PC_FIELDS.length+' fields have')} no content.</span></div><div class="bubble-q">Send me body copy within ${BODY_LIMIT} characters and I'll update it.</div></div>`);
+/* workflow 2: body copy supplied → that error clears, the fields stay open */
+const PC2_VERIFIED = ()=> agentMsg(
+  disclosure('Applied the content',['Reading your content','Checking the character limit','Updating the creative'])
+  + `<div class="chatBubble">I've applied the content. The experience is on v2 with no issues.${objectCard('edit','ELM9684-IPD-QBPayroll-BatchSaveHel…')}<div class="bubble-q">The experience is in Draft. If you want to publish it, go to Campaign Manager.</div><div class="link-cm">Go to Campaign Manager</div></div>`);
+/* Workflow 2's single content reply: the shorter body copy AND both new
+   fields, in one prompt. Plain text for the composer; the same pairs as real
+   list markup for the bubble, so the two never drift. */
+const PC2_CONTENT_PAIRS = [
+  {k:'Body',      v:BODY_FIXED},
+  {k:'Subheader', v:PC_FIELD_VALUES.subheader},
+  {k:'Footnote',  v:PC_FIELD_VALUES.footnote},
+];
+const pc2ContentPrompt = ()=> 'Use this content:\n'
+  + PC2_CONTENT_PAIRS.map(l=>`\u2022 ${l.k}: "${l.v}"`).join('\n');
+const pc2ContentBubble = ()=> `Use this content:<ul class="msgList">${
+  PC2_CONTENT_PAIRS.map(l=>`<li><span class="msgList__k">${l.k}</span><span class="msgList__v">"${l.v}"</span></li>`).join('')}</ul>`;
 const PC_DONE = ()=> agentMsg(
-  disclosure('Applied the placement change',['Updated the placement and template','Carried over the creative values','Created the new experience'])
-  + `<div class="chatBubble">I've applied the placement change. The new experience is in Draft. To make it live, publish it from Campaign Manager.<div class="link-cm">Go to Campaign Manager</div></div>`);
+  disclosure('Applied the access point change',['Updated the access point and template','Carried over the creative values','Created the new experience'])
+  + `<div class="chatBubble">I've applied the access point change. The new experience is in Draft. To make it live, publish it from Campaign Manager.<div class="link-cm">Go to Campaign Manager</div></div>`);
 
 const PC_NEW_EID  = 'e3ab45da-9505-11f1-86ec-a3e651c6bc02';
 
 
-/* ---- Scene: experience search results + placement-change conversation ----
+/* ---- Scene: experience search results + access point-change conversation ----
    state: phase (intake) | loading | selected[] | typed | opening
           pc: 'understood' | 'fields' | 'planning' | 'plan' | 'placement'
               | 'building' | 'experience' | 'done'
@@ -3042,7 +3119,7 @@ scenes.pcSearch = (state={})=>{
       else if(p==='fields')    tail += UND() + NAME() + pcFieldCard(f,true);
       else if(p==='planning')  tail += beforePlan() + agentLoader('Creating a plan', state.tasks||[]);
       else if(p==='plan')      tail += beforePlan() + PC_PLAN(0,-1,true);
-      else if(p==='updating')  tail += beforePlan() + PC_PLAN(0,0) + agentLoader('Updating the placement and template', state.tasks||[]);
+      else if(p==='updating')  tail += beforePlan() + PC_PLAN(0,0) + agentLoader('Updating the access point and template', state.tasks||[]);
       else if(p==='placement') tail += beforePlan() + PC_PLAN(0,-1) + PC_PLACEMENT();
       // the fix turn: old pill dead, user's corrected copy, loader / new message
       else if(p==='fixing')    tail += beforePlan() + PC_PLAN(0,0) + PC_PLACEMENT()
@@ -3059,22 +3136,51 @@ scenes.pcSearch = (state={})=>{
       // conversation scrolls up and the thread starts at the top
       body += `<div class="convoTurn">${tail}</div>`;
     }
+    /* ── workflow 2: same opening, then the field READBACK and straight to
+       the flagged experience. No plan widget. ── */
+    else if(state.pc2){
+      const q = state.pc2;
+      const nm = state.expName;
+      const UND2  = ()=> PC_UNDERSTOOD(pick,false);
+      const NAME2 = ()=> pcNameCard(nm,false);
+      const FIELD2= ()=> pc2FieldCard(false);
+      const before2 = ()=> UND2() + NAME2() + FIELD2();
+      const CONTENTREQ2 = ()=> userBubble(pc2ContentBubble());
+      let tail = selThread(state.asked||n||1) + PC_REQ();
+      if(q==='reading')         tail += agentLoader('Reading your request', state.tasks||[]);
+      else if(q==='understood') tail += PC_UNDERSTOOD(pick,true);
+      else if(q==='namingWait') tail += UND2() + agentLoader('Naming the new experience', state.tasks||[]);
+      else if(q==='naming')     tail += UND2() + pcNameCard(nm,true);
+      else if(q==='fieldsWait') tail += UND2() + NAME2() + agentLoader('Checking the new template', state.tasks||[]);
+      else if(q==='fields')     tail += UND2() + NAME2() + pc2FieldCard(true);
+      else if(q==='building')   tail += before2() + agentLoader('Creating the new experience', state.tasks||[]);
+      else if(q==='experience') tail += before2() + PC2_EXPERIENCE();
+      else if(q==='fixing')     tail += before2() + PC2_EXPERIENCE()
+                                      + `<div class="convoTurn">${CONTENTREQ2()}${agentLoader('Applying the content', state.tasks||[])}</div>`;
+      else if(q==='verified' || q==='done')
+                                tail += before2() + PC2_EXPERIENCE()
+                                      + `<div class="convoTurn">${CONTENTREQ2()}${PC2_VERIFIED()}</div>`;
+      body += `<div class="convoTurn">${tail}</div>`;
+    }
     table = tableHTML(PC_COLS,rows,{checkbox:true,select:true,selected:sel});
   }
   // the chip belongs to the search selection; once the plan starts running the
-  // canvas is a placement / new experience, so the selection context is spent
+  // canvas is a access point / new experience, so the selection context is spent
   const PLAN_RUNNING = ['updating','placement','fixing','bodyfixed','building','experience','done'];
-  const chip = (n && !PLAN_RUNNING.includes(state.pc)) ? n+' experience'+(n===1?'':'s')+' selected' : '';
-  const draft = (state.typed && !state.pc) ? CHANGE_TMPL_PROMPT
-              : (state.pc==='placement' && state.fixTyped) ? USE_BODY_PROMPT : '';
+  const PC2_RUNNING = ['building','experience','fixing','verified','done'];
+  const chip = (n && !PLAN_RUNNING.includes(state.pc) && !PC2_RUNNING.includes(state.pc2))
+    ? n+' experience'+(n===1?'':'s')+' selected' : '';
+  const draft = (state.typed && !state.pc && !state.pc2) ? CHANGE_TMPL_PROMPT
+              : (state.pc==='placement' && state.fixTyped) ? USE_BODY_PROMPT
+              : (state.pc2==='experience' && state.fixTyped) ? pc2ContentPrompt() : '';
   // Task tracker at the top of the panel. It appears only once the plan is
   // running (the two reviews), matching the other flows: 'N.  Task name', with
   // the spinner while that task executes and a check once it settles.
   const STEP_BY_PC = {
-    updating:   ['1.  Update placement and template', true],
-    placement:  ['1.  Update placement and template', false],
-    fixing:     ['1.  Update placement and template', true],
-    bodyfixed:  ['1.  Update placement and template', false],
+    updating:   ['1.  Update access point and template', true],
+    placement:  ['1.  Update access point and template', false],
+    fixing:     ['1.  Update access point and template', true],
+    bodyfixed:  ['1.  Update access point and template', false],
     building:   ['2.  Review the newly created experience', true],
     experience: ['2.  Review the newly created experience', false],
     done:       ['2.  Review the newly created experience', false],
@@ -3090,10 +3196,10 @@ scenes.pcSearch = (state={})=>{
   const p = state.pc;
   const onTask1Canvas = (p==='updating' || p==='placement' || p==='fixing' || p==='bodyfixed');
   if(!loading && !phase && onTask1Canvas){
-    // ONE placement changed, so there's nothing to pick from a list — the review
-    // lands directly in the placement's drill-down, showing its single creative.
+    // ONE access point changed, so there's nothing to pick from a list — the review
+    // lands directly in the access point's drill-down, showing its single creative.
     // We are in the PLACEMENT's drill-down (not an experience's Creative tab),
-    // so the placement / template card sits ABOVE the Creative heading.
+    // so the access point / template card sits ABOVE the Creative heading.
     const view = state.creativeView==='preview' ? 'preview' : 'detail';
     const f = state.fields||{};
     const hl = state.hl!==false;          // "Highlight changes" toggle, on by default
@@ -3104,7 +3210,7 @@ scenes.pcSearch = (state={})=>{
     // no border, the value stays as it is, red icon + message underneath
     const bodyErr = fixed ? '' : `<div class="cd-pair__err">${ERR_ICON}<span>${BODY_ERR}</span></div>`;
     const attrCard = `<div class="cd-attr">
-        <div><div class="cd-attr__k">PLACEMENT</div><div class="cd-attr__v">${hl?`<span class="cd-hl">${NEW_PLACEMENT}</span>`:NEW_PLACEMENT}</div></div>
+        <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v">${hl?`<span class="cd-hl">${NEW_PLACEMENT}</span>`:NEW_PLACEMENT}</div></div>
         <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v">${hl?`<span class="cd-hl">${NEW_TEMPLATE}</span>`:NEW_TEMPLATE}</div></div>
       </div>`;
     const creativeHead = `<div class="cd-head" style="margin:20px 0"><span class="cd-head__t">Creative</span>
@@ -3135,6 +3241,24 @@ scenes.pcSearch = (state={})=>{
   }
   // task 2 review: the new experience in the drill-down view, WITHOUT the back
   // button — it's the object under review here, not a place you navigated into.
+  /* ── workflow 2's canvas: the new experience, flagged. There is no separate
+     access-point review step, so this is the only task canvas. ── */
+  const q2 = state.pc2;
+  if(!loading && !phase && (q2==='building' || q2==='experience' || q2==='fixing' || q2==='verified' || q2==='done')){
+    const busy2 = (q2==='building' || q2==='fixing');
+    const fixed2 = (q2==='verified' || q2==='done');
+    const hlq = state.hl!==false;
+    const canvas = expDrillCanvas(PC_CRUMB, pick, {...state, expDrillLoading:busy2, expTab:state.expTab||'creative'}, {
+      noBack:true, newFields:true, pending:!fixed2, bodyFixed:fixed2,
+      hlTmpl:hlq, tmpl:NEW_TEMPLATE, ap:NEW_PLACEMENT,
+      name:(state.expName||PC_PROPOSED_NAME), eid:PC_NEW_EID,
+      /* content supplied → the experience is EDITED, so it moves to v2 and the
+         three new values carry the change highlight (user, 2026-09-11). */
+      status: fixed2 ? 'Edited' : 'Error', ver: fixed2 ? 'v2' : 'v1',
+      fields: fixed2 ? PC_FIELD_VALUES : {}, hl:hlq, hlBar:!busy2
+    });
+    return canvas + panel();
+  }
   if(!loading && !phase && (p==='building' || p==='experience' || p==='done')){
     const st = {...state, expDrillLoading: p==='building', expTab: state.expTab||'creative'};
     const hl2 = state.hl!==false;
@@ -3160,7 +3284,7 @@ scenes.pcSearch = (state={})=>{
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar(PC_CRUMB)}
     <div class="scroll"><div class="pad">
-      <h2 class="page-h">QB Payroll IPD experiences using Banking - hellobox placement</h2>
+      <h2 class="page-h">QB Payroll IPD experiences using Banking - hellobox access point</h2>
       <div class="toolbar">
         <div class="search">${I.search}<span>Search</span></div>
         <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
@@ -3222,7 +3346,7 @@ function runPCUnderstand(){
     {...base,pc:'understood'});
 }
 /* "Looks good" on the understanding → AI asks for the new fields (no loader:
-   it already knows which fields the placement adds) */
+   it already knows which fields the access point adds) */
 function runPCNaming(){
   const base={...pcBase(),pc:'namingWait',expName:current.state.expName};
   runPCStep(base,'Naming the new experience',['Reading the change','Checking naming conventions','Drafting a name'],2400,{...base,pc:'naming'});
@@ -3237,10 +3361,10 @@ function runPCPlan(){
   const base={...pcBase(),pc:'planning'};
   runPCStep(base,'Creating a plan',['Reading your inputs','Mapping requested changes','Ordering the tasks'],3400,{...base,pc:'plan'});
 }
-/* "Looks good" on the plan → task 1: update the placement AND template */
+/* "Looks good" on the plan → task 1: update the access point AND template */
 function runPCPlacement(){
   const base={...pcBase(),pc:'updating'};
-  runPCStep(base,'Updating the placement and template',['Updating the placement','Applying the new template','Carrying over the creative values'],2900,{...base,pc:'placement'});
+  runPCStep(base,'Updating the access point and template',['Updating the access point','Applying the new template','Carrying over the creative values'],2900,{...base,pc:'placement'});
 }
 /* the user supplies shorter body copy → canvas + panel both load → fixed copy */
 function runPCBodyFix(){
@@ -3251,6 +3375,32 @@ function runPCBodyFix(){
 function runPCExperience(){
   const base={...pcBase(),pc:'building'};
   runPCStep(base,'Creating the new experience',['Carrying over the creative values','Applying the new fields','Creating the experience'],2900,{...base,pc:'experience'});
+}
+/* ---- workflow 2 runners. The chain forks after the field readback: there is
+     no plan, so Proceed goes straight to building the experience. ---- */
+function runPC2Fields(){
+  const base={...pcBase(),pc2:'fieldsWait'};
+  runPCStep(base,'Checking the new template',['Saving the name','Reading the template','Finding the fields it needs'],2400,{...base,pc2:'fields'});
+}
+/* Proceed on the field readback → straight to the new experience (NO plan) */
+function runPC2Experience(){
+  const base={...pcBase(),pc2:'building'};
+  runPCStep(base,'Creating the new experience',['Updating the access point','Applying the new template','Carrying over the creative values'],2900,{...base,pc2:'experience'});
+}
+/* the user supplies shorter body copy → the error clears */
+/* the ONE content reply → both panes load → the experience is edited to v2 */
+function runPC2Content(){
+  const base={...pcBase(),pc2:'fixing'};
+  runPCStep(base,'Applying the content',['Reading your content','Checking the character limit','Updating the creative'],2600,{...base,pc2:'verified'});
+}
+function runPC2Understand(){
+  const st=current.state, sel=[...(st.selected||[])];
+  const base={selected:sel,asked:sel.length,typed:true,pc2:'reading'};
+  runPCStep(base,'Reading your request',['Reading your request','Checking the selected experience','Checking the access point'],2600,{...base,pc2:'understood'});
+}
+function runPC2Naming(){
+  const base={...pcBase(),pc2:'namingWait',expName:current.state.expName};
+  runPCStep(base,'Naming the new experience',['Reading the change','Checking naming conventions','Drafting a name'],2400,{...base,pc2:'naming'});
 }
 /* Approve on task 2 → done */
 function runPCDone(){
@@ -3307,13 +3457,35 @@ const STEPS_PC = [
   PC_S('experience'),
   PC_S('done'),
 ];
-function FLOW_STEPS(){ return STEPS_PC; }
+/* Workflow 2's steps: no plan and no separate access-point review, so the walk
+   is shorter. The arrow-key nav is a SEPARATE path from the click flow — it
+   kept walking STEPS_PC (plan and all) long after pc2 became the default,
+   which is how the removed plan widget was still showing up (user, 2026-09-11). */
+const PC2_S = (pc2,extra={})=>['pcSearch',{selected:[1],asked:1,typed:true,pc2,expName:PC_PROPOSED_NAME,...extra}];
+const STEPS_PC2 = [
+  ['home',{}],
+  ['pcSearch',{}],
+  ['pcSearch',{selected:[1],typed:true}],
+  ['pcSearch',{selected:[1],asked:1,typed:true,pc2:'understood'}],
+  ['pcSearch',{selected:[1],asked:1,typed:true,pc2:'naming',expName:PC_PROPOSED_NAME}],
+  ['pcSearch',{selected:[1],asked:1,typed:true,pc2:'fields',expName:PC_PROPOSED_NAME}],
+  PC2_S('experience'),
+  PC2_S('verified'),
+];
+function FLOW_STEPS(){ return scenario==='pc2' ? STEPS_PC2 : STEPS_PC; }
 const PC_ORDER = ['understood','naming','fields','plan','placement','bodyfixed','experience','done'];
+const PC2_ORDER = ['understood','naming','fields','experience','verified'];
 // map the CURRENT scene+state onto a step index so arrows resume from anywhere
 function stepIndex(){
   const st=current.state||{};
   if(current.name==='home') return 0;
   if(current.name!=='pcSearch') return -1;
+  if(st.pc2){
+    const r = {reading:'understood',namingWait:'naming',fieldsWait:'fields',
+               building:'experience',fixing:'verified',done:'verified'}[st.pc2] || st.pc2;
+    const i = PC2_ORDER.indexOf(r);
+    return i===-1 ? 3 : i+3;
+  }
   if(st.pc){
     // in-flight states resolve to the resting step they're heading for
     const resolved = {reading:'understood',namingWait:'naming',fieldsWait:'fields',planning:'plan',updating:'placement',fixing:'bodyfixed',building:'experience'}[st.pc] || st.pc;
