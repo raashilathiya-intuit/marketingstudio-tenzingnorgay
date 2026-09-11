@@ -3006,7 +3006,7 @@ function pc2FieldCard(active){
   return agentMsg(`<div class="summaryCard"><p class="summaryCard__intro">The new template adds ${count} fields.</p>${rows}<p class="summaryCard__intro" style="font-weight:400">I'll create the experience and flag ${PC_FIELDS.length===1?'this field':`these ${count} fields`}, so you can fill ${PC_FIELDS.length===1?'it':'them'} in as soon as you have the content.</p>${dlLink2()}<p class="summaryCard__q">Shall I go ahead and create the experience?</p>${active?replyBtn('Proceed','pc2Proceed'):recordedReply('Proceed')}</div>`);
 }
 /* the download names what it contains: the fields still needing content */
-const dlLink2 = ()=>`<span class="link-dl">Download missing field summary ${DL_ICON}</span>`;
+const dlLink2 = ()=>`<span class="link-dl">Download summary ${DL_ICON}</span>`;
 
 /* ---- Step 3: the plan (2 reviews) ---- */
 const PC_PLAN_TASKS = [
