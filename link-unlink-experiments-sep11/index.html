@@ -900,6 +900,13 @@ select.fbsel--active{border-color:#7b61ff}
 .bubbleFile__badge{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;border-radius:4px;background:#eeeeef;color:#515154;font-size:11px}
 /* understanding table 2-col rows */
 /* understanding table (workbook playback): 2 cols with a vertical divider between them */
+/* the treatments read as a NUMBERED LIST, not a table (user, 2026-09-16):
+   it is a set of options to choose from, not tabular data to compare. */
+/* 14px to match .summaryCard__intro/__q around it — 16px came from the plan
+   table's row style and read oversized (user, 2026-09-16) */
+.tmtList{margin:10px 0 0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:6px}
+.tmtList li{font-size:14px;line-height:1.5;color:var(--text-primary)}
+.tmtList li::marker{color:var(--text-secondary)}
 .planTable__row--2col{grid-template-columns:180px 1fr;gap:0;align-items:stretch;padding:0}
 .planTable__row--2col .uw-k{color:var(--text-secondary);border-right:1px solid #f0f0f2;padding:14px 16px;display:flex;align-items:center}
 .planTable__row--2col>span:last-child{padding:14px 16px;display:flex;align-items:center}
@@ -925,6 +932,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=103"></script>
+<script src="app.js?v=112"></script>
 </body>
 </html>
