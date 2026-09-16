@@ -3619,6 +3619,7 @@ const XP_META = [
 const XP_AP = 'CG TURBOTAXO Content PostOnboardingExperience';
 /* the experiences linked to this experiment. Treatment is what the experiment
    assigns them, so it is a column here and nowhere else in the repo. */
+const hex2 = (n)=>n.toString(16).padStart(2,'0');
 const XP_ROWS = [
   ['ty25_OICMS_716920_REAL_test_DIY_reco_recipe_D','D_RealTest'],
   ['ty25_OICMS_716920_REAL_test_FS_reco_recipe_D','D_RealTest'],
@@ -3626,7 +3627,11 @@ const XP_ROWS = [
   ['ty25_OICMS_716920_DRY_test_DIWM_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
   ['ty25_OICMS_716920_DRY_test_DIY_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
   ['ty25_OICMS_716920_DRY_test_FS_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
-].map(([exp,tr])=>({exp, status:'Published', ap:XP_AP, tmt:tr}));
+/* each row carries its OWN experience id, so a drill-down shows the id of the
+   experience that was actually clicked (user, 2026-09-16). The varying block is
+   fixed-width hex so every id stays a well-formed UUID. */
+].map(([exp,tr],i)=>({exp, status:'Published', ap:XP_AP, tmt:tr,
+  eid:`51738ef0-9505-11f1-86ec-a3e651c6bc${hex2(2+i)}`}));
 const XP_COLS = [
   {label:'Experience',key:'exp',info:1},
   {label:'Status',key:'status',badge:1},
@@ -4327,7 +4332,8 @@ const MV_CRUMB    = ()=>`<span>Home</span> <span class="sep">/</span> <span>${MV
 const MV_TO_ROWS = [
   'ty25_OICMS_716931_SSG_test_DIY_reco_recipe_A',
   'ty25_OICMS_716931_SSG_test_FS_reco_recipe_A',
-].map(exp=>({exp, status:'Published', ap:XP_AP, tmt:'A_Baseline'}));
+].map((exp,i)=>({exp, status:'Published', ap:XP_AP, tmt:'A_Baseline',
+  eid:`62841bc7-2071-11f2-9ad3-b5c7e2f419${hex2(0xa4+i)}`}));
 /* ---- the CONTINUATION (user, 2026-09-16) ----
    Task 4 offers Publish, but the user ignores the pill and types another ask:
    add a SECOND experience to the SSG draft. Both experiments are already in
@@ -4597,11 +4603,30 @@ scenes.mvExp = (state={})=>{
   /* A row click drills into the EXPERIENCE from whatever experiment list was on
      screen (user, 2026-09-16). It overrides the task/continuation canvases, and
      `expBack` returns to the list. */
-  if(state.expDrill){
+  /* `expDrill` is a ROW INDEX, so 0 is a valid value — a truthy test made
+     clicking the first row do nothing (user, 2026-09-16). */
+  /* not during a loader: a skeleton table has no rows to drill into */
+  const drillBusy = c==='pubTo' || (c||'').startsWith('pw') || (c||'').startsWith('w')
+    || ['c2reading','c2working','c2publishing'].includes(c||'');
+  if(state.expDrill!==undefined && state.expDrill!==false && !drillBusy){
     const onTo = ti>=2 || (c||'').startsWith('c2') || c==='pubTo' || c==='donePub';
-    const live = c==='donePub' || c==='c2published';
-    return expDrillCanvas(MV_CRUMB(), MV_ROW, state,
-      {status:live?'Published':'Draft', ver:onTo?'v4':'v3',
+    /* the list the click came from, rebuilt so the clicked row can be found */
+    /* Must mirror EXACTLY what the list rendered, or the index points at the
+       wrong experience. X loses the moved experience from task 1's review
+       onward (and stays without it once published), Y gains it from task 3. */
+    const xLost = ti>=1 || (c||'').startsWith('p');
+    const srcRows = onTo
+      ? [...MV_TO_ROWS, MV_ROW, ...((c||'').startsWith('c2') && ['done','publishing','published'].includes((c||'').slice(2)) ? [MV2_ROW] : [])]
+      : (xLost ? XP_ROWS.filter(r=>r.exp!==MV_EXP) : XP_ROWS);
+    const r = srcRows[state.expDrill] || MV_ROW;
+    /* The drill-down must AGREE with the row that was clicked: a Published row
+       cannot open a Draft experience (user, 2026-09-16). The experiment's own
+       state decides the row statuses, so read it from there, not from `live`. */
+    const xPub = (!onTo && (c||'').startsWith('p')) || c==='donePub' || c==='c2published';
+    const rowStatus = xPub ? 'Published' : 'Draft';
+    return expDrillCanvas(MV_CRUMB(), r, state,
+      {status:rowStatus, ver:onTo?'v4':'v3',
+       eid: r.eid || MV_EID, ap: r.ap || XP_AP,
        experiment:{name:onTo?MV_TO:MV_FROM, id:onTo?MV_TO_ID:XP_ID}})
       + aiPanel({body});
   }
@@ -4859,7 +4884,7 @@ scenes.xpDetail = (state={})=>{
      (user, 2026-09-16). `expDrill` holds the clicked row index. */
   if(state.expDrill!==undefined && state.expDrill!==false){
     const r = rows[state.expDrill] || rows[0];
-    const drillRow = {exp:r.exp, eid:MV_EID, status:r.status||'Published', ver:'v3',
+    const drillRow = {exp:r.exp, eid:r.eid||MV_EID, status:r.status||'Published', ver:'v3',
       ap:r.ap||XP_AP, tmpl:'helloboxThirdParty', prio:'13.0', by:XP_AUTHOR, mod:'06/30 18:30PST'};
     return expDrillCanvas(XP_CRUMB(pub), drillRow, state,
       {status:r.status||'Published', ver:'v3',
@@ -6162,10 +6187,20 @@ const STEPS_UL = (pub)=>{   // UL_SEL (the three DRY_test experiences) is declar
   ];
 };
 /* flow 3: home -> the experience -> the ask -> intent -> plan -> done */
+/* Must mirror the real state chain, or arrow-stepping skips states the click
+   path reaches (user, 2026-09-16: the published PLU beat was missing, and the
+   old `done` state no longer exists). The chain is:
+     t0 -> t1 -> p1 (X PUBLISHED) -> t2 -> t3 -> pubTo/donePub (Y published)
+   `p{MV_PUBLISH_TASK}` is the publish beat that sits after task 2. */
 const STEPS_MV = ()=>{
   const S=(mv)=>['mvExp',{typed:true,mv}];
+  const tasks=[];
+  MV_TASKS.forEach((_,i)=>{
+    tasks.push(S('t'+i));
+    if(i===MV_PUBLISH_TASK) tasks.push(S('p'+i));   // X is published here
+  });
   return [ ['home',{}], ['mvExp',{}], S('intent'), S('plan'),
-    ...MV_TASKS.map((_,i)=>S('t'+i)), S('done') ];
+    ...tasks, S('donePub') ];
 };
 /* flow 1: home -> search -> the experiment -> the ask -> intent -> done -> published */
 /* PUBLISHED: search intake, intent -> plan -> two tasks -> done -> published.
@@ -6194,9 +6229,20 @@ function stepIndex(){
   // ── move flow: the experience, then its conversation states ──
   if(current.name==='mvExp'){
     // executing task states resolve to the resting task they head for
-    let r = {reading:'intent',planning:'plan'}[st.mv] || st.mv || '';
-    const m=/^w(\d+)$/.exec(r); if(m) r='t'+m[1];
-    const ORDER=['intent','plan',...MV_TASKS.map((_,i)=>'t'+i),'done'];
+    let r = {reading:'intent',planning:'plan',
+             /* the tail states all resolve onto the final step */
+             pubTo:'donePub', done:'donePub'}[st.mv] || st.mv || '';
+    const m=/^w(\d+)$/.exec(r); if(m) r='t'+m[1];         // executing -> its resting task
+    const pm=/^pw(\d+)$/.exec(r); if(pm) r='p'+pm[1];     // publishing X -> X published
+    /* the continuation hangs off the last task, so it keeps that index */
+    if(r.startsWith('c2')) r='t'+(MV_TASKS.length-1);
+    /* MUST mirror STEPS_MV, publish beat included, or a state that the list
+       contains cannot be located and the arrow keys jump past it
+       (user, 2026-09-16). */
+    const ORDER=['intent','plan'];
+    MV_TASKS.forEach((_,i)=>{ ORDER.push('t'+i);
+      if(i===MV_PUBLISH_TASK) ORDER.push('p'+i); });
+    ORDER.push('donePub');
     const i=ORDER.indexOf(r);
     return i===-1 ? 1 : i+2;
   }
