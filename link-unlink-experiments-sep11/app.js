@@ -314,10 +314,14 @@ function tableHTML(cols, rows, opts={}){
     const cbc = opts.checkbox ? `<td class="cbcol">${opts.select?`<input type="checkbox" class="cb" data-selrow="${ri}" ${on?'checked':''}>`:`<input type="checkbox" class="cb" disabled>`}</td>` : '';
     const rowEdited = !!r.editedRow;   // whole-row yellow band (WB tables)
     const tds = cols.map(c=>{
-      const val = r[c.key];
+      /* A missing value renders EMPTY, never the string "undefined" — a row
+         source without the key is a data gap, and printing it as text made it
+         look like a real id (user, 2026-09-17). */
+      const raw = r[c.key];
+      const val = (raw===undefined || raw===null) ? '' : raw;
       // a cell is yellow if the whole row is edited OR the per-cell editedKey flags it
       const edited = (rowEdited || (c.editedKey && r[c.editedKey])) ? ' class="edited"' : '';
-      if(c.badge) return `<td${edited}>${badge(val)}</td>`;
+      if(c.badge) return `<td${edited}>${val===''?'':badge(val)}</td>`;
       return `<td${edited}>${val}</td>`;
     }).join('');
     const drill = opts.drillrow ? ` data-drillplace="${ri}" style="cursor:pointer"` : '';
@@ -3643,8 +3647,12 @@ const XP_ROWS = [
    fixed-width hex so every id stays a well-formed UUID. */
 ].map(([exp,tr],i)=>({exp, status:'Published', ap:XP_AP, tmt:tr,
   eid:`51738ef0-9505-11f1-86ec-a3e651c6bc${hex2(2+i)}`}));
+/* Experience ID sits next to the name here: inside an EXPERIMENT the rows are
+   real objects with ids (user, 2026-09-17). The clone build's creatives table
+   stays name-only, because a pending creative has no id yet. */
 const XP_COLS = [
   {label:'Experience',key:'exp',info:1},
+  {label:'Experience ID',key:'eid'},
   {label:'Status',key:'status',badge:1},
   {label:'Access point',key:'ap'},
   {label:'Treatment',key:'tmt'},
@@ -4270,7 +4278,7 @@ const LK_EXP   = 'ty25_OICMS_716920_REAL_test_FS_reco_recipe_B';
 const LK_TMT   = 'B_Dry_SPNewOffer_Copy1';
 const LK_PROMPT = `Link ${LK_EID} experience to treatment ${LK_TMT} for this experiment.`;
 /* the experience being linked in, as a row for the experiment's table */
-const LK_ROW = {exp:LK_EXP, status:'Draft', ap:XP_AP, tmt:LK_TMT};
+const LK_ROW = {exp:LK_EXP, eid:LK_EID, status:'Draft', ap:XP_AP, tmt:LK_TMT};
 /* Step 1: the PLAYBACK — the diagram's three items. Not a plan table: the
    diagram calls this a playback widget, and our convention for that is the
    intent card (same as the unlink flow). */
@@ -4382,7 +4390,7 @@ const MV2_TMT  = 'A_Baseline';
 /* names the TREATMENT too (user, 2026-09-16), the same way LK_PROMPT does —
    a link ask has to say which treatment the experience is assigned to. */
 const MV2_PROMPT = `I also want to add experience ${MV2_EID} to this experiment, assigned to treatment ${MV2_TMT}.`;
-const MV2_ROW  = {exp:MV2_EXP, status:'Draft', ap:XP_AP, tmt:MV2_TMT};
+const MV2_ROW  = {exp:MV2_EXP, eid:MV2_EID, status:'Draft', ap:XP_AP, tmt:MV2_TMT};
 /* the experience as a row, for expDrillCanvas */
 const MV_ROW = {exp:MV_EXP, eid:MV_EID, status:'Published', ver:'v3', tmt:MV_TMT,
   ap:XP_AP, tmpl:'helloboxThirdParty', prio:'13.0', by:XP_AUTHOR, mod:'06/30 18:30PST'};
