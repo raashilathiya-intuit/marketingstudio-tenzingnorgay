@@ -786,11 +786,15 @@ scenes.home = (state={})=>{
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
             <!-- the two ACTIVE scenarios lead; the earlier drafts are muted below -->
+            <!-- grouped by WHEN validation happens (user, 2026-09-17):
+                 pre-clone catches problems before anything is created; the
+                 post-clone scenarios create first and fix after -->
+            <div class="simMenu__label">Pre-clone validation</div>
+            <button class="simMenu__item" data-sim="cl6">Fix validation errors before creating</button>
+            <div class="simMenu__label">Post-clone validation</div>
             <button class="simMenu__item" data-sim="cl3">Clone experiences, choose whether to change the access point</button>
             <button class="simMenu__item" data-sim="cl4">Mixed access points, group and retarget each one</button>
             <button class="simMenu__item" data-sim="cl5">Mixed access points, one access point at a time</button>
-            <button class="simMenu__item simMenu__item--muted" data-sim="pc">Clone experiences, same access point, no changes</button>
-            <button class="simMenu__item simMenu__item--muted" data-sim="cl2">Clone experiences and change the access point</button>
           </div>
         </div>
       </div>
@@ -2198,7 +2202,9 @@ function render(scene, state){
    click to drive it manually; toggle autopilot with the 'p' key.
    ============================================================ */
 // single scenario in this build: change the template on one experience
-let scenario = 'pc';
+/* `pc` and `cl2` were removed from the sim menu (user, 2026-09-17), so the
+   default has to be a scenario that is still selectable. */
+let scenario = 'cl3';
 const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','changeMeta','campaignObject','campaignTree'];
 const FLOW_WORKBOOK = ['home','coIntentWB','ipdContent','campaignObjectWB','campaignTreeWB'];
 const FLOW_PROMPTCO = ['home','p2Intent','p2Ipd','p2Review','p2Tree'];
@@ -2378,7 +2384,9 @@ const trigger = {
   // In scenario 2 the same Send runs the combined clone+change ask instead.
   pcSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers();
     if(scenario==='cl2') runCl2Understand();
-    else if(scenario==='cl3') runCl3Understand();
+    /* scenario 6 opens exactly like 3b — the choice card, the target ask, the
+       fields card — and only diverges at the plan (user, 2026-09-17) */
+    else if(scenario==='cl3' || scenario==='cl6') runCl3Understand();
     else if(scenario==='cl4') runCl4Understand();
     /* Scenario 5 sends TWICE. The first send hits the guardrail. The second
        comes after the user regrouped and re-picked, so it re-tests the new
@@ -2427,10 +2435,18 @@ const trigger = {
   cl3SendTarget:()=>{ clearTimers(); runCl3Target(); },
   cl3ApproveIntent:()=>{ recordPillThen(()=>runCl3Naming()); },
   cl3ApproveNaming:()=>{ recordPillThen(()=>runCl3Fields()); },
-  cl3ApproveFields:()=>{ recordPillThen(()=>runCl3Clones()); },
+  /* scenario 6 makes a PLAN here instead of cloning straight away */
+  cl3ApproveFields:()=>{ recordPillThen(()=>
+    scenario==='cl6' ? runCl6Plan() : runCl3Clones()); },
 
   /* composer SEND on the clones message → apply every clone's copy at once */
   cl3SendFix:()=>{ clearTimers(); runCl3FixAll(); },
+
+  /* ── scenario 6: fix the validation error BEFORE creating ── */
+  cl6ApprovePlan:()=>{ recordPillThen(()=>runCl6Task1()); },
+  cl6SendFix:()=>{ clearTimers(); runCl6Fix(); },
+  cl6ApproveTask1:()=>{ recordPillThen(()=>runCl6Task2()); },
+  cl6Publish:()=>{ recordPillThen(()=>runCl6Publish()); },
   cl3ApproveAll:()=>{ recordPillThen(()=>runCl3Done()); },
   // ── CLONE triggers (scenario 4: the selection spans access points) ──
   cl4Direct:()=>{ recordPillThen(()=>runCl4NamingDirect()); },
@@ -2693,7 +2709,7 @@ function wire(name, state){
       /* cl5 deliberately does NOT freeze: the guardrail asks the user to
          re-pick, so the checkboxes must stay live. `reading` still freezes
          (a loader is running) but `mixed` does not. */
-      e.stopPropagation(); if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||(state.cl5!==undefined && state.cl5!=='mixed')) return; toggle(+cb.dataset.selrow);
+      e.stopPropagation(); if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl6!==undefined||(state.cl5!==undefined && state.cl5!=='mixed')) return; toggle(+cb.dataset.selrow);
     });
     /* Group-by dropdown. Only scenario 5 makes it interactive: the guardrail
        asks the user to narrow to one access point, and regrouping the table is
@@ -2712,12 +2728,17 @@ function wire(name, state){
     // tri-state header checkbox: select all / none, frozen once the flow starts.
     // On the clone-results view nothing is selected (the rows are copies, not a
     // picker), so pass an empty set or the header renders checked over unchecked rows.
+    /* Any RESULTS view: its rows are outputs, not the search selection, so the
+       header checkbox must reflect an EMPTY set. Scenario 6's created list was
+       missing here, so the header rendered checked over unchecked rows
+       (user, 2026-09-17). */
     const onCloneList = state.pc==='done' || state.cl2==='allrev' || state.cl2==='done'
       || state.cl3==='done3a' || ['clonesErr','fixingAll','verified'].includes(state.cl3)
       || ['doneall','allrev','done'].includes(state.cl4)
-      || state.cl5==='doneall';
+      || state.cl5==='doneall'
+      || ['w1','t1err','fixing','t1fixed','w2','done','publishing','published'].includes(state.cl6);
     wireSelAll(main, onCloneList ? new Set() : sel,
-      state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||(state.cl5!==undefined && state.cl5!=='mixed'), apply);
+      state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl6!==undefined||(state.cl5!==undefined && state.cl5!=='mixed'), apply);
     // row click → experience drill-down (checkbox still selects)
     main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
       if(e.target.closest('[data-selrow]'))return;
@@ -2749,7 +2770,7 @@ function wire(name, state){
     }
     // the selection-scoped ask auto-types once the first row is picked; which
     // ask depends on the scenario
-    if(state.pc===undefined && state.cl2===undefined && state.cl3===undefined && sel.size && !state.typed)
+    if(state.pc===undefined && state.cl2===undefined && state.cl3===undefined && state.cl6===undefined && sel.size && !state.typed)
       scheduleAskType('pcSearch', scenario==='cl2' ? CLONE2_PROMPT : CLONE_PROMPT);
     /* Scenario 5's SECOND ask. After the guardrail the user regroups and
        re-picks, so the clone ask has to type itself again — but `typed` is
@@ -2770,18 +2791,52 @@ function wire(name, state){
     if(g4 && !state['dTyped'+g4[1]]) scheduleAskType('pcSearch', cl4DestPrompt(+g4[1]), 'dTyped'+g4[1]);
     // task 1's error: the fix ask auto-types so the user only has to send it
     if(state.cl2==='t0err' && !state.fixTyped) scheduleAskType('pcSearch', USE_BODY_PROMPT, 'fixTyped');
+    /* scenario 6's task 1: the corrected copy auto-types on the error */
+    if(state.cl6==='t1err' && !state.fixTyped6)
+      scheduleAskType('pcSearch', cl6FixPrompt(cloneNamesW()), 'fixTyped6');
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{
       e.stopPropagation(); autopilot=false;
       // while task 1 shows the over-limit error, Send carries the corrected copy
       if(state.cl2==='t0err') trigger.cl2SendBodyFix();
+      else if(state.cl6==='t1err') trigger.cl6SendFix();
       else if(state.cl3==='asking') trigger.cl3SendTarget();
       else if(state.cl3==='clonesErr') trigger.cl3SendFix();
       else if(/^g\d+ask$/.test(state.cl4||'')) trigger.cl4SendDest();
       else trigger.pcSend();
     };
+    /* scenario 6's task 1: rows drill into the CREATIVE, back returns to the
+       list, and the Detail/Preview toggle works there like everywhere else. */
+    if(['t1err','t1fixed'].includes(state.cl6)){
+      main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=(e)=>{
+        if(e.target.closest('.cbcol,.cb,[data-selrow]')) return;
+        autopilot=false;
+        render('pcSearch',{...state, creDrill:+tr.dataset.drillplace});
+      });
+      /* the creative drill-down now renders through expDrillCanvas, so its back
+         button is the standard [data-expback] and the tabs/toggle are wired by
+         the shared blocks below — this only has to clear `creDrill` */
+      if(state.creDrill!==undefined){
+        const cbk=main.querySelector('[data-expback]');
+        if(cbk) cbk.onclick=()=>{ autopilot=false;
+          const st={...state}; delete st.creDrill; delete st.creativeView; delete st.expTab; render('pcSearch',st); };
+        /* no tab wiring here: a creative has no tabs (user, 2026-09-17) */
+        wireCreativeToggle(main,'pcSearch',state);
+      }
+    }
+    /* scenario 6: the required-fields list expands in place */
+    const c6f=main.querySelector('[data-cl6fields]');
+    if(c6f) c6f.onclick=(e)=>{ e.stopPropagation(); autopilot=false;
+      render('pcSearch',{...state, cl6Fields:!state.cl6Fields}); };
+    /* scenario 6's pills */
+    const c6p=main.querySelector('#cl6ApprovePlan');
+    if(c6p) c6p.onclick=()=>{autopilot=false;trigger.cl6ApprovePlan();};
+    const c6t=main.querySelector('#cl6ApproveTask1');
+    if(c6t) c6t.onclick=()=>{autopilot=false;trigger.cl6ApproveTask1();};
+    const c6pub=main.querySelector('#cl6Publish');
+    if(c6pub) c6pub.onclick=()=>{autopilot=false;trigger.cl6Publish();};
     const chipX=main.querySelector('[data-chipclear]');
-    if(chipX) chipX.onclick=()=>{ if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||(state.cl5!==undefined && state.cl5!=='mixed')) return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
+    if(chipX) chipX.onclick=()=>{ if(state.pc!==undefined||state.cl2!==undefined||state.cl3!==undefined||state.cl4!==undefined||state.cl6!==undefined||(state.cl5!==undefined && state.cl5!=='mixed')) return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
     // ── name card: arrives prefilled with the AI's proposal (no typing
     //    animation). Editing it keeps the value on state; emptying it disables
     //    Proceed, since a new experience has to be called something. ──
@@ -3335,7 +3390,8 @@ function expDrillCanvas(crumb, r, state, opts={}){
       <div class="cd-attr">
         <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v">${opts.hlAp?`<span class="cd-hl">${opts.ap||r.ap}</span>`:(opts.ap||r.ap)}</div></div>
         <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v">${opts.hlTmpl?`<span class="cd-hl">${tmpl}</span>`:tmpl}</div></div>
-      </div>` + (opts.newFields ? newFieldDetail(view, opts)
+      </div>` + (opts.cl6Body ? opts.cl6Body(view)
+                 : opts.newFields ? newFieldDetail(view, opts)
                  : opts.bodyOver!==undefined ? cloneCreative(view, opts.bodyOver, opts.bodyEdited)
                  : singleCreative(view));
   } else if(t==='experiment'){
@@ -3347,9 +3403,15 @@ function expDrillCanvas(crumb, r, state, opts={}){
     .map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-exptab="${k}">${l}</span>`).join('');
   const back = noBack ? '' : `<span class="back" data-expback>${I.back}</span>`;
   const name = opts.name || r.exp.replace('…','-US');
+  /* A CREATIVE is not an experience: it has no audience, no experiment, no id
+     and no version of its own, so `bare` drops the tabs and the id/version from
+     the header (user, 2026-09-17). An experience keeps all of them. */
+  const bare = !!opts.bare;
+  const idBlock = bare ? ''
+    : `<span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; ${(opts.eid||r.eid).replace('…','1c6bc02')} ${COPY_ICON}</span><span class="verselect">${opts.ver||r.ver||'v1'} ${I.chev}</span>`;
   return `<div class="content">${topbar(crumb)}<div class="scroll"><div class="pad">
-    <div class="detail-sticky"><div class="detail-h">${back}<span class="title">${name}</span><span class="detail-vd"></span>${badge(opts.status||r.status||'Draft')}${opts.qaBadge?`<span class="detail-vd"></span><span class="qaBadge qaBadge--${opts.bodyOver?'err':'ok'}">${opts.bodyOver?'QA Error':'Verified'}</span>`:''}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; ${(opts.eid||r.eid).replace('…','1c6bc02')} ${COPY_ICON}</span><span class="verselect">${opts.ver||r.ver||'v1'} ${I.chev}</span></div>
-    <div class="tabs tabs--insticky tabs--exp">${expTabs}</div></div>
+    <div class="detail-sticky"><div class="detail-h">${back}<span class="title">${name}</span><span class="detail-vd"></span>${badge(opts.status||r.status||'Draft')}${opts.qaBadge?`<span class="detail-vd"></span><span class="qaBadge qaBadge--${opts.bodyOver?'err':'ok'}">${opts.bodyOver?'QA Error':'Verified'}</span>`:''}${idBlock}</div>
+    ${bare?'':`<div class="tabs tabs--insticky tabs--exp">${expTabs}</div>`}</div>
     ${tabBody}${opts.hlBar?hlBar(opts.hl!==false):''}</div></div></div>`;
 }
 
@@ -3406,7 +3468,11 @@ const PC_COLS_QA = [
 const PC_PROJECT = 'QB Payroll IPD experiences - Banking hellobox';
 const PC_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${PC_PROJECT}</span>`;
 // the clone result is a new thing, so it gets its own crumb level under the search
-const CLONE_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${PC_PROJECT}</span> <span class="sep">/</span> <span>Cloned experiences</span>`;
+/* The breadcrumb is ALWAYS two levels: Home / <project>. A drill-down or a
+   results view does NOT add a third (user, 2026-09-17, and the same rule in
+   the ms-prototype-intake skill). This was the only three-level crumb left in
+   the build, so it is now an alias — there is no wrong shape to reuse. */
+const CLONE_CRUMB = PC_CRUMB;
 /* The full name of the view the clone creates. The object card in the panel only
    has 177px for a label (286px card − padding − icon tile − eye button), so this
    string is CSS-ellipsised there and shows as "Cloned experiences - Ba…". That is
@@ -3568,6 +3634,166 @@ const CL3_FIELDS_CARD = (n, active)=> agentMsg(
 const CL3_CLONES_ERR = (n)=> agentMsg(`<div class="chatBubble">Created ${n} clone${n===1?'':'s'} on ${CL3_NEW_PLACEMENT}, <span class="issueCount">found ${n} issue${n===1?'':'s'}.</span>${objectCard('search',CL3_VIEW_NAME)}<div class="msgErr">${ERR_ICON}<span>${CL3_ERR_FIELD} is missing on ${n===1?'the clone':`all ${n}`}. The new template needs it.</span></div><div class="bubble-q">Send me the copy for each one and I'll update them.</div></div>`);
 /* every clone verified. A new object holds the finished set; publishing is the
    user's call, so the message points at Campaign Manager rather than doing it. */
+/* Scenario 6's task-1 canvas: the STAGED access point + template change shown
+   once per selected experience, each with its own creative. `over` puts the
+   carried-over body copy and its character-limit error on every one; once the
+   copy is supplied they all read the corrected value. Nothing is created yet,
+   so these are the pending changes, not objects. */
+/* Scenario 6's creative detail. The new template needs more fields than the old
+   one carried, so the carried-over creative has THREE problems (user,
+   2026-09-17): body copy over the limit, and two fields with no content at all.
+   A missing field renders an em-dash value with "Content is missing" beneath,
+   the same shape as the over-limit error. */
+const CL6_MISSING_TEXT = 'Content is missing.';
+/* The new template's required fields, and what the user's copy fills in. Body
+   copy CARRIES OVER but is over the limit; the rest arrive empty, so the
+   creative has one over-limit error plus one per empty field. Every count in
+   this flow is derived from these, so the card, the messages and the creative
+   can never disagree (user, 2026-09-17). */
+const CL6_REQUIRED = [
+  {k:'BODY',            label:'Body copy',        carried:CREATIVE_BODY, over:true},
+  {k:'SUBHEADER',       label:'Subheader',        fixed:'Save more on payroll this quarter'},
+  {k:'FOOTNOTE',        label:'Footnote',         fixed:'Offer valid for new paid subscriptions only.'},
+  {k:'DISCLAIMER',      label:'Disclaimer',       fixed:'Terms and conditions apply.'},
+  {k:'LEGAL REFERENCE', label:'Legal reference',  fixed:'INTUIT-PR-2026-114'},
+  {k:'ALT TEXT',        label:'Alt text',         fixed:'Payroll discount offer banner'},
+  {k:'TERMS LINK',      label:'Terms link',       fixed:'intuit.com/payroll/terms'},
+];
+/* fields the creative already had and the new template keeps */
+const CL6_CARRIED = [
+  {k:'HEADLINE', v:()=>CREATIVE_HEADLINE},
+  {k:'CTA',      v:()=>CREATIVE_CTA},
+  {k:'IMAGE',    v:()=>'imagename.png', link:true},
+];
+/* how many problems ONE creative has before the fix: the over-limit body plus
+   every empty required field */
+const CL6_ERR_COUNT = CL6_REQUIRED.length;
+const cl6Missing = (label)=>
+  `<div class="cd-pair"><div class="cd-pair__k">${label}</div><span class="cd-pair__v cd-pair__missing">&ndash;</span><div class="cd-pair__err">${ERR_ICON}<span>${CL6_MISSING_TEXT}</span></div></div>`;
+const cl6Filled = (label, value, link)=>
+  `<div class="cd-pair"><div class="cd-pair__k">${label}</div><span class="cd-pair__v${link?' cd-pair__v--link':''} cd-hl">${value}</span></div>`;
+function cl6Creative(view, over, fixedBody, created){
+  /* Preview must agree with Detail: if the fixed fields are highlighted there,
+     they are highlighted here too. A CREATED experience has no highlights in
+     either view, since nothing was edited (user, 2026-09-17). */
+  if(view==='preview'){
+    const showHl = !over && !created;
+    return `<div class="creativeCenter">${helloboxCreative(false,{
+      body: over?CREATIVE_BODY:fixedBody,
+      sub:  over?'':CL6_REQUIRED[1].fixed,
+      foot: over?'':CL6_REQUIRED[2].fixed,
+      hl:   showHl})}</div>`;
+  }
+  const pairs = [];
+  /* carried-over fields first, then everything the new template requires */
+  CL6_CARRIED.forEach(f=>pairs.push(cdPair(f.k, f.v(), false, f.link)));
+  CL6_REQUIRED.forEach(f=>{
+    if(f.over){
+      const body = over ? f.carried : fixedBody;
+      pairs.push(`<div class="cd-pair"><div class="cd-pair__k">${f.k}</div><span class="cd-pair__v${(over||created)?'':' cd-hl'}">${body}</span>${
+        over ? `<div class="cd-pair__err">${ERR_ICON}<span>${BODY_ERR}</span></div>` : ''}</div>`);
+    }
+    /* On the CREATED experience nothing was edited — it is a new object, so no
+       yellow (highlights are change-order semantics; user, 2026-09-17). */
+    else if(created) pairs.push(cdPair(f.k, f.fixed, false, f.k==='TERMS LINK'));
+    else pairs.push(over ? cl6Missing(f.k) : cl6Filled(f.k, f.fixed, f.k==='TERMS LINK'));
+  });
+  /* two per row, 24px between rows */
+  let rows='';
+  for(let i=0;i<pairs.length;i+=2) rows += `<div class="cd-row">${pairs[i]}${pairs[i+1]||''}</div>`;
+  return `<div class="cl6Cre">${rows}</div>`;
+}
+/* ---- task 1's LIST: the pending creatives, one row per clone ---- */
+const CL6_CRE_COLS = [
+  {label:'Name',key:'exp',info:1},
+  {label:'Status',key:'status',badge:1},
+  {label:'Access point',key:'ap'},
+  {label:'Template',key:'tmpl'},
+];
+const CL6_CRE_TITLE = 'Creatives - Batch save hellobox';
+/* The fix prompt has to answer everything the validation flagged: the shortened
+   body copy AND the empty required fields (user, 2026-09-17). Body copy differs
+   per creative; the rest are the same across all three, so they are stated once
+   and the per-creative body copy is listed under each name. */
+const cl6FixPrompt = (names)=> 'Use this content:\n'
+  + names.map((nm,i)=>`\u2022 ${nm} body copy: "${CL3_FIX_COPY[i % CL3_FIX_COPY.length]}"`).join('\n')
+  + '\nFor all three:\n'
+  + CL6_REQUIRED.filter(f=>!f.over).map(f=>`\u2022 ${f.label}: "${f.fixed}"`).join('\n');
+const cl6FixBubble = (names)=> `Use this content:<ul class="msgList">${
+    names.map((nm,i)=>`<li><span class="msgList__k">${nm} body copy</span><span class="msgList__v">"${CL3_FIX_COPY[i % CL3_FIX_COPY.length]}"</span></li>`).join('')
+  }</ul><div class="ft-label" style="margin-top:10px">For all three:</div><ul class="msgList">${
+    CL6_REQUIRED.filter(f=>!f.over).map(f=>`<li><span class="msgList__k">${f.label}</span><span class="msgList__v">"${f.fixed}"</span></li>`).join('')}</ul>`;
+function cl6StagedCanvas(names, over, view='detail'){
+  const head = `<div class="detail-h"><span class="title">${CL3_NEW_PLACEMENT}</span><span class="detail-vd"></span>${
+    over ? `<span class="qaBadge qaBadge--err">QA Error</span>` : `<span class="qaBadge qaBadge--ok">Verified</span>`
+  }</div>`;
+  const attrs = `<div class="cd-attr">
+      <div><div class="cd-attr__k">ACCESS POINT</div><div class="cd-attr__v"><span class="cd-hl">${CL3_NEW_PLACEMENT}</span></div></div>
+      <div><div class="cd-attr__k">TEMPLATE</div><div class="cd-attr__v"><span class="cd-hl">${CL3_NEW_TEMPLATE}</span></div></div>
+    </div>`;
+  /* once fixed, each creative shows ITS OWN supplied copy — the three differ,
+     which is why the fix prompt names them individually (user, 2026-09-17) */
+  const blocks = names.map((nm,i)=>`<div class="cl6Block">
+      <div class="cd-head" style="margin:0 0 14px"><span class="cd-head__t">${nm}</span></div>
+      ${cl6Creative(view, over, CL3_FIX_COPY[i % CL3_FIX_COPY.length])}
+    </div>`).join('');
+  return head + `<div style="height:16px"></div>` + attrs
+    + `<div class="cd-head" style="margin:22px 0 14px"><span class="cd-head__t">Creative</span></div>`
+    + blocks;
+}
+/* ============================================================
+   SCENARIO 6 (sim `cl6`, user 2026-09-17): the same change-the-access-point
+   clone as 3b, but the validation error is caught and FIXED BEFORE anything is
+   created. A two-task plan carries it:
+     1. Update access point and template   -> the staged change, errors shown
+        on every creative, fixed by typing, then approved
+     2. Review the newly created experiences -> the clones, all Draft / v1
+   Because the copy is corrected while the change is still staged, the clones
+   are created clean: they never pass through Error, and never reach v2. */
+/* Scenario 6's fields readback. The new template needs more fields than the old
+   one carried, so the list is long: the first four show, the rest sit behind
+   "Show all" (user, 2026-09-17). 3b's card promised to create the clones and
+   FLAG the field; here nothing is created until the creatives are right. */
+const CL6_FIELDS = CL6_REQUIRED.map(f=>f.label);
+const CL6_FIELDS_SHOWN = 4;
+const cl6FieldRows = (open)=> (open ? CL6_FIELDS : CL6_FIELDS.slice(0,CL6_FIELDS_SHOWN))
+  .map((f,i)=>`<div class="ft__row"><div class="ft__k">${i+1}.</div><div class="ft__v">${f}</div></div>`).join('');
+const CL6_FIELDS_CARD = (n, active, open=false)=> agentMsg(
+  `<div class="summaryCard"><p class="summaryCard__intro">The new template adds ${CL6_FIELDS.length} fields.</p><div class="ft-head"><span class="ft-label" style="margin:0">Required fields:</span><button class="ftShowAll" data-cl6fields>${open?'Show less':'Show all'} <span class="ftShowAll__chev${open?' ftShowAll__chev--open':''}">${I.chev}</span></button></div><div class="ft fldTbl">${cl6FieldRows(open)}</div><p class="summaryCard__intro" style="font-weight:400">I'll validate ${n===1?'the creative':'the creatives'} and flag what's missing. Once you've filled those fields in, I'll create the ${n===1?'experience':'experiences'}.</p>${dlSummary()}<p class="summaryCard__q">Shall I put together a plan?</p>${active?replyBtn('Proceed','cl3ApproveFields'):recordedReply('Proceed')}</div>`);
+const CL6_TASKS = ['Update access point and template','Review the newly created experiences'];
+const cl6PlanRows = (done=0, loading=-1)=> CL6_TASKS.map((w,i)=>{
+  const marker = i<done
+    ? `<span class="planNum planNum--done"><span class="ico-invert">${I.check}</span></span>`
+    : i===loading
+      ? `<span class="planNum planNum--loading"><img class="spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"></span>`
+      : `<span class="planNum">${i+1}</span>`;
+  return `<div class="planTable__row">${marker}<span>${w}</span></div>`;
+}).join('');
+const CL6_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
+  `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${cl6PlanRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${active?replyBtn('Looks good','cl6ApprovePlan'):recordedReply('Looks good')}</div>`);
+/* Task 1: the access point + template are updated on the staged copies, and
+   every creative's carried-over body copy runs over the new limit. No approve
+   pill — the copy has to be fixed first. */
+const CL6_TASK1_ERR = (n)=> {
+  /* every creative carries the same set: the over-limit body plus each empty
+     required field. The count is n creatives x their problems, and the list
+     names them all rather than just the first (user, 2026-09-17). */
+  const empties = CL6_REQUIRED.filter(f=>!f.over);
+  const total = n * CL6_ERR_COUNT;
+  /* ONE summarised line, not one per error kind (user, 2026-09-17) */
+  return agentMsg(
+  `<div class="chatBubble">Updated the access point to ${CL3_NEW_PLACEMENT} and the template to ${CL3_NEW_TEMPLATE}, <span class="issueCount">found issues on ${n===1?'the creative':`all ${n} creatives`}.</span>${objectCard('image',CL6_CRE_TITLE)}<div class="msgErr">${ERR_ICON}<span>Body copy is over the ${BODY_LIMIT} character limit, and ${empties.length} required field${empties.length===1?'':'s'} ${empties.length===1?'has':'have'} no content.</span></div><div class="bubble-q">Send me the content for ${n===1?'the creative':`each of the ${n} creatives`} and I'll fill ${n===1?'it':'them'} in.</div></div>`);
+};
+const CL6_TASK1_FIXED = (n, active)=> agentMsg(
+  `<div class="chatBubble">I've updated ${n===1?'the creative':`all ${n} creatives`}. ${n===1?'It passes':'They pass'} validation now.${objectCard('image',CL6_CRE_TITLE)}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${active?replyBtn('Looks good','cl6ApproveTask1'):recordedReply('Looks good')}</div>`);
+/* Task 2: the clones are created from the corrected staging, so they are clean
+   Draft / v1 — nothing to fix, nothing edited. */
+const CL6_PUBLISHED = (n)=> agentMsg(
+  disclosure(`Published ${n} experience${n===1?'':'s'}`,['Validating the experiences','Publishing them','Refreshing the view'])
+  + `<div class="chatBubble">${n===1?'The experience is':`All ${n} experiences are`} published on ${CL3_NEW_PLACEMENT}.${objectCard('megaphone',CL3_VIEW_NAME)}<div class="link-cm">View in Campaign Manager</div></div>`);
+const CL6_DONE = (n, active)=> agentMsg(
+  disclosure(`Created ${n} experience${n===1?'':'s'}`,['Applying the access point','Creating the experiences','Checking the creatives'])
+  + `<div class="chatBubble">I've created ${n} experience${n===1?'':'s'} on ${CL3_NEW_PLACEMENT}. ${n===1?'It is':'They are'} in Draft with no issues.${objectCard('note',CL3_VIEW_NAME)}<div class="bubble-q">I can publish ${n===1?'it':'them'} for you, or you can do it from Campaign Manager.</div>${active?replyBtn('Publish','cl6Publish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 const CL3_VERIFIED = (n)=> agentMsg(
   disclosure(`Updated ${n} clone${n===1?'':'s'}`,['Reading your copy','Applying it to each clone','Re-checking the creatives'])
   + `<div class="chatBubble">I've applied the copy. All ${n} clone${n===1?'':'s'} ${n===1?'is':'are'} verified.${objectCard('edit',CL3_VIEW_NAME)}<div class="bubble-q">If you want to publish ${n===1?'it':'them'}, go to Campaign Manager.</div><div class="link-cm">Go to Campaign Manager</div></div>`);
@@ -3771,18 +3997,27 @@ scenes.pcSearch = (state={})=>{
     ...(isCl2 ? {ap: CL2_NEW_PLACEMENT} : {}),
     ...(isCl3b ? {ap: CL3_NEW_PLACEMENT, tmpl: CL3_NEW_TEMPLATE} : {}),
     ...(cl4Changed ? {ap: cl4DestFor(i)||SRC[i].ap, tmpl: CL3_NEW_TEMPLATE} : {}),
+    /* scenario 6 lands on the same destination as 3b, but its copy was fixed
+       BEFORE creation, so these rows stay clean Draft / v1 (user, 2026-09-17) */
+    ...(state.cl6!==undefined ? {ap: CL3_NEW_PLACEMENT, tmpl: CL3_NEW_TEMPLATE,
+        /* published by the closing pill: Draft until then */
+        ...(state.cl6==='published' ? {status:'Published'} : {})} : {}),
   })).map((r,k)=>({...r,
     /* a flagged clone's STATUS is Error; once its copy is supplied the clone has
        been EDITED, so it moves to v2 rather than staying at the created v1 */
     status: needsCopy(k) ? 'Error' : (cl3Edited ? 'Edited' : r.status),
     ver: (!needsCopy(k) && cl3Edited) ? 'v2' : r.ver,
     // flags the highlighted columns; only set when this flow changed them
-    apChanged: isCl3b||cl4Changed, tmplChanged: isCl3b||cl4Changed }));
+    apChanged: isCl3b||cl4Changed||state.cl6!==undefined,
+    tmplChanged: isCl3b||cl4Changed||state.cl6!==undefined }));
   const CL3_LIST = ['clonesErr','fixingAll','verified'];
   const onCloneResults = (state.pc==='done') || (state.cl2==='allrev' || state.cl2==='done')
     || (state.cl3==='done3a') || (state.cl3!==undefined && CL3_LIST.includes(state.cl3))
     || (state.cl4==='doneall' || state.cl4==='done')
-    || (state.cl5==='doneall');
+    || (state.cl5==='doneall')
+    /* scenario 6: task 2 is the created set, and it stays on screen through
+       the publish */
+    || ['w2','done','publishing','published'].includes(state.cl6);
   const rows = onCloneResults ? cloneRows : SRC;
   const n = sel.size;
   const pick = rows[[...sel][0]] || rows[1];
@@ -4006,13 +4241,60 @@ scenes.pcSearch = (state={})=>{
       else if(c==='wnaming')    tail += CHOICE() + (state.path==='direct' ? '' : `<div class="convoTurn">${CL3_ASK_TARGET()}</div><div class="convoTurn">${TARGETREQ()}${CL3_UNDERSTOOD(false)}</div>`) + `<div class="convoTurn">${agentLoader('Preparing the copies', state.tasks||[])}</div>`;
       else if(c==='naming')     tail += CHOICE() + (state.path==='direct' ? '' : `<div class="convoTurn">${CL3_ASK_TARGET()}</div><div class="convoTurn">${TARGETREQ()}${CL3_UNDERSTOOD(false)}</div>`) + `<div class="convoTurn">${CL3_NAMING(true, state.path==='direct')}</div>`;
       else if(c==='wfields')    tail += beforeClone3() + agentLoader('Checking the new template', state.tasks||[]) + `</div>`;
-      else if(c==='fields')     tail += beforeClone3() + CL3_FIELDS_CARD(nSel,true) + `</div>`;
+      /* scenario 6 offers a PLAN here rather than creating flagged clones */
+      else if(c==='fields')     tail += beforeClone3()
+                                     + (scenario==='cl6' ? CL6_FIELDS_CARD(nSel,true,!!state.cl6Fields) : CL3_FIELDS_CARD(nSel,true))
+                                     + `</div>`;
       else if(c==='wclones')    tail += beforeClone3b() + agentLoader(`Cloning ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[]) + `</div>`;
       else if(c==='clonesErr')  tail += beforeClone3b() + CL3_CLONES_ERR(nSel) + `</div>`;
       else if(c==='fixingAll')  tail += beforeClone3b() + CL3_CLONES_ERR(nSel) + `</div>`
                                      + `<div class="convoTurn">${FIXALL()}${agentLoader('Applying the copy', state.tasks||[])}</div>`;
       else if(c==='verified')   tail += beforeClone3b() + CL3_CLONES_ERR(nSel) + `</div>`
                                      + `<div class="convoTurn">${FIXALL()}${CL3_VERIFIED(nSel)}</div>`;
+      body += `<div class="convoTurn">${tail}</div>`;
+    }
+    /* ── SCENARIO 6: same opening as 3b, then the two-task plan that fixes the
+       validation error BEFORE the experiences are created (user, 2026-09-17) ── */
+    else if(state.cl6!==undefined){
+      const c = state.cl6;
+      const nSel = state.asked || n || 1;
+      const names = cloneRows.map(r=>r.exp);
+      /* 3b's opening turns, replayed as history: the choice, the target ask,
+         the typed target, the intent card, the naming card, the fields card. */
+      const opening = ()=> CL3_CHOICE(false,'Change the access point')
+        + `<div class="convoTurn">${CL3_ASK_TARGET()}</div>`
+        + `<div class="convoTurn">${userBubble(CL3_TARGET_PROMPT)}${CL3_UNDERSTOOD(false)}</div>`
+        + `<div class="convoTurn">${CL3_NAMING(false)}${CL6_FIELDS_CARD(nSel,false,!!state.cl6Fields)}</div>`;
+      /* each creative gets its OWN copy, named, in one prompt */
+      const FIXREQ = ()=> userBubble(cl6FixBubble(names));
+      let tail = selThread(nSel) + PC_REQ();
+      if(c==='planning')      tail += opening() + `<div class="convoTurn">${agentLoader('Preparing the tasks', state.tasks||[])}</div>`;
+      else if(c==='plan')     tail += opening() + `<div class="convoTurn">${CL6_PLAN(0,-1,true)}</div>`;
+      else if(c==='w1')       tail += opening() + `<div class="convoTurn">${CL6_PLAN(0,0)}</div>`
+                                   + `<div class="convoTurn">${agentLoader(CL6_TASKS[0], state.tasks||[])}</div>`;
+      else if(c==='t1err')    tail += opening() + `<div class="convoTurn">${CL6_PLAN(0,-1)}</div>`
+                                   + `<div class="convoTurn">${CL6_TASK1_ERR(nSel)}</div>`;
+      else if(c==='fixing')   tail += opening() + `<div class="convoTurn">${CL6_PLAN(0,-1)}</div>`
+                                   + `<div class="convoTurn">${CL6_TASK1_ERR(nSel)}</div>`
+                                   + `<div class="convoTurn">${FIXREQ()}${agentLoader('Applying the copy', state.tasks||[])}</div>`;
+      else if(c==='t1fixed')  tail += opening() + `<div class="convoTurn">${CL6_PLAN(0,-1)}</div>`
+                                   + `<div class="convoTurn">${CL6_TASK1_ERR(nSel)}</div>`
+                                   + `<div class="convoTurn">${FIXREQ()}${CL6_TASK1_FIXED(nSel,true)}</div>`;
+      else if(c==='w2')       tail += opening() + `<div class="convoTurn">${CL6_PLAN(1,1)}</div>`
+                                   + `<div class="convoTurn">${CL6_TASK1_ERR(nSel)}</div>`
+                                   + `<div class="convoTurn">${FIXREQ()}${CL6_TASK1_FIXED(nSel,false)}</div>`
+                                   + `<div class="convoTurn">${agentLoader(`Creating ${nSel} experience${nSel===1?'':'s'}`, state.tasks||[])}</div>`;
+      else if(c==='publishing'||c==='published') tail += opening() + `<div class="convoTurn">${CL6_PLAN(2,-1)}</div>`
+                                   + `<div class="convoTurn">${CL6_TASK1_ERR(nSel)}</div>`
+                                   + `<div class="convoTurn">${FIXREQ()}${CL6_TASK1_FIXED(nSel,false)}</div>`
+                                   + `<div class="convoTurn">${CL6_DONE(nSel,false)}</div>`
+                                   + `<div class="convoTurn">${c==='publishing'
+                                       ? agentLoader('Publishing the experiences', state.tasks||[])
+                                       : CL6_PUBLISHED(nSel)}</div>`;
+      else if(c==='done')     tail += opening() + `<div class="convoTurn">${CL6_PLAN(2,-1)}</div>`
+                                   + `<div class="convoTurn">${CL6_TASK1_ERR(nSel)}</div>`
+                                   + `<div class="convoTurn">${FIXREQ()}${CL6_TASK1_FIXED(nSel,false)}</div>`
+                                   + `<div class="convoTurn">${CL6_DONE(nSel,true)}</div>`;
       body += `<div class="convoTurn">${tail}</div>`;
     }
     else if(state.cl2!==undefined){
@@ -4061,7 +4343,10 @@ scenes.pcSearch = (state={})=>{
     /* Any state whose outcome is a NEW canvas output loads the canvas as well
        as the conversation — a loader in one pane only reads as a stall. */
     const canvasBusy = ['fixingAll','cloning','wclones'].includes(state.cl3)
-      || state.pc==='cloning' || state.cl4==='wall4';
+      || state.pc==='cloning' || state.cl4==='wall4'
+      /* scenario 6: creating the experiences changes the canvas, so it loads
+         too — a loader in the panel alone read as a stall (user, 2026-09-17) */
+      || state.cl6==='w2' || state.cl6==='publishing';
     table = canvasBusy
       ? skeletonTable(anyFlagged&&onCloneResults?PC_COLS_QA:PC_COLS,true)
       : tableHTML(anyFlagged&&onCloneResults?PC_COLS_QA:PC_COLS,rows,{checkbox:true,select:true,selected:onCloneResults?new Set():sel,
@@ -4075,20 +4360,37 @@ scenes.pcSearch = (state={})=>{
   const chip = (n && !onCloneResults) ? n+' experience'+(n===1?'':'s')+' selected' : '';
   // scenario 1's ask, scenario 2's ask, or the body-copy fix auto-typed on the error
   const draft = (state.cl5==='mixed' && state.retyped) ? CLONE_PROMPT
-      : (state.typed && state.pc===undefined && state.cl2===undefined && state.cl3===undefined && state.cl4===undefined && state.cl5===undefined)
+      : (state.typed && state.pc===undefined && state.cl2===undefined && state.cl3===undefined && state.cl4===undefined && state.cl5===undefined && state.cl6===undefined)
       ? (scenario==='cl2' ? CLONE2_PROMPT : CLONE_PROMPT)
       : (state.cl2==='t0err' && state.fixTyped) ? USE_BODY_PROMPT
       // scenario 3: the target access point, then the body copy, auto-type in turn
       : (state.cl3==='asking' && state.tgtTyped) ? CL3_TARGET_PROMPT
-      : (state.cl3==='clonesErr' && state.fixTyped) ? USE_BODY_PROMPT : '';
+      : (state.cl3==='clonesErr' && state.fixTyped) ? cl3FixPrompt(cloneNamesW())
+      /* scenario 6's task 1: one prompt carrying EVERY creative's own copy —
+         the creatives differ, so the copy is per experience (user, 2026-09-17).
+         Without a cl6 case here the opening clone ask leaked back in. */
+      : (state.cl6==='t1err' && state.fixTyped6) ? cl6FixPrompt(cloneNamesW()) : '';
   /* Task tracker at the top of the panel. Scenario 1 has no multi-task plan so
      it shows none; scenario 2 runs n+1 tasks, and the tracker names the REAL
      task even when the plan table collapsed its row into a span. Easy to
      forget in a single state-keyed scene — there is no per-task
      artifactScreen({step}) call to copy. */
   let stepPair = null;
+  /* Scenario 6 runs a two-task plan, so it gets the sticky tracker too
+     (user, 2026-09-17). Task 1 spans the staged change, its error and its fix;
+     task 2 is the creation. */
+  if(state.cl6!==undefined){
+    const c6 = state.cl6;
+    if(c6==='w1')                               stepPair = [`1.  ${CL6_TASKS[0]}`, true];
+    else if(c6==='t1err' || c6==='t1fixed')     stepPair = [`1.  ${CL6_TASKS[0]}`, false];
+    else if(c6==='fixing')                      stepPair = [`1.  ${CL6_TASKS[0]}`, true];
+    else if(c6==='w2')                          stepPair = [`2.  ${CL6_TASKS[1]}`, true];
+    else if(c6==='done')                        stepPair = [`2.  ${CL6_TASKS[1]}`, false];
+    else if(c6==='publishing')                  stepPair = [`2.  ${CL6_TASKS[1]}`, true];
+    else if(c6==='published')                   stepPair = [`2.  ${CL6_TASKS[1]}`, false];
+  }
   // scenario 3 has no plan any more, so it shows no task tracker
-  if(state.cl2!==undefined){
+  else if(state.cl2!==undefined){
     const nSel = state.asked || n || 1;
     const labels = cl2TaskLabels(nSel);
     const c = state.cl2, mm = /^([tw])(\d+)$/.exec(c);
@@ -4191,6 +4493,50 @@ scenes.pcSearch = (state={})=>{
     }
   }
 
+  /* Scenario 6's TASK 1 canvas: the staged access point + template change, one
+     creative per selected experience (user, 2026-09-17). Nothing is created
+     until task 2, so this view is the pending change, not a list of objects.
+     Task 2 falls through to the normal clone-results table below. */
+  if(state.cl6!==undefined){
+    const CL6_STAGED = ['w1','t1err','fixing','t1fixed'];
+    if(CL6_STAGED.includes(state.cl6)){
+      const names = cloneRows.map(r=>r.exp);
+      const busy6 = state.cl6==='w1' || state.cl6==='fixing';
+      /* the copy is corrected from `t1fixed` on */
+      const over = state.cl6!=='t1fixed';
+      const view = state.creativeView==='preview' ? 'preview' : 'detail';
+      /* Task 1 is a LIST -> DRILL-DOWN, on the CREATIVES: nothing has been
+         created yet, so these are pending creatives, not experiences
+         (user, 2026-09-17). */
+      if(state.creDrill!==undefined && state.creDrill!==null && !busy6){
+        const i = +state.creDrill;
+        /* Task 1's creative drill-down. Also routed through expDrillCanvas, so
+           the tabs, the Detail/Preview toggle and the spacing come from the one
+           place they are defined (user, 2026-09-17). The row is a PENDING
+           creative, not an experience: no ID or version yet, and the QA badge
+           carries the validation state. */
+        const creRow = {exp:names[i]||names[0], status: over?'Error':'Verified',
+          ap:CL3_NEW_PLACEMENT, tmpl:CL3_NEW_TEMPLATE,
+          prio:'13.0', by:PC_ROWS[0].by, mod:CLONE_STAMP};
+        return expDrillCanvas(PC_CRUMB, creRow, state,
+          {name:creRow.exp, status:creRow.status, bare:true,
+           hlAp:true, hlTmpl:true, ap:CL3_NEW_PLACEMENT, tmpl:CL3_NEW_TEMPLATE,
+           cl6Body:(v)=>cl6Creative(v, over, CL3_FIX_COPY[i % CL3_FIX_COPY.length])}) + panel();
+      }
+      /* the landing state: the creatives as a table, no status at title level */
+      const creRows = names.map((nm,i)=>({exp:nm, status: over?'Error':'Verified',
+        ap:CL3_NEW_PLACEMENT, tmpl:CL3_NEW_TEMPLATE}));
+      const tbl = busy6 ? skeletonTable(CL6_CRE_COLS,true)
+        : tableHTML(CL6_CRE_COLS, creRows, {checkbox:true, select:true,
+            selected:new Set(), drillrow:true});
+      return `<div class="content">${topbar(PC_CRUMB)}<div class="scroll"><div class="pad">
+        <h2 class="page-h">${CL6_CRE_TITLE}</h2>
+        ${rxToolbarCl4('')}
+        ${tbl}
+      </div></div></div>` + panel();
+    }
+  }
+
   /* Scenario 3b has no per-task canvas: the clone list stays on screen and
      skeletons while the copy is applied (the `fixingAll` table branch). */
 
@@ -4216,6 +4562,20 @@ scenes.pcSearch = (state={})=>{
                     bodyOver:needsCopy(state.expDrill), bodyEdited:cl3Edited,
                     qaBadge:false} : {})}
       : {};
+    /* Scenario 6's created experiences were fixed BEFORE creation, so the
+       creative shows the CORRECTED content with every required field. Routed
+       through expDrillCanvas so it inherits the tabs, the Detail/Preview
+       toggle and the spacing rather than re-deriving them (user, 2026-09-17:
+       a hand-rolled canvas lost the tabs and the toggle). */
+    if(state.cl6!==undefined && onCloneResults){
+      const i = +state.expDrill;
+      return expDrillCanvas(PC_CRUMB, dr, state,
+        {name:dr.exp, status:dr.status, ver:dr.ver, eid:dr.eid,
+         ap:dr.ap, tmpl:dr.tmpl,
+         /* a created experience is a NEW object: nothing was edited, so no
+            yellow on the attributes either */
+         cl6Body:(view)=>cl6Creative(view, false, CL3_FIX_COPY[i % CL3_FIX_COPY.length], true)}) + panel();
+    }
     return expDrillCanvas(onCloneResults?CLONE_CRUMB:PC_CRUMB, dr, state, extra) + panel();
   }
   const total = rows.length;
@@ -4232,7 +4592,11 @@ scenes.pcSearch = (state={})=>{
   const heading = onCloneResults
     ? (isCl4 ? 'Cloned experiences'
       : (state.cl5==='doneall') ? `Cloned experiences - ${CL4_PROJECT}`
-      : isCl2 ? CL2_VIEW_NAME : isCl3b ? CL3_VIEW_NAME : CLONE_VIEW_NAME)
+      /* scenario 6 lands on the same destination as 3b, so it takes the same
+         view name (user, 2026-09-17: it read "Banking hellobox") */
+      : (isCl2 ? CL2_VIEW_NAME
+         : (isCl3b || state.cl6!==undefined) ? CL3_VIEW_NAME
+         : CLONE_VIEW_NAME))
     : ((isCl4||isCl5) ? 'QB Payroll IPD experiences' : 'QB Payroll IPD experiences using Banking - hellobox access point');
   const crumb = (isCl4||isCl5) ? CL4_CRUMB : (onCloneResults ? CLONE_CRUMB : PC_CRUMB);
   /* This scene's table is always FLAT — scenario 4's grouping lives on the
@@ -4463,6 +4827,57 @@ function runCl3FixAll(){
 }
 function runCl3Done(){ const f=[...(current.state.fixes||[])];
   go('pcSearch',{...cl3Base(),path:'change',cl3:'done',fixes:f}); }
+
+/* ============================================================
+   SCENARIO 6 runners: the validation error is fixed on the STAGED change,
+   before anything is created (user, 2026-09-17).
+   plan -> task 1 (staged change, error) -> typed fix -> approve -> task 2
+   ============================================================ */
+function cl6Base(){
+  const st=current.state||{}, sel=[...(st.selected||[])];
+  const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
+  if(st.fixTyped6) b.fixTyped6=true;
+  if(st.creativeView) b.creativeView=st.creativeView;
+  return b;
+}
+/* the fields card is approved -> make the plan */
+function runCl6Plan(){
+  const base={...cl6Base(),cl6:'planning'};
+  runPCStep(base,'Preparing the tasks',
+    ['Reading the change','Checking the new template','Ordering the tasks'],2200,
+    {...base,cl6:'plan'});
+}
+/* task 1: stage the access point + template change, surface the copy error */
+function runCl6Task1(){
+  const base={...cl6Base(),cl6:'w1'};
+  runPCStep(base,CL6_TASKS[0],
+    ['Applying the access point','Applying the template','Checking each creative'],2900,
+    {...base,cl6:'t1err'});
+}
+/* the user supplies copy within the limit -> every creative is corrected */
+function runCl6Fix(){
+  const base={...cl6Base(),cl6:'fixing',fixTyped6:true};
+  runPCStep(base,'Applying the copy',
+    ['Reading your copy','Applying it to each creative','Re-checking the creatives'],2900,
+    {...base,cl6:'t1fixed'});
+}
+/* the Publish pill on the closing message: the experiences go live. Offered
+   alongside Campaign Manager (user, 2026-09-17) — a pill that did nothing on
+   click would be worse than no pill, so it runs. */
+function runCl6Publish(){
+  const base={...cl6Base(),cl6:'publishing'};
+  runPCStep(base,'Publishing the experiences',
+    ['Validating the experiences','Publishing them','Refreshing the view'],2600,
+    {...base,cl6:'published'});
+}
+/* task 1 approved -> task 2 creates the experiences, clean */
+function runCl6Task2(){
+  const n=(current.state.selected||[]).length||1;
+  const base={...cl6Base(),cl6:'w2'};
+  runPCStep(base,`Creating ${n} experience${n===1?'':'s'}`,
+    ['Applying the access point','Creating the experiences','Checking the creatives'],2900,
+    {...base,cl6:'done'});
+}
 
 /* ============================================================
    SCENARIO 4 runners (varying access points).
@@ -4707,6 +5122,17 @@ const STEPS_CL3 = [
   ['pcSearch',{selected:[...CLONE_SEL],asked:CLONE_SEL.length,typed:true,cl3:'choice'}],
   ...CL3_ORDER.slice(1).map(c=>CL3_S(c)),
 ];
+/* Scenario 6 shares 3b's opening (choice -> target -> intent -> naming ->
+   fields), then runs its own two-task plan (user, 2026-09-17). */
+const CL6_S = (cl6)=>['pcSearch',{selected:[...CLONE_SEL],asked:CLONE_SEL.length,typed:true,fixTyped6:true,cl6}];
+const CL6_ORDER = ['plan','t1err','t1fixed','done','published'];
+const STEPS_CL6 = [
+  ['home',{}],
+  ['pcSearch',{}],
+  ['pcSearch',{selected:[...CLONE_SEL],typed:true}],
+  ...['choice','asking','intent','naming','fields'].map(c=>CL3_S(c)),
+  ...CL6_ORDER.map(c=>CL6_S(c)),
+];
 /* scenario 4's demo selection spans THREE access points (CL4_ROWS is 3 rows per
    AP, so 0-2 = AP1, 3-5 = AP2, 6-8 = AP3) — enough to show the per-group loop
    without making it endless. */
@@ -4749,7 +5175,8 @@ function FLOW_STEPS(){
   if(scenario==='cl5') return STEPS_CL5;
   if(scenario==='cl4') return STEPS_CL4;
   if(scenario==='cl3') return STEPS_CL3;
-  return scenario==='cl2' ? STEPS_CL2 : STEPS_PC;
+  if(scenario==='cl6') return STEPS_CL6;
+  return STEPS_CL3;
 }
 const PC_ORDER = ['understood','done'];
 // map the CURRENT scene+state onto a step index so arrows resume from anywhere
@@ -4757,6 +5184,18 @@ function stepIndex(){
   const st=current.state||{};
   if(current.name==='home') return 0;
   if(current.name!=='pcSearch') return -1;
+  /* scenario 6: 3 intake steps + 5 shared opening steps, then its own order */
+  if(st.cl6!==undefined){
+    const R = {planning:'plan', w1:'t1err', fixing:'t1fixed', w2:'done', publishing:'published'};
+    const i = CL6_ORDER.indexOf(R[st.cl6]||st.cl6);
+    return i===-1 ? 3 : i+8;
+  }
+  if(scenario==='cl6' && st.cl3!==undefined){
+    const R = {reading:'choice', reading2:'asking', targeting:'intent',
+               wnaming:'naming', wfields:'fields'};
+    const i = ['choice','asking','intent','naming','fields'].indexOf(R[st.cl3]||st.cl3);
+    return i===-1 ? 3 : i+3;
+  }
   if(st.pc){
     // in-flight states resolve to the resting step they're heading for
     const resolved = {reading:'understood',cloning:'done'}[st.pc] || st.pc;
