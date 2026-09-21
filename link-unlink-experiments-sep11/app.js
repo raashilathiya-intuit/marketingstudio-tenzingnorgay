@@ -802,7 +802,7 @@ scenes.home = (state={})=>{
             <button class="simMenu__item" data-sim="ulDraft">Unlink experiences from a draft experiment</button>
             <button class="simMenu__item" data-sim="lkExp">Link an experience to a published experiment</button>
             <button class="simMenu__item" data-sim="lkDraft">Link an experience to a draft experiment</button>
-            <button class="simMenu__item" data-sim="mvExp">Move an experience to another experiment</button>
+            <button class="simMenu__item" data-sim="mvExp">Move experiences to another experiment</button>
           </div>
         </div>
       </div>
@@ -2458,7 +2458,10 @@ const trigger = {
   lkApprove:()=>{ recordPillThen(()=>runLkWork()); },
   lkPublish:()=>{ recordPillThen(()=>runLkPublish()); },
   // ── move an experience between experiments (flow 3) ──
-  mvSend:()=>{ clearTimers(); runMvRead(); },
+  /* the ask names the CHECKED rows, so Send does nothing without a selection
+     (the same guard as `ulSend`) */
+  mvSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return;
+    clearTimers(); runMvRead(); },
   mvApproveIntent:()=>{ recordPillThen(()=>runMvPlan()); },
   mvApprovePlan:()=>{ recordPillThen(()=>runMvTask(0)); },
   /* matches BOTH a task rest (`t{i}`) and the published rest (`p{i}`) — the
@@ -2771,7 +2774,30 @@ function wire(name, state){
 
   // ── ONE EXPERIENCE: the move ask auto-types, Send runs it ──
   if(name==='mvExp' && !state.loading && !state.phase){
-    if(!state.mv && !state.typed) scheduleAskType('mvExp', MV_PROMPT);
+    /* ── THE SELECTION (user, 2026-09-21): the user checks the experiences to
+       move before the ask exists. Frozen once the conversation starts, the
+       same way the unlink flow freezes its picker. ── */
+    const mvSel = new Set(state.selected||[]);
+    const mvFrozen = state.mv!==undefined;
+    main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
+      e.stopPropagation();
+      /* FROZEN: a native checkbox has ALREADY toggled itself by the time this
+         runs, so bailing out early leaves the box visually unchecked while the
+         state still holds it. Put it back rather than just returning
+         (user-visible as "my selection cleared itself"). */
+      if(mvFrozen){ cb.checked = mvSel.has(+cb.dataset.selrow); return; }
+      autopilot=false;
+      const i=+cb.dataset.selrow; mvSel.has(i)?mvSel.delete(i):mvSel.add(i);
+      render('mvExp',{...state,selected:[...mvSel]});
+    });
+    /* only the landing list is a picker; every later canvas renders its own
+       table with an empty selection, so hand the header checkbox an empty set
+       there or it renders checked over unchecked rows */
+    wireSelAll(main, mvFrozen?new Set():mvSel, mvFrozen,
+      (sx)=>render('mvExp',{...state,selected:[...sx]}));
+    /* THE ASK WAITS FOR A SELECTION — it names "these", so it cannot type
+       itself before the user has picked any (user, 2026-09-21). */
+    if(!state.mv && !state.typed && mvSel.size) scheduleAskType('mvExp', MV_PROMPT);
     /* THE CONTINUATION (user, 2026-09-16): task 4's Publish is on offer, and
        the user ignores it — the second ask types itself into the composer so
        the flow visibly carries on instead of dead-ending at the pill. */
@@ -2779,7 +2805,7 @@ function wire(name, state){
     if(atLastTask && !state.typed2) scheduleAskType('mvExp', MV2_PROMPT, 'typed2');
     /* the treatment answer types itself once the AI has asked */
     const atTmtAsk = state.mv==='tmtask';
-    if(atTmtAsk && !state.typedTmt) scheduleAskType('mvExp', MV_TMT_PROMPT, 'typedTmt');
+    if(atTmtAsk && !state.typedTmt) scheduleAskType('mvExp', MV_TMT_PROMPT_FN(), 'typedTmt');
     const send=main.querySelector('#composerSend');
     /* Send routes by where the conversation is: the treatment answer mid-plan,
        the second ask once the plan is finished, otherwise the opening ask. */
@@ -2835,7 +2861,12 @@ function wire(name, state){
     const sel=new Set(state.selected||[]);
     const frozen = state.ul!==undefined;       // the ask is in flight: freeze the table
     main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
-      e.stopPropagation(); if(frozen) return; autopilot=false;
+      e.stopPropagation();
+      /* FROZEN: the native checkbox has already toggled itself by the time this
+         handler runs, so returning early leaves it visually unchecked while the
+         state still holds it. Put it back. */
+      if(frozen){ cb.checked = sel.has(+cb.dataset.selrow); return; }
+      autopilot=false;
       const i=+cb.dataset.selrow; sel.has(i)?sel.delete(i):sel.add(i);
       render('xpDetail',{...state,selected:[...sel]});
     });
@@ -3750,6 +3781,20 @@ const mvToMeta = ()=>({
   'START DATE':'03/12/2026',
   'END DATE':'04/22/2027',
 });
+/* Count-driven pager for an experiment's linked-experience table (user,
+   2026-09-18). Every table showed rows with no pagination; the numbers come
+   from the row count rather than being written down, so they can't go stale
+   as the list changes through a flow. 50 rows per page matches the pattern
+   used elsewhere in the build. */
+const XP_PAGE_SIZE = 50;
+const xpPager = (n)=>{
+  if(!n) return '';
+  const pages = Math.max(1, Math.ceil(n / XP_PAGE_SIZE));
+  return `<div class="pager">
+      <span>1-${Math.min(n, XP_PAGE_SIZE)} of ${n} items</span>
+      <span class="nav">${I.chevL}<span>Page</span><span class="box">1</span><span>of ${pages}</span>${I.chevR}</span>
+    </div>`;
+};
 const xpToolbar = (by='')=>`<div class="toolbar">
       <div class="search">${I.search}<span>Search</span></div>
       <span class="iconbtn">${I.sliders}</span>
@@ -4257,7 +4302,8 @@ scenes.xpSearch = (state={})=>{
   }
   const table = loading
     ? skeletonTable(XP_LIST_COLS,true)
-    : tableHTML(XP_LIST_COLS, XP_LIST, {drillrow:true});
+    /* the experiment LIST needs its pager too (user, 2026-09-18) */
+    : tableHTML(XP_LIST_COLS, XP_LIST, {drillrow:true}) + xpPager(XP_LIST.length);
   return `<div class="content">${topbar(XP_SEARCH_CRUMB)}<div class="scroll"><div class="pad">
       <h2 class="page-h">${XP_PROJECT}</h2>
       ${xpToolbar()}
@@ -4350,18 +4396,64 @@ const LK_PUBLISHED = (pub=true)=> agentMsg(
    experiments are published — so both need a draft, and the diagram's
    5-task plan applies.
    ============================================================ */
-const MV_EXP      = 'ty25_OICMS_716920_DRY_test_DIY_reco_recipe_C';
+/* THE USER MOVES SEVERAL EXPERIENCES AT ONCE (user, 2026-09-21). The flow used
+   to open ONE experience by ID; now it starts from the EXPERIMENT and its
+   linked-experience list, and the user CHECKS the ones to move. Only the
+   NUMBER being moved changed — every beat after the ask is the same. */
 const MV_FROM     = XP_NAME;          // experiment X, published
+const MV_FROM_ID  = XP_ID;
 const MV_TO       = 'ty25_Catchall_SSG';   // experiment Y, published
 const MV_TO_ID    = '716931';
-const MV_PROJECT  = MV_EXP;           // the specific intake names the project for the experience
+/* THE FLOW READS THE USER'S ACTUAL SELECTION (user, 2026-09-21: "i made
+   selections and typed my prompt for those selections. where is that in my
+   conversation?"). `MV_PICK()` used to be the hardcoded constant `[3,4,5]` and
+   EVERY count, name, treatment and row diff read from it — so checking four
+   rows still produced "3 experiences will move", and the selection was
+   decorative. It is now a FUNCTION reading `current.state.selected`, sorted so
+   the order always matches the table.
+   `MV_PICK_DEFAULT` is the fallback for step-nav (which renders states
+   directly) and for any render before a selection exists. */
+const MV_PICK_DEFAULT = [3,4,5];
+const MV_PICK = ()=>{
+  const sel = (current && current.state && current.state.selected) || null;
+  return (sel && sel.length ? [...sel] : [...MV_PICK_DEFAULT]).sort((a,b)=>a-b);
+};
+const MV_EXPS     = ()=>MV_PICK().map(i=>XP_ROWS[i].exp);
+/* a FUNCTION, not a constant: a constant captured the default at load time */
+const MV_N        = ()=>MV_PICK().length;
+/* the first of them still stands in wherever ONE experience has to be named
+   (the drill-down default, the row helper) */
+const MV_EXP      = 'ty25_OICMS_716920_DRY_test_DIY_reco_recipe_C';
 const MV_EID = '51738ef0-9505-11f1-86ec-a3e651c6bc02';
-/* the user pastes the ID, they do not type the full name (the diagram's
-   "include experience ID in prompt"). The PROJECT is still named for the
-   resolved experience — a GUID in the crumb would be meaningless. */
-const MV_FIND_PROMPT = `Show me experience ${MV_EID}.`;
-const MV_PROMPT   = `Unlink this from ${MV_FROM} and link it to ${MV_TO}.`;
+/* the project is named from the PROMPT, the same rule as every other intake in
+   this build: "Find all experiences linked to 716920." -> the experiment. */
+/* NAMED FROM THE PROMPT, like every other intake in this build (user,
+   2026-09-21: "project name is not making sense based on the prompt"). The ask
+   names an ID, not an experiment name, so the project echoes the ID — taking
+   `XP_NAME` here produced "ty25_Catchall_PLU" out of nowhere, a name the user
+   never typed and could not connect to what they asked for. */
+const MV_PROJECT  = `Experiences linked to ${XP_ID}`;
+const MV_FIND_PROMPT = `Find all experiences linked to ${XP_ID} experiment.`;
+const MV_PROMPT   = `Unlink these from ${MV_FROM} and link them to ${MV_TO}.`;
+/* two levels, like the search intake: the project, then the experiment */
 const MV_CRUMB    = ()=>`<span>Home</span> <span class="sep">/</span> <span>${MV_PROJECT}</span>`;
+/* THE LANDING IS A RESULTS LIST, NOT AN EXPERIMENT PAGE (user, 2026-09-21: "if
+   my prompt is search experiences, should I be shown the experiment?"). The
+   ask is over EXPERIENCES, and the diagram's flow 3 starts "find experiences"
+   with the experiment as an attribute it checks — so the canvas is xpSearch's
+   shape (heading + toolbar + table), with no experiment header, meta card or
+   version picker. The EXPERIMENT column is what a results list needs and an
+   experiment page did not: it says what each experience is currently linked
+   to, which is the value the move is about to change. */
+const MV_LIST_COLS = [
+  {label:'Experience',key:'exp',info:1},
+  {label:'Experiment',key:'xp'},
+  {label:'Status',key:'status',badge:1},
+  {label:'Access point',key:'ap'},
+  {label:'Treatment',key:'tmt'},
+];
+/* the search results: X's linked experiences, each naming its experiment */
+const MV_LIST = ()=>XP_ROWS.map(r=>({...r, xp:XP_NAME}));
 /* experiment Y's own linked experiences, so task 2 and 4 have a real list */
 const MV_TO_ROWS = [
   'ty25_OICMS_716931_SSG_test_DIY_reco_recipe_A',
@@ -4376,8 +4468,24 @@ const MV_TO_TREATMENTS = [
   ['B_SSG_HighIntent','30%'],
   ['C_SSG_Control','30%'],
 ];
-/* the treatment the moved experience is assigned to */
-const MV_TMT = 'B_SSG_HighIntent';
+/* THE TREATMENTS ARE SPLIT (user, 2026-09-21): two of the three go on one
+   treatment and the third on another, and the user says so in the ANSWER they
+   type. A single treatment for all three would not show that the assignment is
+   a real choice per experience. `MV_TMT` stays the majority one, used wherever
+   a single treatment is named (the row helper, the drill-down). */
+const MV_TMT  = 'B_SSG_HighIntent';   // the two DIY/FS recipes
+const MV_TMT2 = 'C_SSG_Control';      // the DIWM recipe
+/* which moved experience lands on which treatment, in MV_PICK() order */
+const MV_TMT_OF = ()=>MV_EXPS().map(e=>/DIWM/.test(e) ? MV_TMT2 : MV_TMT);
+/* "A and B on X, and C on Y" — how the assignment reads in prose */
+const MV_TMT_SUMMARY = ()=>{
+  const g = {};
+  MV_EXPS().forEach((e,i)=>{ const t=MV_TMT_OF()[i]; (g[t]=g[t]||[]).push(e); });
+  return Object.entries(g).map(([t,es])=>`${listAnd(es)} on ${t}`).join(', and ');
+};
+/* "a, b and c" */
+function listAnd(a){ return a.length<2 ? (a[0]||'')
+  : a.slice(0,-1).join(', ')+' and '+a[a.length-1]; }
 /* ---- the CONTINUATION (user, 2026-09-16) ----
    Task 4 offers Publish, but the user ignores the pill and types another ask:
    add a SECOND experience to the SSG draft. Both experiments are already in
@@ -4394,22 +4502,34 @@ const MV2_ROW  = {exp:MV2_EXP, eid:MV2_EID, status:'Draft', ap:XP_AP, tmt:MV2_TM
 /* the experience as a row, for expDrillCanvas */
 const MV_ROW = {exp:MV_EXP, eid:MV_EID, status:'Published', ver:'v3', tmt:MV_TMT,
   ap:XP_AP, tmpl:'helloboxThirdParty', prio:'13.0', by:XP_AUTHOR, mod:'06/30 18:30PST'};
-/* the specific intake's finished transcript */
+/* THE MOVED ROWS as they appear on Y: the selected rows of X, each re-assigned
+   to the treatment the user named for it (user, 2026-09-21). Keeping each row's
+   own eid means a drill-down from Y's list opens the right experience. */
+const MV_ROWS = ()=>MV_PICK().map((ri,i)=>({...XP_ROWS[ri],
+  tmt:MV_TMT_OF()[i], ver:'v3', tmpl:'helloboxThirdParty', prio:'13.0',
+  by:XP_AUTHOR, mod:'06/30 18:30PST'}));
+/* the rows of X that STAY */
+const MV_KEPT = ()=>XP_ROWS.filter((_,i)=>!MV_PICK().includes(i));
+/* the intake's finished transcript. The ask names an EXPERIMENT now, so this
+   reads like the search intake: the AI finds the experiment and opens it with
+   its linked experiences listed (user, 2026-09-21). */
 const MV_FETCH_CONV = ()=>
   userBubble(MV_FIND_PROMPT)
   + agentMsg(XP_CREATED_FOR(MV_PROJECT),'')
+  /* a SEARCH result, so the message is about the EXPERIENCES found and the
+     object card is the search project — not the experiment (user, 2026-09-21).
+     The experiment is named as the thing they are linked to, which is the
+     attribute the move is about to change. */
   + agentMsg(
-      disclosure('Fetched the experience',['Reading your request','Fetching the experience','Compiling results'])
-      /* the disclosure alone left the turn empty — the fetched experience is the
-         object the AI produced, so it gets a card like the search results do. */
-      + `<div class="chatBubble">Here's the experience.${objectCard('search',MV_EXP)}</div>`);
+      disclosure('Searched experiences',['Reading your request','Searching experiences','Compiling results'])
+      + `<div class="chatBubble">I found ${XP_ROWS.length} experiences linked to ${MV_FROM}.${objectCard('search',MV_PROJECT)}</div>`);
 /* Step 1: the INTENT — what moves, from where to where. Both experiments are
    published, so both need a draft; that is what earns the plan. */
 const MV_INTENT = (active)=> agentMsg(
   disclosure('Read your request, checked both experiments',['Reading your request','Checking the experiments','Checking the linked experiences'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">This experience will move from ${MV_FROM} to ${MV_TO}.</p>${
+  + `<div class="summaryCard"><p class="summaryCard__intro">${MV_N()} experiences will move from ${MV_FROM} to ${MV_TO}.</p>${
       pcFtBlk('Experiment:', MV_FROM, MV_TO)
-    }<div class="infoNote">${INFO_ICON}<span>Both experiments are published, so I'll create a draft of each and make the changes there. You'll publish the ${MV_FROM} draft with the unlink before the experience can be linked to ${MV_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mvApproveIntent'):recordedReply('Proceed')}</div>`);
+    }<div class="infoNote">${INFO_ICON}<span>Both experiments are published, so I'll create a draft of each and make the changes there. You'll publish the ${MV_FROM} draft with the unlinks before the experiences can be linked to ${MV_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mvApproveIntent'):recordedReply('Proceed')}</div>`);
 /* Step 2: the PLAN — four tasks, alternating SETUP and REVIEW (user, 2026-09-16). The odd tasks
    only create a draft — there is nothing to review yet, so they carry a plain
    Approve. The change itself lands in the even task, where the user reviews it
@@ -4430,15 +4550,15 @@ const mvPlanRows = (done=0, loading=-1)=> MV_TASKS.map((w,i)=>{
   return `<div class="planTable__row">${marker}<span>${w}</span></div>`;
 }).join('');
 const MV_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
-  `<div class="summaryCard"><p class="summaryCard__intro">I'll move the experience in this order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${mvPlanRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you approve.</p>${active?replyBtn('Approve','mvApprovePlan'):recordedReply('Approve')}</div>`);
+  `<div class="summaryCard"><p class="summaryCard__intro">I'll move the experiences in this order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${mvPlanRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you approve.</p>${active?replyBtn('Approve','mvApprovePlan'):recordedReply('Approve')}</div>`);
 /* Each task rests on its own canvas with an Approve, like the clone build's
    per-task reviews (user, 2026-09-15: "how can we do 5 tasks when you show me
    nothing on the canvas for each?"). `t{i}` is the resting state for task i. */
 const MV_TASK_MSG = [
   ()=>`I've created a draft of ${MV_FROM}. Its ${XP_ROWS.length} linked experiences carried over as drafts.${objectCard('edit',`${MV_FROM} (draft)`)}`,
-  ()=>`I've unlinked the experience from the draft. It now has ${XP_ROWS.length-1} linked experiences, and the rest are unchanged.${objectCard('edit',`${MV_FROM} (draft)`)}<div class="bubble-q">${MV_FROM} has to be published before the experience can go on another experiment, so publish it to carry on.</div>`,
+  ()=>`I've unlinked the ${MV_N()} experiences from the draft. It now has ${XP_ROWS.length-MV_N()} linked experiences, and the rest are unchanged.${objectCard('edit',`${MV_FROM} (draft)`)}<div class="bubble-q">${MV_FROM} has to be published before the experiences can go on another experiment, so publish it to carry on.</div>`,
   ()=>`I've created a draft of ${MV_TO}. Its ${MV_TO_ROWS.length} linked experiences carried over as drafts.${objectCard('edit',`${MV_TO} (draft)`)}`,
-  ()=>`I've linked the experience to the draft of ${MV_TO}, assigned to treatment ${MV_TMT}. It now has ${MV_TO_ROWS.length+1} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}`,
+  ()=>`I've linked the ${MV_N()} experiences to the draft of ${MV_TO}, ${MV_TMT_SUMMARY()}. It now has ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}`,
 ];
 /* Task 2 REVIEWS AND PUBLISHES X, so it ends in a Publish pill with the
    Campaign Manager alternative and the purple warning above it — the same
@@ -4450,7 +4570,7 @@ const MV_LAST_TASK = 3;
    Approve that carries on to task 3. */
 const MV_PUBLISHED = (active)=> agentMsg(
   disclosure(`Published ${MV_FROM}`,['Validating the draft','Publishing the experiment','Refreshing the view'])
-  + `<div class="chatBubble">${MV_FROM} is published with ${XP_ROWS.length-1} linked experiences. The experience is off it, so it is free to go on ${MV_TO}.${objectCard('megaphone',MV_FROM)}<div class="bubble-q">Does this look ok? I'll move on to the next task once you approve.</div>${active?replyBtn('Approve','mvApproveTask'):recordedReply('Approve')}<div class="link-cm">View in Campaign Manager</div></div>`);
+  + `<div class="chatBubble">${MV_FROM} is published with ${XP_ROWS.length-MV_N()} linked experiences. The ${MV_N()} experiences are off it, so they are free to go on ${MV_TO}.${objectCard('megaphone',MV_FROM)}<div class="bubble-q">Does this look ok? I'll move on to the next task once you approve.</div>${active?replyBtn('Approve','mvApproveTask'):recordedReply('Approve')}<div class="link-cm">View in Campaign Manager</div></div>`);
 /* ---- the TREATMENT CHOICE, between tasks 3 and 4 (user, 2026-09-16) ----
    The draft of Y exists but nothing is linked yet: an experiment assigns its
    experiences to treatments, so the AI has to ask WHICH one before linking.
@@ -4458,17 +4578,43 @@ const MV_PUBLISHED = (active)=> agentMsg(
    EXPERIMENT and are assigned to a TREATMENT. The lk* flows keep "on treatment".
    The user answers by typing, the same way every other ask in this build
    starts, and the answer gets a plain intent confirmation before task 4 runs. */
-const MV_TMT_PROMPT = `Assign it to treatment ${MV_TMT}.`;
+/* THE ANSWER CARRIES THE SPLIT (user, 2026-09-21): the user names which
+   experiences go on which treatment, so the assignment is a real per-experience
+   choice rather than one treatment applied to everything.
+   DERIVED from the actual selection, not hardcoded prose — a fixed "the DIWM
+   one" read wrong the moment a selection contained two DIWM experiences. */
+const MV_TMT_PROMPT_FN = ()=>{
+  const picks = MV_EXPS(), of = MV_TMT_OF();
+  /* group by treatment, describing each group by the recipe kind in its name
+     (DIY / FS / DIWM) — that is how a person would say it out loud */
+  const kind = (e)=>(/DIWM/.test(e)?'DIWM':/_FS_/.test(e)?'FS':'DIY');
+  const g = {};
+  picks.forEach((e,i)=>{ (g[of[i]] = g[of[i]] || []).push(kind(e)); });
+  const parts = Object.entries(g).map(([t,ks])=>{
+    const uniq=[...new Set(ks)];
+    const noun = ks.length===1 ? 'recipe' : 'recipes';
+    return `the ${listAnd(uniq)} ${noun} to ${t}`;
+  });
+  return `Assign ${parts.join(', and ')}.`;
+};
 const MV_TMT_ASK = ()=> agentMsg(
   disclosure(`Read the treatments on ${MV_TO}`,['Reading the draft','Checking the treatments','Compiling the list'])
   + `<div class="summaryCard"><p class="summaryCard__intro">${MV_TO} has ${MV_TO_TREATMENTS.length} treatments.</p><ol class="tmtList">${
       /* names only: the allocation is not what the user is choosing by
          (user, 2026-09-16) */
       MV_TO_TREATMENTS.map(([n])=>`<li>${n}</li>`).join('')
-    }</ol><p class="summaryCard__q">Which treatment should ${MV_EXP} be assigned to?</p></div>`);
+    }</ol><p class="summaryCard__q">Which treatments should the ${MV_N()} experiences be assigned to?</p></div>`);
 const MV_TMT_INTENT = (active)=> agentMsg(
   disclosure('Checked the treatment',['Reading your request','Checking the treatment','Checking the draft'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">I'll link ${MV_EXP} to ${MV_TO} and assign it to treatment ${MV_TMT}.</p><p class="summaryCard__q">Does this look right? I'll link it once you approve.</p>${
+  /* THE ASSIGNMENT IS A LIST, NOT A SENTENCE (user, 2026-09-21 build): three
+     full experience names strung into one clause is unreadable. One line per
+     experience, each naming its treatment. */
+  /* STACKED, not side by side: the panel is ~200px of usable text width, so a
+     two-column row crushes the experience name into an unreadable overlap.
+     Each experience gets its name on one line and its treatment under it. */
+  + `<div class="summaryCard"><p class="summaryCard__intro">I'll link the ${MV_N()} experiences to ${MV_TO} and assign them like this:</p><ul class="tmtAssign">${
+      MV_EXPS().map((e,i)=>`<li><span class="tmtAssign__exp">${e}</span><span class="tmtAssign__tmt">${MV_TMT_OF()[i]}</span></li>`).join('')
+    }</ul><p class="summaryCard__q">Does this look right? I'll link them once you approve.</p>${
       active?replyBtn('Approve','mvApproveTmt'):recordedReply('Approve')}</div>`);
 const MV_TASK = (i, active)=>{
   const last = i===MV_TASKS.length-1;
@@ -4481,7 +4627,7 @@ const MV_TASK = (i, active)=>{
   const q = publishing
     ? 'I can publish the experiment for you, or you can do it from Campaign Manager.'
     : setup
-      ? `The draft is ready. I'll ${i===0?`unlink the experience from it`:`link the experience to it`} once you approve.`
+      ? `The draft is ready. I'll ${i===0?`unlink the ${MV_N()} experiences from it`:`link the ${MV_N()} experiences to it`} once you approve.`
       : `Does this look ok?${last?'':" I'll move on to the next task once you approve."}`;
   const foot = publishing
     ? `<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
@@ -4499,10 +4645,10 @@ const MV2_INTENT = (active)=> agentMsg(
   + `<div class="summaryCard"><p class="summaryCard__intro">This experience will be linked to the draft of ${MV_TO} and assigned to treatment ${MV2_TMT}.</p><div class="infoNote">${INFO_ICON}<span>${MV_TO} is already in draft, so I'll add it there. The change goes live when you publish the draft.</span></div><p class="summaryCard__q">Does this look right? I'll link it once you approve.</p>${active?replyBtn('Approve','mv2Approve'):recordedReply('Approve')}</div>`);
 const MV2_DONE = (active)=> agentMsg(
   disclosure('Linked the experience',['Reading the draft','Linking the experience','Refreshing the list'])
-  + `<div class="chatBubble">I've linked the experience to the draft of ${MV_TO}, assigned to treatment ${MV2_TMT}. It now has ${MV_TO_ROWS.length+2} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div><div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${active?replyBtn('Publish','mv2Publish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
+  + `<div class="chatBubble">I've linked the experience to the draft of ${MV_TO}, assigned to treatment ${MV2_TMT}. It now has ${MV_TO_ROWS.length+MV_N()+1} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div><div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${active?replyBtn('Publish','mv2Publish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 const MV2_PUBLISHED = ()=> agentMsg(
   disclosure(`Published ${MV_TO}`,['Validating the draft','Publishing the experiment','Refreshing the view'])
-  + `<div class="chatBubble">${MV_TO} is published with ${MV_TO_ROWS.length+2} linked experiences. Both experiences are live on it.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`);
+  + `<div class="chatBubble">${MV_TO} is published with ${MV_TO_ROWS.length+MV_N()+1} linked experiences. All of them are live on it.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`);
 /* Step 3: the ending. It SUMMARISES the move and offers the publish, so the
    flow can either end here or carry on (user, 2026-09-16). Two fixes on the
    original: it no longer reports that X "is already published" (the user
@@ -4547,7 +4693,7 @@ const mvHead = (name, id, live, open=false)=>`<div class="expHead">
       <span class="expHead__div"></span>
       ${xpVerSelect(true, open, true, live)}
     </div>`;
-/* ---- Scene: ONE experience + the move conversation ---- */
+/* ---- Scene: the experiment, its linked experiences, and the move ---- */
 scenes.mvExp = (state={})=>{
   /* the specific intake lands here (see the `ms-prototype-intake` skill) */
   const ph = state.phase;
@@ -4560,7 +4706,7 @@ scenes.mvExp = (state={})=>{
   if(ph==='msg-prompt' || ph==='msg-created' || ph==='msg-search'){
     let centeredBody = userBubble(MV_FIND_PROMPT);
     if(ph==='msg-created' || ph==='msg-search') centeredBody += agentMsg(XP_CREATED_FOR(MV_PROJECT),'');
-    if(ph==='msg-search') centeredBody += agentLoader('Fetching the experience', state.tasks||[]);
+    if(ph==='msg-search') centeredBody += agentLoader('Searching experiences', state.tasks||[]);
     return `<div class="content content--centered">
       ${topbar(MV_CRUMB())}
       <div class="scroll"><div class="centeredChat"><div class="centeredChat__inner">${centeredBody}</div>
@@ -4570,7 +4716,12 @@ scenes.mvExp = (state={})=>{
   }
   const c = state.mv;
   let t='';
-  if(c) t += userBubble(MV_PROMPT);
+  /* THE ASK IS SELECTION-SCOPED, so it carries the "↳ Selected n experiences"
+     divider above it (user, 2026-09-21: "i made selections and typed my prompt
+     for those selections. where is that in my conversation?"). The ask says
+     "these" — without this line nothing in the transcript records WHAT it
+     applied to. Same convention as the unlink and clone flows. */
+  if(c) t += selThread(MV_N()) + userBubble(MV_PROMPT);
   if(c==='reading')       t += agentLoader('Reading your request', state.tasks||[]);
   else if(c==='intent')   t += MV_INTENT(true);
   else if(c==='planning') t += MV_INTENT(false)
@@ -4599,7 +4750,7 @@ scenes.mvExp = (state={})=>{
            while the beat is on screen, where it renders its own turns. */
         if(i===MV_TASKS.length-1 && !inTmt){
           o += `<div class="convoTurn">${MV_TMT_ASK()}</div>`
-             + `<div class="convoTurn">${userBubble(MV_TMT_PROMPT)}${MV_TMT_INTENT(false)}</div>`;
+             + `<div class="convoTurn">${userBubble(MV_TMT_PROMPT_FN())}${MV_TMT_INTENT(false)}</div>`;
         }
         o += `<div class="convoTurn">${MV_TASK(i,false)}</div>`;
         if(i===MV_PUBLISH_TASK) o += `<div class="convoTurn">${MV_PUBLISHED(false)}</div>`;
@@ -4608,7 +4759,7 @@ scenes.mvExp = (state={})=>{
          precedes it has not been laid down yet */
       if(upto === MV_TASKS.length-1 && !inTmt){
         o += `<div class="convoTurn">${MV_TMT_ASK()}</div>`
-           + `<div class="convoTurn">${userBubble(MV_TMT_PROMPT)}${MV_TMT_INTENT(false)}</div>`;
+           + `<div class="convoTurn">${userBubble(MV_TMT_PROMPT_FN())}${MV_TMT_INTENT(false)}</div>`;
       }
       return o; };
     if(m){
@@ -4632,9 +4783,9 @@ scenes.mvExp = (state={})=>{
         t += `<div class="convoTurn">${agentLoader(`Reading the treatments on ${MV_TO}`, state.tasks||[])}</div>`;
       } else {
         t += `<div class="convoTurn">${MV_TMT_ASK()}</div>`;
-        if(c==='tmreading') t += `<div class="convoTurn">${userBubble(MV_TMT_PROMPT)}`
+        if(c==='tmreading') t += `<div class="convoTurn">${userBubble(MV_TMT_PROMPT_FN())}`
           + agentLoader('Reading your request', state.tasks||[]) + `</div>`;
-        if(c==='tmtyped') t += `<div class="convoTurn">${userBubble(MV_TMT_PROMPT)}`
+        if(c==='tmtyped') t += `<div class="convoTurn">${userBubble(MV_TMT_PROMPT_FN())}`
           + MV_TMT_INTENT(true) + `</div>`;
       }
     }
@@ -4656,8 +4807,8 @@ scenes.mvExp = (state={})=>{
         + prior(MV_TASKS.length);
       if(c==='pubTo') t += `<div class="convoTurn">${agentLoader(`Publishing ${MV_TO}`, state.tasks||[])}</div>`;
       else t += `<div class="convoTurn">${agentMsg(
-        disclosure('Moved the experience',['Unlinking and publishing','Linking to the new experiment','Publishing the draft'])
-        + `<div class="chatBubble">The experience is now linked to ${MV_TO} instead of ${MV_FROM}. ${MV_TO} is published with ${MV_TO_ROWS.length+1} linked experiences.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
+        disclosure('Moved the experiences',['Unlinking and publishing','Linking to the new experiment','Publishing the draft'])
+        + `<div class="chatBubble">The ${MV_N()} experiences are now linked to ${MV_TO} instead of ${MV_FROM}. ${MV_TO} is published with ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
     }
     /* THE CONTINUATION: the plan is finished and task 4's Publish is still on
        offer, un-taken. The user types a second ask instead, so the whole move
@@ -4700,7 +4851,8 @@ scenes.mvExp = (state={})=>{
        happening (user, 2026-09-16). The tracker still shows the loader. */
     const readingT = c==='tmworking' || c==='tmreading';
     const tbl = tableHTML(XP_COLS, MV_TO_ROWS.map(r=>({...r,status:'Draft'})),
-          {checkbox:true, select:true, selected:new Set(), drillrow:true});
+          {checkbox:true, select:true, selected:new Set(), drillrow:true})
+        + xpPager(MV_TO_ROWS.length);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${mvHead(MV_TO, MV_TO_ID, false, !!state.verOpen)}
         ${xpMeta(true, false, mvToMeta())}
@@ -4708,7 +4860,7 @@ scenes.mvExp = (state={})=>{
         ${tbl}
       </div></div></div>` + aiPanel({body,
         step:`${MV_TASKS.length}.  ${MV_TASKS[MV_TASKS.length-1]}`, stepLoading:readingT,
-        draft:c==='tmtask' && state.typedTmt ? MV_TMT_PROMPT : ''});
+        draft:c==='tmtask' && state.typedTmt ? MV_TMT_PROMPT_FN() : ''});
   }
   /* the publish beat still stands on task 2's experiment (X) */
   const ti = tm ? +tm[2] : pcm ? +pcm[2] : -1;
@@ -4735,8 +4887,8 @@ scenes.mvExp = (state={})=>{
        onward (and stays without it once published), Y gains it from task 3. */
     const xLost = ti>=1 || (c||'').startsWith('p');
     const srcRows = onTo
-      ? [...MV_TO_ROWS, MV_ROW, ...((c||'').startsWith('c2') && ['done','publishing','published'].includes((c||'').slice(2)) ? [MV2_ROW] : [])]
-      : (xLost ? XP_ROWS.filter(r=>r.exp!==MV_EXP) : XP_ROWS);
+      ? [...MV_TO_ROWS, ...MV_ROWS(), ...((c||'').startsWith('c2') && ['done','publishing','published'].includes((c||'').slice(2)) ? [MV2_ROW] : [])]
+      : (xLost ? MV_KEPT() : XP_ROWS);
     const r = srcRows[state.expDrill] || MV_ROW;
     /* The drill-down must AGREE with the row that was clicked: a Published row
        cannot open a Draft experience (user, 2026-09-16). The experiment's own
@@ -4757,12 +4909,13 @@ scenes.mvExp = (state={})=>{
      swapping to the experience drill-down here made no sense. */
   if(c==='pubTo' || c==='donePub'){
     const live = c==='donePub';
-    const rowsP = [...MV_TO_ROWS, MV_ROW].map(r=>({...r,status:live?'Published':'Draft'}));
+    const rowsP = [...MV_TO_ROWS, ...MV_ROWS()].map(r=>({...r,status:live?'Published':'Draft'}));
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${mvHead(MV_TO, MV_TO_ID, live, !!state.verOpen)}
         ${xpMeta(true, false, mvToMeta())}
         ${xpToolbar()}
-        ${c==='pubTo' ? skeletonTable(XP_COLS,true) : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true})}
+        ${c==='pubTo' ? skeletonTable(XP_COLS,true)
+           : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)}
       </div></div></div>` + aiPanel({body});
   }
   if(c2){
@@ -4772,10 +4925,11 @@ scenes.mvExp = (state={})=>{
     const busy2 = c2==='working' || c2==='publishing';
     const linked2 = ['done','publishing','published'].includes(c2);
     const live2 = c2==='published';
-    const rows2 = [...MV_TO_ROWS, MV_ROW, ...(linked2?[MV2_ROW]:[])];
+    const rows2 = [...MV_TO_ROWS, ...MV_ROWS(), ...(linked2?[MV2_ROW]:[])];
     const st2 = live2 ? 'Published' : 'Draft';
     const table2 = busy2 ? skeletonTable(XP_COLS,true)
-      : tableHTML(XP_COLS, rows2.map(r=>({...r,status:st2})), {checkbox:true, select:true, selected:new Set(), drillrow:true});
+      : tableHTML(XP_COLS, rows2.map(r=>({...r,status:st2})), {checkbox:true, select:true, selected:new Set(), drillrow:true})
+        + xpPager(rows2.length);
     const hd2 = mvHead(MV_TO, MV_TO_ID, live2, !!state.verOpen);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${hd2}
@@ -4793,8 +4947,8 @@ scenes.mvExp = (state={})=>{
        task that follows it (user, 2026-09-16). */
     const changed = ti===1 || ti===3 || xPublished;
     const rows = showTo
-      ? (changed ? [...MV_TO_ROWS, MV_ROW] : MV_TO_ROWS)
-      : (changed ? XP_ROWS.filter(r=>r.exp!==MV_EXP) : XP_ROWS);
+      ? (changed ? [...MV_TO_ROWS, ...MV_ROWS()] : MV_TO_ROWS)
+      : (changed ? MV_KEPT() : XP_ROWS);
     const rowStatus = xPublished ? 'Published' : 'Draft';
     /* Task 3 is the first task on the OTHER experiment, so its loader covers the
        WHOLE page, not just the table (user, 2026-09-16): the header, the meta
@@ -4802,7 +4956,8 @@ scenes.mvExp = (state={})=>{
        the experiment it is already showing, so only its table reloads. */
     const wholePage = busy && ti===2;
     const table = busy ? skeletonTable(XP_COLS,true)
-      : tableHTML(XP_COLS, rows.map(r=>({...r,status:rowStatus})), {checkbox:true, select:true, selected:new Set(), drillrow:true});
+      : tableHTML(XP_COLS, rows.map(r=>({...r,status:rowStatus})), {checkbox:true, select:true, selected:new Set(), drillrow:true})
+        + xpPager(rows.length);
     const hd = mvHead(name, showTo?MV_TO_ID:XP_ID, rowStatus==='Published', !!state.verOpen);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${wholePage ? xpPageSkeleton() : `${hd}
@@ -4817,15 +4972,28 @@ scenes.mvExp = (state={})=>{
   }
   /* the Experiment tab must name the experiment the experience is linked to NOW —
      it is the whole point of this flow (user, 2026-09-15: "these tabs should work?!") */
-  /* only the ending shows the EXPERIENCE now — every one of the four tasks
-     acts on an experiment (user, 2026-09-16, dropping the "Review experience"
-     task). Before the move it still reads as linked to X. */
-  const movedYet = c==='done';
-  const canvas = expDrillCanvas(MV_CRUMB(), MV_ROW, state,
-    {noBack:true, status:movedYet?'Draft':'Published', ver:movedYet?'v4':'v3',
-     experiment:{name:movedYet?MV_TO:MV_FROM, id:movedYet?MV_TO_ID:XP_ID}});
-  return canvas + aiPanel({body,
-    ...(ti>=0 ? {step:`${ti+1}.  ${MV_TASKS[ti]}`, stepLoading:!!busy} : {}),
+  /* THE LANDING CANVAS IS X's LINKED-EXPERIENCE LIST (user, 2026-09-21). The
+     flow used to open one experience by ID; now the user lands on the
+     EXPERIMENT and CHECKS the experiences to move, exactly like the unlink
+     flow's picker. Everything after the ask is unchanged.
+     The selection stays visible while the ask is read — the row list has not
+     changed yet, so the indices still line up (the unlink flow's rule). */
+  const selM = new Set(state.selected||[]);
+  const rowsL = MV_LIST();
+  const table0 = state.loading
+    ? skeletonTable(MV_LIST_COLS,true)
+    : tableHTML(MV_LIST_COLS, rowsL, {checkbox:true, select:true, drillrow:true,
+        selected:selM}) + xpPager(rowsL.length);
+  return `<div class="content${state.opening?' content--opening':''}">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
+      <h2 class="page-h">${MV_PROJECT}</h2>
+      ${xpToolbar()}
+      ${table0}
+    </div></div></div>` + aiPanel({body, opening:state.opening,
+    /* the composer shows WHAT the ask is scoped to while it is being typed
+       (user, 2026-09-21: "the prompt box also does not show selections") */
+    /* only while the ask is still being composed — once it is sent the
+       transcript's "Selected n experiences" divider carries that context */
+    chip: (selM.size && !c)?`${selM.size} experience${selM.size===1?'':'s'} selected`:'',
     draft:(state.typed && !c)?MV_PROMPT:''});
 };
 
@@ -4908,7 +5076,8 @@ scenes.xpDetail = (state={})=>{
       .map(r=>({...r, status: ((!lpub || drafted) && !livePub) ? 'Draft' : 'Published'}));
     const ltable = (lbusy||L==='publishing')
       ? skeletonTable(XP_COLS,true)
-      : tableHTML(XP_COLS, lrows, {checkbox:true, select:true, selected:new Set(), drillrow:true});
+      : tableHTML(XP_COLS, lrows, {checkbox:true, select:true, selected:new Set(), drillrow:true})
+        + xpPager(lrows.length);
     /* the screen follows the experiment the scenario opened: the published one
        gets a draft as task 1, the draft one is already a draft. */
     return `<div class="content">${topbar(XP_CRUMB(lpub))}<div class="scroll"><div class="pad">
@@ -5001,7 +5170,7 @@ scenes.xpDetail = (state={})=>{
   const table = (state.loading||state.ul==='working'||state.ul==='staging'||state.ul==='publishing')
     ? skeletonTable(XP_COLS,true)
     : tableHTML(XP_COLS, rows, {checkbox:true, select:true, drillrow:true,
-        selected: picking ? sel : new Set()});
+        selected: picking ? sel : new Set()}) + xpPager(rows.length);
   /* A row click drills into that EXPERIENCE, opening on the Experiment tab
      (user, 2026-09-16). `expDrill` holds the clicked row index. */
   if(state.expDrill!==undefined && state.expDrill!==false){
@@ -5712,11 +5881,16 @@ function mvBase(){
   if(st.typed2) b.typed2=true;
   if(st.typedTmt) b.typedTmt=true;
   if(st.verOpen!==undefined) b.verOpen=st.verOpen;
+  /* the checked rows stay in state so the landing list keeps showing them
+     while the ask is read (user, 2026-09-21) */
+  if(st.selected) b.selected=st.selected;
   return b;
 }
 /* the specific intake: boot -> C1 -> C2 -> the experience */
 function runIntakeMv(){
-  const tasks=['Reading your request','Fetching the experience','Compiling results'];
+  /* the ask names an EXPERIMENT now, so the intake finds it and lists its
+     linked experiences (user, 2026-09-21) */
+  const tasks=['Reading your request','Searching experiences','Compiling results'];
   const tick=(a)=>render('mvExp',{phase:'msg-search',tasks:tasks.map((label,j)=>({label,state:j<a?'done':j===a?'active':'idle'}))});
   render('mvExp',{phase:'bootfull'});
   const promptAt=2400, createdAt=promptAt+600, fetchAt=createdAt+900, fetchDur=4200;
@@ -6336,7 +6510,7 @@ const STEPS_UL = (pub)=>{   // UL_SEL (the three DRY_test experiences) is declar
      t0 -> t1 -> p1 (X PUBLISHED) -> t2 -> t3 -> pubTo/donePub (Y published)
    `p{MV_PUBLISH_TASK}` is the publish beat that sits after task 2. */
 const STEPS_MV = ()=>{
-  const S=(mv)=>['mvExp',{typed:true,mv}];
+  const S=(mv)=>['mvExp',{typed:true,selected:MV_PICK_DEFAULT,mv}];
   const tasks=[];
   MV_TASKS.forEach((_,i)=>{
     /* the treatment question + its confirmation come BEFORE the last task */
@@ -6344,8 +6518,10 @@ const STEPS_MV = ()=>{
     tasks.push(S('t'+i));
     if(i===MV_PUBLISH_TASK) tasks.push(S('p'+i));   // X is published here
   });
-  return [ ['home',{}], ['mvExp',{}], S('intent'), S('plan'),
-    ...tasks, S('donePub') ];
+  /* the SELECTION is its own step now (user, 2026-09-21): the list, then the
+     list with the rows checked, then the conversation */
+  return [ ['home',{}], ['mvExp',{}], ['mvExp',{selected:MV_PICK_DEFAULT}],
+    S('intent'), S('plan'), ...tasks, S('donePub') ];
 };
 /* flow 1: home -> search -> the experiment -> the ask -> intent -> done -> published */
 /* PUBLISHED: search intake, intent -> plan -> two tasks -> done -> published.
@@ -6392,7 +6568,10 @@ function stepIndex(){
       if(i===MV_PUBLISH_TASK) ORDER.push('p'+i); });
     ORDER.push('donePub');
     const i=ORDER.indexOf(r);
-    return i===-1 ? 1 : i+2;
+    /* no conversation yet: the list is step 1, the list with rows checked is 2 */
+    if(i===-1) return (st.selected&&st.selected.length)?2:1;
+    /* +3: home, the list, the selection */
+    return i+3;
   }
   // ── unlink flow: xpSearch is step 1, then the experiment and its states ──
   if(current.name==='xpSearch') return 1;
