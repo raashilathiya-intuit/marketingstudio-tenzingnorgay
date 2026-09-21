@@ -2723,7 +2723,12 @@ function wire(name, state){
     };
     main.querySelectorAll('[data-groupopt]').forEach(b=>b.onclick=(e)=>{
       e.stopPropagation(); autopilot=false;
-      render('pcSearch',{...state, groupBy:b.dataset.groupopt, groupByOpen:false, selected:[], retyped:false});
+      const by = b.dataset.groupopt;
+      // grouping clears the selection (it spanned access points, which is the
+      // thing being fixed); None merely ungroups, so the selection survives
+      render('pcSearch', by
+        ? {...state, groupBy:by, groupByOpen:false, selected:[], retyped:false}
+        : {...state, groupBy:'', groupByOpen:false});
     });
     // tri-state header checkbox: select all / none, frozen once the flow starts.
     // On the clone-results view nothing is selected (the rows are copies, not a
@@ -3238,7 +3243,8 @@ const PC_COLS_AP = [
    columns this flow never uses. `by` is the label the control shows once set;
    `on` is what makes it clickable. */
 const GROUP_BY_OPTS = [
-  {label:'Access point',      by:'Access points', on:true},
+  {label:'None',           by:'',              on:true},
+  {label:'Access point',   by:'Access points', on:true},
   {label:'Audience Set',   on:false},
   {label:'Status',         on:false},
   {label:'Promotion Offer',on:false},
@@ -3246,14 +3252,18 @@ const GROUP_BY_OPTS = [
   {label:'Treatment ID',   on:false},
 ];
 const groupByCtl = (by='', open=false)=>`<div class="groupByWrap">
-      <div class="groupBy${by?' groupBy--on':''}" data-groupby>
-      <span class="groupBy__label">${by?`Group by: ${by}`:'Group by'}</span>
+      <div class="groupBy groupBy--on" data-groupby>
+      <span class="groupBy__label">Group by: ${by||'None'}</span>
       <span class="groupBy__chev">${I.chev}</span>
       </div>
       ${open?`<div class="groupByMenu">
-        ${GROUP_BY_OPTS.map(o=>o.on
-          ? `<button class="groupByMenu__item" data-groupopt="${o.by}">${o.label}</button>`
-          : `<button class="groupByMenu__item">${o.label}</button>`).join('')}
+        ${GROUP_BY_OPTS.map(o=>{
+          const sel = o.on && (o.by||'')===(by||'');
+          const cls = `groupByMenu__item${sel?' groupByMenu__item--sel':''}`;
+          return o.on
+            ? `<button class="${cls}" data-groupopt="${o.by}">${o.label}</button>`
+            : `<button class="${cls}">${o.label}</button>`;
+        }).join('')}
       </div>`:''}
     </div>`;
 const rxToolbarCl4 = (by='')=>`<div class="toolbar">
