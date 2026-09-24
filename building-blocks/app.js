@@ -478,7 +478,6 @@ const cmpTab = (k)=>CMP_TABS.find(t=>t.key===k) || CMP_TABS[0];
 function cmpTodo(label){
   return `<div class="cmpTodo">
       <div class="cmpTodo__t">${label} comparison — coming soon</div>
-      <div class="cmpTodo__d">Same three-column table as Creative, with the changed rows highlighted.</div>
     </div>`;
 }
 
