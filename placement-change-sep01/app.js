@@ -755,8 +755,8 @@ scenes.home = (state={})=>{
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
-            <button class="simMenu__item" data-sim="pc2">Change access point and template on an experience</button>
-            <button class="simMenu__item simMenu__item--muted" data-sim="pc">Change access point, fill fields up front (earlier draft)</button>
+            <button class="simMenu__item" data-sim="pc">Change access point, fill fields up front (earlier draft)</button>
+            <button class="simMenu__item simMenu__item--muted" data-sim="pc2">Change access point and template on an experience</button>
           </div>
         </div>
       </div>
@@ -2148,7 +2148,10 @@ function render(scene, state){
    click to drive it manually; toggle autopilot with the 'p' key.
    ============================================================ */
 // single scenario in this build: change the template on one experience
-let scenario = 'pc2';   // workflow 2 is the current one; 'pc' is the earlier draft
+/* 'pc' is now the primary flow and 'pc2' the earlier draft (user, 2026-09-24
+   swapped the sim-menu order). The default must follow the menu, or the arrow
+   keys walk the deprioritised flow before anything is picked. */
+let scenario = 'pc';
 const FLOW_PROMPT   = ['home','searchMultiple','singleCampaign','coIntent','changeMeta','campaignObject','campaignTree'];
 const FLOW_WORKBOOK = ['home','coIntentWB','ipdContent','campaignObjectWB','campaignTreeWB'];
 const FLOW_PROMPTCO = ['home','p2Intent','p2Ipd','p2Review','p2Tree'];
