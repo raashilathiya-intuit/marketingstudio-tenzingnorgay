@@ -337,18 +337,29 @@ function cmpTable(fields, hl=true){
   const rows = fields.map(([k,cur,next,kind])=>{
     /* a JOIN row (AND / OR) is structure, not a field being compared: it
        spans the version columns and reads quietly, the way the AND/OR chips
-       sit between conditions on the real audience screen. A GROUP row is the
-       nested attribute group's heading. */
-    if(kind==='join')  return `<tr class="cmpTbl__join"><td></td><td colspan="2">${k}</td></tr>`;
-    if(kind==='group') return `<tr class="cmpTbl__group"><td colspan="3">${k}</td></tr>`;
+       sit between conditions on the real audience screen. Nesting is NOT a
+       row type — a nested part gets its own table via cmpSections(). */
+    if(kind==='join') return `<tr class="cmpTbl__join"><td></td><td colspan="2">${k}</td></tr>`;
     const changed = cur!==next;
     const mark = (changed && hl) ? `<span class="cd-hl">${next}</span>` : next;
-    const ind = kind==='in-group' ? ' class="cmpTbl__ing"' : '';
-    return `<tr><td${ind}>${k}</td><td>${cur}</td><td>${mark}</td></tr>`;
+    return `<tr><td>${k}</td><td>${cur}</td><td>${mark}</td></tr>`;
   }).join('');
   return `<div class="cmpTbl-wrap"><table class="cmpTbl"><colgroup><col class="cmp-k"><col><col></colgroup>
-    <thead><tr><th>Fields</th><th>${CMP_VA}</th><th>${CMP_VB}</th></tr></thead>
+    <thead><tr><th>Fields</th><th>${CMP_VA} ${icon('info',13)}</th><th>${CMP_VB} ${icon('info',13)}</th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
+}
+/* SECTIONS: a tab whose content splits into parts renders ONE TABLE PER PART,
+   each with its own header row, under a small-caps label (user, 2026-09-24) —
+   rather than one long table with group rows inside it. The experiment tab is
+   the case: the experience's own fields, then a table per treatment.
+   A section with no label is rendered bare, as the leading table. */
+function cmpSections(sections, hl=true){
+  return sections.map(sec=>{
+    /* a bare join between two sections (the audience's OR) */
+    if(sec.join) return `<div class="cmpSec__join">${sec.join}</div>`;
+    return (sec.label ? `<div class="cmpSec__h">${sec.label}</div>` : '')
+      + cmpTable(sec.fields, hl);
+  }).join('');
 }
 /* the Preview view: the two versions rendered as the real creative,
    side by side in the same column order as the table */
@@ -404,58 +415,68 @@ const CMP_BILLING_FIELDS = [
 
 /* ---- AUDIENCE (built, NOT SHIPPED — the tab shows a placeholder) ----
    Held back at the user's request (2026-09-24) while the diff is confirmed.
-   Wire it back up by putting `fields:CMP_AUDIENCE_FIELDS` on the audience
+   Wire it back up by putting `sections:CMP_AUDIENCE_SECTIONS` on the audience
    entry in CMP_TABS and restoring its real title.
+
    The audience is a RULE EXPRESSION, not flat field/value pairs: conditions
-   joined by AND, an OR, then a nested attribute group. Flattened to one row
-   per condition so it reads in the same three-column table as every other
-   tab (user's call, 2026-09-24), with the joins and the group heading as
-   their own structural rows.
-   The OPERATOR TRAVELS WITH THE VALUE in the version columns — the diff here
-   is an operator flip, so it has to be on the side being compared, not in
-   the Fields column.
+   joined by AND, an OR, then a nested attribute group. SECTIONS, same as the
+   experiment tab — the top-level conditions in the leading table, the nested
+   group as its own table under a label — with the AND/OR joins staying as
+   quiet rows inside each table, where they belong.
+   The OPERATOR TRAVELS WITH THE VALUE in the version columns, because the
+   diff here is an operator flip: it has to be on the side being compared.
    **Rendered WITHOUT the QA errors** (user: "audience, just without errors"):
    the real screen carries "Audience key does not exist" and "Invalid value"
    flags and a QA error chip, none of which belong on a clean reference
    screen. The `~` invalid value is shown as the real value it should be. */
-const CMP_AUDIENCE_FIELDS = [
-  ['CDPCompanyAudienceName','contains any  elm_9071_ipd_us_qbl_qblast_naql_xsll_promo_seg_diwm_deep_disc_highprice',
-                            'contains any  elm_9071_ipd_us_qbl_qblast_naql_xsll_promo_seg_diwm_deep_disc_highprice'],
-  ['AND','','','join'],
-  ['isAccountantAccessingClient','not equal to  No','equal to  No'],
-  ['AND','','','join'],
-  ['elm9071payingqbopayingqblnum','not equal to  0','not equal to  0'],
-  ['OR','','','join'],
-  ['Attribute group','','','group'],
-  ['CDPCompanyAudienceName','contains any  elm_9071_ipd_us_qbl_qblast_naql_xsll_promo_seg_diwm_deep_disc_highprice',
-                            'contains any  elm_9071_ipd_us_qbl_qblast_naql_xsll_promo_seg_diwm_deep_disc_highprice','in-group'],
-  ['AND','','','join'],
-  ['isAccountantAccessingClient','not equal to  No','not equal to  No','in-group'],
+const AUD_NAME = 'elm_9071_ipd_us_qbl_qblast_naql_xsll_promo_seg_diwm_deep_disc_highprice';
+/* A CONDITION IS THREE FIELDS — Attribute, Operator, Value (user, 2026-09-24),
+   each its own row compared across the two versions. An earlier pass merged
+   the operator into the value ("not equal to  No") in the version columns;
+   they are separate fields on the real screen and read as separate rows here,
+   so an operator change highlights on the Operator row alone. */
+const audCond = (attr, op, val, op2, val2)=>[
+  ['Attribute', attr, attr],
+  ['Operator',  op,  op2===undefined?op:op2],
+  ['Value',     val, val2===undefined?val:val2],
+];
+const CMP_AUDIENCE_SECTIONS = [
+  {fields:[
+    ...audCond('CDPCompanyAudienceName','contains any',AUD_NAME),
+    ['AND','','','join'],
+    /* the diff: this condition's OPERATOR flips */
+    ...audCond('isAccountantAccessingClient','not equal to','No','equal to'),
+    ['AND','','','join'],
+    ...audCond('elm9071payingqbopayingqblnum','not equal to','0'),
+  ]},
+  /* the OR joins the two sections, so it sits BETWEEN the tables — trailing
+     it on the first one left a join with nothing after it */
+  {join:'OR'},
+  {label:'Attribute group', fields:[
+    ...audCond('CDPCompanyAudienceName','contains any',AUD_NAME),
+    ['AND','','','join'],
+    ...audCond('isAccountantAccessingClient','not equal to','No'),
+  ]},
 ];
 
 /* ---- EXPERIMENT (built, NOT SHIPPED — the tab shows a placeholder) ----
-   Held back with the audience one; same restore.
-   Meta fields, then the treatments table flattened the same way the
-   audience's group is: a group heading per treatment, its columns as rows
-   beneath it. Diff is a REALLOCATION — Treatment1 up, Control down, so the
-   three still total 100%. The QA/status chip is left off, as on every
-   other reference screen. */
+   ONE TABLE, with the treatment as a field (user, 2026-09-25: "we will not
+   have multiple treatments at experience level"). A first pass gave each
+   treatment its own sectioned table, mirroring the experiment screen's
+   treatments list — wrong here: this tab is an EXPERIENCE's view of its
+   experiment, and an experience sits on exactly ONE treatment.
+   The QA/status chip is left off, as on every reference screen. */
 const CMP_EXPERIMENT_FIELDS = [
   ['Start date','March 12, 2026','March 12, 2026'],
   ['End date','April 22, 2026','April 22, 2026'],
   ['Type','A/B/N (3-cell)','A/B/N (3-cell)'],
-  ['Treatment1-ELM9071_Med_70pct','','','group'],
-  ['Allocation','~30%','~40%','in-group'],
-  ['Billing Offer ID','20059622','20059622','in-group'],
-  ['Offers','8','8','in-group'],
-  ['Treatment2-ELM9071_Med_90pct','','','group'],
-  ['Allocation','~30%','~30%','in-group'],
-  ['Billing Offer ID','20059622','20059622','in-group'],
-  ['Offers','8','8','in-group'],
-  ['Control-ELM9071_Med_30dFree','','','group'],
-  ['Allocation','~30%','~20%','in-group'],
-  ['Billing Offer ID','20059622','20059622','in-group'],
-  ['Offers','8','8','in-group'],
+  /* the diff: the experience moves to a different treatment. With one
+     treatment there is no reallocation to show, so the change that actually
+     happens at this level is WHICH treatment the experience sits on. */
+  ['Treatment','Treatment1-ELM9071_Med_70pct','Treatment2-ELM9071_Med_90pct'],
+  /* the allocation belongs to whichever treatment the experience is on, so it
+     moves WITH the treatment change rather than being a separate edit */
+  ['Allocation','~30%','~40%'],
 ];
 
 /* ---- THE TAB REGISTRY ----
@@ -468,9 +489,12 @@ const CMP_TABS = [
   /* AUDIENCE AND EXPERIMENT ARE HELD BACK (user, 2026-09-24: "keep audience
      and experiment local, keep some placeholder"). Their field data is built
      and kept above — to ship either one, just restore `fields:` here. */
+  /* AUDIENCE IS HELD BACK (user, 2026-09-24) while its diff is confirmed. Its
+     field data is built and kept above — to ship it, restore
+     `sections:CMP_AUDIENCE_SECTIONS` here and its real title. */
   {key:'audience',   label:'Audience',        title:'Audience', wip:true},
   {key:'billing',    label:'Billing offer',   title:'Billing offer', fields:CMP_BILLING_FIELDS},
-  {key:'experiment', label:'Experiment',      title:'Experiment', wip:true},
+  {key:'experiment', label:'Experiment',      title:'IPD High Price Sensitivity · IXP 321931', fields:CMP_EXPERIMENT_FIELDS},
 ];
 const cmpTab = (k)=>CMP_TABS.find(t=>t.key===k) || CMP_TABS[0];
 
@@ -498,9 +522,11 @@ function cmpScreen(state={}){
           <button data-cv="detail" class="${view==='detail'?'active':''}">${DETAIL_ICON} Detail</button>
           <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
         </div>` : '';
-  const body = tab.fields
-    ? ((view==='preview' && tab.preview) ? tab.preview(hl) : cmpTable(tab.fields, hl)) + hlBar(hl)
-    : cmpTodo(tab.label);
+  const body = tab.sections
+    ? cmpSections(tab.sections, hl) + hlBar(hl)
+    : tab.fields
+      ? ((view==='preview' && tab.preview) ? tab.preview(hl) : cmpTable(tab.fields, hl)) + hlBar(hl)
+      : cmpTodo(tab.label);
   return `<div class="content">${topbar(CMP_CRUMB)}<div class="scroll"><div class="pad">
     <div class="detail-sticky"><div class="detail-h"><span class="title">${CMP_NAME}</span><span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; ${CMP_EID} ${COPY_ICON}</span></div>
     <div class="tabs tabs--insticky tabs--exp">${tabs}</div></div>

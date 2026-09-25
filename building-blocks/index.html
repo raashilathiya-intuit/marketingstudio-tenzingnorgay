@@ -877,9 +877,20 @@ select.fbsel--active{border-color:#7b61ff}
    experiment has a treatments table; both flatten into the same three
    columns, so the joins and group headings need to read as STRUCTURE
    rather than as fields being compared. */
+/* SECTION LABEL above each part's own table — Figma "Heading 3",
+   node 10268:87260 (MS 2.0 - Targeted Offers). Exact spec: 13px Demi Bold,
+   #656a81, 0.52px tracking, uppercase, 11px of padding under the text and a
+   1px #ececf0 rule across the full width. An earlier guess used 12px/500/
+   .06em and NO rule. */
+.cmpSec__h{margin:28px 0 16px;padding-bottom:11px;border-bottom:1px solid #ececf0;
+  font-size:13px;font-weight:600;letter-spacing:.52px;
+  text-transform:uppercase;color:#656a81}
+
+/* a join BETWEEN two section tables (the audience's OR) — same quiet
+   treatment as an in-table join, spaced to sit between the two cards */
+.cmpSec__join{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:#787e94}
+
 .cmpTbl__join td{padding-top:10px;padding-bottom:10px;color:#787e94;font-size:13px;letter-spacing:.04em}
-.cmpTbl__group td{padding-top:14px;padding-bottom:10px;background:#fbfbfc;font-weight:500;color:var(--text-primary)}
-.cmpTbl td.cmpTbl__ing{padding-left:32px}
 /* The 16% Fields column is sized for "CTA text"; audience attribute names
    are long single words and broke mid-word ("CDPCompanyAu / dienceName").
    Widen it and let it wrap on word boundaries instead. */
@@ -900,6 +911,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region — a single reference screen, no AI panel -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>
