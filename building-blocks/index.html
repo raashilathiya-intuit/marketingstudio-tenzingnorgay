@@ -924,6 +924,18 @@ select.fbsel--active{border-color:#7b61ff}
    other right-side control) already claims it when both are present. */
 .cd-head .verselect{margin-left:auto;position:relative}
 .cd-head .refJsonToggle + .verselect{margin-left:12px}
+/* THE LAYOUT PICKER IS A DEV/REFERENCE CONTROL, NOT PART OF THE PRODUCT
+   (user, 2026-09-29: "give this as greyed outline so that it doesnt look
+   as a part of the product") — it reused the plain `.verselect` look,
+   which IS a real product control elsewhere (the version-history picker),
+   so as-is it read as a shipped affordance. `.verselect--ghost` gives it
+   the SAME dashed/muted treatment as `.refJsonToggle` (the raw-JSON
+   toggle) instead, so both of audience's non-product controls read as one
+   family, distinct from anything a real screen would show. Scoped to this
+   modifier rather than restyling `.verselect` itself, which stays exactly
+   as it is for its real usages. */
+.verselect--ghost{border:1px dashed #c7cad4;color:#8a8fa3;background:transparent}
+.verselect--ghost:hover{color:#656a81;border-color:#a7abb8}
 .audLayoutMenu{display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:5;
   background:#fff;border:1px solid var(--divider);border-radius:var(--r-input);
   box-shadow:0 4px 16px rgba(20,20,30,.12);min-width:180px;padding:4px;white-space:nowrap}
@@ -953,9 +965,41 @@ select.fbsel--active{border-color:#7b61ff}
    Operator chip drifted a few px between nesting depths for the same
    reason the full-width layout did (an `fr` column is a fraction of THAT
    row's own available width, which nesting padding shrinks by a different
-   amount at different depths). Fixed px width instead. */
-.audExprSbs .ab-row{grid-template-columns:140px auto 1fr;gap:12px}
-.audExprSbs .ab-op{padding:6px 10px}
+   amount at different depths). Fixed px width instead.
+   140px, then 230px, then 320px, then `minmax(35%,200px)` WERE ALL WRONG —
+   every one of these still had a floor (a fixed px minimum) that overflows
+   at the pane's genuinely narrow default width (~610px total, ~98-280px
+   per side-by-side column — confirmed by a reported row width of 98px
+   against a 320px+ column demand). There is no floor that is simultaneously
+   "wide enough to fit the longest name" and "narrow enough to never
+   overflow the narrowest real pane width" — those are contradictory
+   requirements, so the fix is to drop the floor entirely.
+   SAME `vw`-ANCHORED FIX AS THE FULL-WIDTH `.ab-row` — `minmax(0,1fr)`
+   fixed overflow but reintroduced per-row drift, since each `.ab-row` is
+   its own independent grid with no shared table structure across siblings
+   (user, showing three same-depth chips at different x: "these widths
+   should be same so that they're aligned"). `clamp()` anchored to `vw` is
+   the SAME for every row on the page (unlike `fr`, which depends on that
+   particular row's own available width), so it holds alignment across
+   both same-depth AND different-depth rows while still shrinking at a
+   narrow pane instead of overflowing. Side-by-side columns are roughly
+   half the full canvas, so this clamp's ceiling is roughly half the
+   full-width version's (170px vs 340px), and Operator gets a smaller
+   fixed 100px to match this layout's smaller 14px font. */
+/* AT THE DEEPEST NESTING DEPTH (AUD3's own rows, 3 levels of padding-left
+   already eaten into this layout's half-canvas column) the row's real
+   available width is much less than the column's own width — confirmed
+   350px of real row width vs. 449px column width at one test size, all of
+   it correctly accounted for by `.ab-nest`×2 + `.ab-group` padding, not a
+   bug. Within that smaller real budget, Attribute's clamp ceiling (170px)
+   was starving Value down to ~68px while "contains any" still felt tight
+   in Operator's slot (user: "contains any text us longer than container.
+   if we're wrapping text why not use the real estate well?"). Lowered
+   Attribute's ceiling to 130px and gave Operator more slot room (110px)
+   so its pill has real breathing space instead of a bare-minimum fit,
+   leaving Value the remainder rather than the smallest column of the three. */
+.audExprSbs .ab-row{grid-template-columns:clamp(90px,9vw,130px) 110px minmax(0,1fr);gap:12px}
+.audExprSbs .ab-op{width:100px;padding:6px 10px}
 .audExprSbs .ab-attr,.audExprSbs .ab-v{font-size:14px}
 
 /* THE AUDIENCE BUILDER ROWS — ported verbatim from the flow builds'
@@ -980,11 +1024,48 @@ select.fbsel--active{border-color:#7b61ff}
    though the ratios match. A fixed width means every row's Operator chip
    sits the same distance from ITS OWN left edge; the indentation is then
    the only thing that moves between nesting levels, not the column math. */
-.ab-row{display:grid;grid-template-columns:340px auto 1fr;gap:32px;align-items:start;padding:8px 0}
+/* EACH `.ab-row` IS ITS OWN INDEPENDENT GRID — there is no shared table
+   structure across sibling rows, so any column whose width depends on
+   THAT row's own content (an `fr`/`auto` track) will land at a different
+   x per row, even at the same nesting depth. Confirmed twice: Attribute
+   as `minmax(0,1fr)` drifted the Operator column after it; Operator as
+   `auto` drifted on its OWN width ("contains any" vs "equal to" vs
+   "contains" are different widths) even with Attribute held fixed (user,
+   2026-09-29, showing three same-depth chips at different x: "these
+   widths should be same so that they're aligned"). BOTH columns before
+   the last one now need a fixed-ish width for alignment to hold at all:
+   `clamp(160px, 22vw, 340px)` for Attribute (scales with viewport instead
+   of a rigid px, so it still shrinks at a genuinely narrow pane rather
+   than overflowing, but stays CONSISTENT across sibling rows because it's
+   anchored to viewport width, not that row's own content) and a plain
+   130px fixed width for Operator (comfortably fits "contains any", the
+   longest realistic value, and never needs to flex). */
+/* `width:100%` IS NEEDED EXPLICITLY — without it this grid sized itself to
+   its own track widths rather than stretching to fill its container,
+   leaving real, measurable unused space in the row (up to ~100px in the
+   side-by-side layout) that the Value column (`minmax(0,1fr)`) never got
+   to claim — which is exactly why "contains any" wrapped in its 90px pill
+   there while room sat unused a few px away (user: "if we're wrapping
+   text why not use the real estate well?"). */
+.ab-row{display:grid;width:100%;grid-template-columns:clamp(160px,22vw,340px) 130px minmax(0,1fr);gap:32px;align-items:start;padding:8px 0}
 .ab-k{font-size:12px;font-weight:600;letter-spacing:.8px;color:#787e94;text-transform:uppercase;margin-bottom:5px}
 .ab-attr{font-size:16px;color:#3a393d;word-break:break-all}
 .ab-v{font-size:16px;color:#3a393d;word-break:break-all}
-.ab-op{align-self:center;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:8px 14px;font-size:14px;color:#3a393d;white-space:nowrap}
+/* THE OPERATOR COLUMN IS NOW A FIXED WIDTH SHARED ACROSS ROWS (the vw-clamp
+   alignment fix), so a short chip like "contains" no longer fills it the
+   way it used to when the column just hugged the text — center the chip
+   WITHIN that column, not just vertically within the row (user, 2026-09-29:
+   "have the text centre aligned in those. only in those since widths are
+   same"). Scoped to `.ab-op` alone; no other column in this row changes. */
+/* THE PILL ITSELF MUST BE ONE FIXED WIDTH, NOT JUST CENTERED IN ONE — with
+   only `justify-self:center` the pill still sized itself to its own text
+   ("contains any" wider than "equal to" wider than "contains"), so three
+   different-width boxes all happened to share a center point rather than
+   actually looking the same size (user, immediately after: "widths are
+   different"). `width:120px;text-align:center` makes every pill occupy
+   the identical box regardless of its text, with the text centered
+   inside that fixed box — not merely the box centered in its column. */
+.ab-op{align-self:center;justify-self:center;width:120px;text-align:center;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:8px 14px;font-size:14px;color:#3a393d;white-space:nowrap}
 .ab-conj{display:inline-block;align-self:flex-start;width:fit-content;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:6px 14px;font-size:13px;color:#3a393d;margin:24px 0}
 .ab-orwrap{border-top:1px solid #e9e9ec;margin:24px 0 0;padding-top:24px}
 .ab-orwrap .ab-conj{margin-top:0}
@@ -1007,19 +1088,20 @@ select.fbsel--active{border-color:#7b61ff}
    reference uses to show a level boundary. */
 .ab-nest{margin-top:8px;padding-left:20px;border-left:1px solid #e5e5ec}
 .ab-nest__h{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;color:var(--text-strong);margin:0 0 12px}
-/* A FIXED COLUMN WIDTH ON `.ab-row` ISN'T ENOUGH ON ITS OWN — it fixes the
-   column ratio, but the row's own left edge still shifts with every
-   ancestor's `padding-left`, so the Operator chip still lands at a
-   different x for a row 3 levels deep (AUD3, inside 2×`.ab-nest` +
-   `.ab-group`) than one 2 levels deep (the two added conditions, inside
-   2×`.ab-nest` only) (user, 2026-09-29, re-flagging the same misalignment
-   after the fixed-width fix: "container width not fixed"). Each level's
-   HEADER LABEL stays indented (that's what shows nesting), but `.ab-row`
-   itself pulls back left by exactly what its ancestors pushed it right,
-   so every row's grid starts at the same page-relative x no matter how
-   many `.ab-nest`/`.ab-group` levels it sits inside. */
-.ab-nest .ab-nest .ab-row{margin-left:-40px}
-.ab-nest .ab-nest .ab-group .ab-row{margin-left:-64px}
+/* AN EARLIER PASS PULLED EACH ROW BACK LEFT WITH A NEGATIVE MARGIN so every
+   row's Operator chip would land at the same page-relative x regardless of
+   nesting depth. That fix is REMOVED — it was solving the wrong problem at
+   the cost of the thing that actually matters here: AUD3's own rows must
+   render INDENTED, nested visibly under the "AUD3" header, not pulled back
+   to align with its ancestors (user, 2026-09-29, on a full screenshot that
+   otherwise looked fine: "indent at the left is completely missing.
+   boolean expression should be under aud3 line right"). The negative
+   margin was DIRECTLY UNDOING `.ab-group`'s `padding-left:24px` — that's
+   the exact indent the reference nesting screenshot calls for, and pulling
+   rows back out of it left AUD3's fields flush with "Conditions" above it,
+   reading as NOT nested at all. Chip alignment across differing nesting
+   depths is a minor cosmetic nicety; visibly nesting a group's own content
+   under its own header is the actual requirement — indentation wins. */
 
 .cmpTbl__join td{padding-top:10px;padding-bottom:10px;color:#787e94;font-size:13px;letter-spacing:.04em}
 /* The 16% Fields column is sized for "CTA text"; audience attribute names
@@ -1042,6 +1124,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region — a single reference screen, no AI panel -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=47"></script>
+<script src="app.js?v=60"></script>
 </body>
 </html>

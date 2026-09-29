@@ -737,7 +737,7 @@ function cmpScreen(state={}){
   const audLayout = tab.key==='audience' ? (state.audLayout || 'table') : 'table';
   const AUD_LAYOUTS = [['table','Table view'],['sbs','Side by side'],['toggle','Version toggle']];
   if(tab.refJson) AUD_LAYOUTS.push(['json','Table - Json']);
-  const layoutPicker = tab.key==='audience' ? `<span class="verselect" data-audlayout-toggle>
+  const layoutPicker = tab.key==='audience' ? `<span class="verselect verselect--ghost" data-audlayout-toggle>
       ${AUD_LAYOUTS.find(l=>l[0]===audLayout)[1]} ${I.chev}
       <div class="audLayoutMenu" data-audlayout-menu>
         ${AUD_LAYOUTS.map(([k,label])=>`<div class="audLayoutMenu__item${k===audLayout?' active':''}" data-audlayout="${k}">${label}</div>`).join('')}
