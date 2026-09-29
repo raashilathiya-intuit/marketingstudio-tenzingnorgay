@@ -275,7 +275,13 @@ button{font-family:inherit}
 .agentTasks{display:flex;flex-direction:column;gap:10px;width:100%}
 .agentTasks__head{display:flex;align-items:center;gap:6px}
 .agentTasks__loader{width:16px;height:16px;flex-shrink:0;object-fit:contain;display:block}
-.agentTasks__label{font-size:14px;font-weight:400;line-height:1.5;color:var(--text-primary)}
+/* A LONG TASK NAME (e.g. "Review the draft of ty25_Catchall_PLU with
+   experiences unlinked, and publish") WRAPPED TO TWO LINES, breaking the
+   loader row's single-line layout (user, 2026-09-28: "give ellipses. not 2
+   lines"). One line, truncated with an ellipsis — `min-width:0` on the label
+   is required for the ellipsis to take effect inside this flex row. */
+.agentTasks__label{font-size:14px;font-weight:400;line-height:1.5;color:var(--text-primary);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
 /* Intuit Intelligence loader (IDS node 124274-20180) — multicolor blue→purple
    gradient baked into the SVG; spin as-is, NO filter. */
 /* animated GIF loader (Intuit Intelligence simple-spin) self-animates — no CSS spin */
@@ -319,7 +325,14 @@ button{font-family:inherit}
 .planTable__row:last-child{border-bottom:0}
 .planTable__head{font-size:16px;color:#656a81}
 .planTable__row{font-size:16px;font-weight:500;color:var(--text-primary)}
-.planNum{width:22px;height:22px;border-radius:50%;border:1px dashed #c7c9d1;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#656a81;justify-self:start}
+/* A TWO-LINE TASK NAME (e.g. "Review the draft of X with experiences
+   unlinked, and publish") CENTERED THE NUMBER AGAINST THE WHOLE WRAPPED
+   ROW, so it floated down toward the middle instead of sitting by the first
+   line (user, 2026-09-28: "numbers keep top left aligned"). Align the row
+   to the top and nudge the circle down to match the text's own cap-height,
+   instead of centering the row. */
+.planTable__row{align-items:start}
+.planNum{width:22px;height:22px;border-radius:50%;border:1px dashed #c7c9d1;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:#656a81;justify-self:start;margin-top:1px}
 .planNum--done{background:#029900;border-color:#029900;color:#fff}
 /* loading step: no border, just the II spinner */
 .planNum--loading{border-color:transparent;background:transparent}
@@ -339,6 +352,15 @@ button{font-family:inherit}
 .cardReplyBtn{display:inline-flex;align-self:flex-start;width:fit-content;align-items:center;margin-top:8px;padding:7px 16px;border-radius:999px;border:1px solid #7b61ff;background:#fff;color:#7b61ff;font-family:inherit;font-size:14px;font-weight:500;line-height:1.4;cursor:pointer;transition:background .12s ease}
 /* inside the summary card the flex gap (12) already separates — net 8px above the pill */
 .summaryCard .cardReplyBtn{margin-top:-4px}
+/* A PUBLISH PILL RIGHT AFTER THE WHITE INFO-NOTE CARD SAT NOTICEABLY CLOSER
+   than every other sibling in the stack (user, 2026-09-28: "publish and
+   white container look too close to each other") — .infoNote, .bubble-q and
+   .link-cm all use a 12px top margin, but .cardReplyBtn's own 8px broke that
+   rhythm specifically after a boxed .infoNote. Match the 12px used
+   everywhere else in this stack, scoped to this one adjacency so every
+   other .cardReplyBtn context (bare, in a .replyRow, in a .summaryCard)
+   keeps its own spacing. */
+.infoNote + .cardReplyBtn{margin-top:12px}
 .cardReplyBtn:hover{background:#f5f3ff}
 .cardReply{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:14px;font-weight:400;line-height:1.5;color:var(--text-time)}
 .summaryCard .cardReply{margin-top:-4px}
@@ -941,6 +963,44 @@ select.fbsel--active{border-color:#7b61ff}
 .tmtAssign li{display:flex;flex-direction:column;gap:2px}
 .tmtAssign__exp{font-size:14px;line-height:1.45;color:var(--text-primary);word-break:break-all}
 .tmtAssign__tmt{font-size:13px;line-height:1.4;color:var(--text-secondary)}
+/* mvMulti's own numbered version of the assignment list (user, 2026-09-28:
+   the treatment line should read at the same weight as the experience name,
+   not muted/smaller, and the list should be numbered) — an <ol> with both
+   lines at equal size/color.
+   AN ARROW, NOT A STACK (user, 2026-09-28, second pass: "give arrow for
+   treatment") — two plain stacked lines read like a heading over a caption;
+   "name → treatment" states the actual relationship (the same one the
+   From/To table states elsewhere in this flow). The experience name still
+   wraps onto its own line when it's long — the arrow+treatment wrap onto the
+   line under it as one unit via `white-space:nowrap` on the trailing pair.
+   THE FLEX ROW LIVES ON AN INNER WRAPPER, NOT THE <li> ITSELF — `display:
+   flex` directly on an <li> drops its `list-item` display value, and with
+   it the `::marker` the whole point of this list was to keep (user,
+   "numbers for list?" — they had silently disappeared). `.mxAssign li`
+   stays a plain list-item; `.mxAssign__row` is the flex wrapper inside it. */
+.mxAssign{margin:10px 0 0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:10px}
+.mxAssign li::marker{color:var(--text-secondary)}
+/* PLAIN INLINE FLOW, NOT FLEX (user, 2026-09-28: "why are we moving to the
+   next row? for no reason?" — the arrow+treatment dropped to their own line
+   even when the last wrapped line of a long name still had room). Flexbox
+   lays out at the ITEM level: once the name (too long to fit on one line)
+   wraps, the arrow is still a separate flex item and starts its own fresh
+   row rather than continuing on the name's last visual line. Plain inline
+   spans wrap like normal text instead, so the arrow sits right after
+   whatever word ends the name, with room permitting. */
+.mxAssign__row{display:inline}
+.mxAssign__exp{font-size:14px;line-height:1.45;color:var(--text-primary);word-break:break-all}
+.mxAssign__arrow{color:var(--text-secondary);margin:0 6px}
+.mxAssign__tmt{font-size:14px;line-height:1.45;color:var(--text-primary)}
+/* the update-treatments flow's own copy of the same numbered assignment
+   list, styled identically but kept as its own class so it never depends on
+   mvMulti's markup (same reasoning that keeps MX_/MV_'s constants apart) */
+.ttAssign{margin:10px 0 0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:10px}
+.ttAssign li::marker{color:var(--text-secondary)}
+.ttAssign__row{display:inline}
+.ttAssign__exp{font-size:14px;line-height:1.45;color:var(--text-primary);word-break:break-all}
+.ttAssign__arrow{color:var(--text-secondary);margin:0 6px}
+.ttAssign__tmt{font-size:14px;line-height:1.45;color:var(--text-primary)}
 .planTable__row--2col{grid-template-columns:180px 1fr;gap:0;align-items:stretch;padding:0}
 .planTable__row--2col .uw-k{color:var(--text-secondary);border-right:1px solid #f0f0f2;padding:14px 16px;display:flex;align-items:center}
 .planTable__row--2col>span:last-child{padding:14px 16px;display:flex;align-items:center}
@@ -966,6 +1026,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=134"></script>
+<script src="app.js?v=165"></script>
 </body>
 </html>

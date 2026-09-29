@@ -481,16 +481,6 @@ button{font-family:inherit}
 .meta--bare{background:transparent;border-radius:0;padding:0}
 /* audience attribute/value builder (Create task 2 drill) */
 .cd-sub{font-size:16px;color:#787e94}
-.ab-row{display:grid;grid-template-columns:minmax(240px,.55fr) auto 1.8fr;gap:64px;align-items:start;padding:8px 0}
-.ab-k{font-size:12px;font-weight:600;letter-spacing:.8px;color:#787e94;text-transform:uppercase;margin-bottom:5px}
-.ab-attr{font-size:16px;color:#3a393d;word-break:break-all}
-.ab-v{font-size:16px;color:#3a393d;word-break:break-all}
-.ab-op{align-self:center;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:8px 14px;font-size:14px;color:#3a393d;white-space:nowrap}
-.ab-conj{display:inline-block;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:6px 14px;font-size:13px;color:#3a393d;margin:24px 0}
-.ab-orwrap{border-top:1px solid #e9e9ec;margin:24px 0 0;padding-top:24px}
-.ab-orwrap .ab-conj{margin-top:0}
-.ab-group{margin-top:6px}
-.ab-group__h{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:var(--text-strong);margin:8px 0}
 .meta__k{font-size:12px;font-weight:600;letter-spacing:.8px;color:#787e94;text-transform:uppercase;margin-bottom:5px}
 .meta__v{font-size:16px;color:#000729}
 /* edited value highlight (yellow) — used in the change-order diff view */
@@ -888,7 +878,148 @@ select.fbsel--active{border-color:#7b61ff}
 
 /* a join BETWEEN two section tables (the audience's OR) — same quiet
    treatment as an in-table join, spaced to sit between the two cards */
-.cmpSec__join{margin:16px 0 4px;font-size:13px;letter-spacing:.04em;color:#787e94}
+/* THE AND AND ITS RULE ARE ONE UNIT. The join sat 16px above the section rule
+   and 32px below it, so the two read as unrelated (user, 2026-09-25: "why is
+   the AND and the underline so far apart?"). The rule is the Figma Heading 3
+   divider and stays; the JOIN now binds to it at 4px, and the pair is
+   separated from the table above by 20px. */
+.cmpSec__join{margin:20px 0 4px;font-size:13px;letter-spacing:.04em;color:#787e94}
+.cmpSec__join + .cmpSec__h{margin-top:0}
+/* an unlabelled section: the divider alone, with no text box above it */
+.cmpSec__h--bare{padding-bottom:0}
+/* a section the new version drops: "Removed in v4" IS the label text (same
+   header style as any other section), and the table below it dims — rather
+   than highlighting every emptied cell, which made one removed condition
+   read as three separate changes, or a pill badge, which broke from every
+   other header's plain label+rule treatment */
+.cmpSec--gone{opacity:.55}
+
+/* THE RAW-JSON GHOST TOGGLE — a dev/reference control, not a real product
+   affordance (user, 2026-09-25: "it should show that it's not a part of the
+   design"). Dashed outline, muted grey text, no fill, so it visually reads
+   as bolted on rather than sitting in the same family as `.cvtoggle` above.
+   `margin-left:auto` pushes it to the far right even with no `.cvtoggle`
+   sibling (audience has no Detail/Preview toggle). */
+.refJsonToggle{margin-left:auto;padding:5px 10px;font-size:12px;color:#8a8fa3;
+  background:transparent;border:1px dashed #c7cad4;border-radius:8px;cursor:pointer}
+.refJsonToggle:hover{color:#656a81;border-color:#a7abb8}
+
+/* the raw-JSON view is a TABLE, same cmpTbl-wrap/cmpTbl chrome as every
+   other comparison table (user, 2026-09-25: "keep it in the form of a
+   table"), not two freestanding cards — `.audJsonTbl` only widens the
+   Fields column and lets the JSON cells use the full remaining width;
+   the row/border/header styling all comes from `.cmpTbl` itself.
+   New content highlights with `.cd-hl` (the app's one shared yellow token)
+   INSIDE the JSON text, not a whole-panel amber tint like the real
+   Version Compare screen — so only what actually changed lights up. */
+.audJsonTbl col.cmp-k{width:110px}
+.audJson__pre{margin:0;font-family:ui-monospace,'SF Mono',Menlo,monospace;
+  font-size:12px;line-height:1.6;color:#3a3d4a;white-space:pre-wrap;word-break:break-word}
+
+/* AUDIENCE LAYOUT PICKER — a dropdown at the top right of the tab header
+   (user, 2026-09-29: "top right of the page give a dropdown to allow me
+   to choose"), reusing the SAME `.verselect` pill the version-history
+   picker uses elsewhere in this app rather than a new control. Only
+   `.cd-head` needs the auto-margin here since refJsonToggle (audience's
+   other right-side control) already claims it when both are present. */
+.cd-head .verselect{margin-left:auto;position:relative}
+.cd-head .refJsonToggle + .verselect{margin-left:12px}
+.audLayoutMenu{display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:5;
+  background:#fff;border:1px solid var(--divider);border-radius:var(--r-input);
+  box-shadow:0 4px 16px rgba(20,20,30,.12);min-width:180px;padding:4px;white-space:nowrap}
+.verselect.open .audLayoutMenu{display:block}
+.audLayoutMenu__item{padding:8px 10px;font-size:14px;color:var(--text-strong);border-radius:6px;cursor:pointer}
+.audLayoutMenu__item:hover{background:#f6f7f9}
+.audLayoutMenu__item.active{color:#5d47d5;font-weight:500}
+
+/* LAYOUT A — SIDE BY SIDE: two full expression-builder columns, v3 and v4,
+   placed next to each other so the whole rule structure is visible for
+   both versions at once (user, 2026-09-29). A vertical rule between them
+   reads as "two versions", the way the two-panel Version Compare screen
+   does, without borrowing its card chrome. */
+.audExprSbs{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.audExprSbs__col{min-width:0;padding-right:32px;border-right:1px solid #ececf0}
+.audExprSbs__col:last-child{border-right:0;padding-right:0}
+.audExprSbs__h{font-size:13px;font-weight:600;letter-spacing:.52px;text-transform:uppercase;
+  color:#656a81;padding-bottom:11px;border-bottom:1px solid #ececf0;margin-bottom:16px}
+/* Each column is HALF the canvas width, too narrow for the ab-row's normal
+   gap/min-width (32px gap + a 160px-min attribute column doesn't fit in
+   half the canvas). Attribute/Operator/Value STAY IN THE ROW — a side-by-
+   side comparison is two panels next to each other, not the row layout
+   itself changing (user, 2026-09-29: "things in the row stay in the row").
+   Only the row's own internal proportions shrink to fit a half-width column. */
+/* SAME FIXED-WIDTH FIX AS THE FULL-WIDTH `.ab-row` — this override still had
+   `.5fr` for Attribute, so within the narrower side-by-side column the
+   Operator chip drifted a few px between nesting depths for the same
+   reason the full-width layout did (an `fr` column is a fraction of THAT
+   row's own available width, which nesting padding shrinks by a different
+   amount at different depths). Fixed px width instead. */
+.audExprSbs .ab-row{grid-template-columns:140px auto 1fr;gap:12px}
+.audExprSbs .ab-op{padding:6px 10px}
+.audExprSbs .ab-attr,.audExprSbs .ab-v{font-size:14px}
+
+/* THE AUDIENCE BUILDER ROWS — ported verbatim from the flow builds'
+   audienceBuilder() (e.g. link-unlink-experiments-sep11/app.js), the
+   real ATTRIBUTE/operator/VALUE + AND/OR + Attribute group look, per
+   user (2026-09-29: "take exactly the example we have in the design").
+   A changed VALUE gets `.cd-hl`, same yellow token as every other
+   comparison view in this app — nothing new invented for this layout. */
+/* ATTRIBUTE gets more room than VALUE, not less — these attribute names are
+   long, unbroken, single-word strings (`word-break:break-all` has no
+   natural place to wrap them), while VALUE is often short (10, abcd, No)
+   and wrapped hard even when there was plenty of row width unused (user,
+   2026-09-29: "do we need to wrap? i dont think we're using real estate
+   well"). Columns are now roughly even instead of Value getting 3x Attribute's
+   share, so a single long attribute name has room to sit on one line.
+   THE ATTRIBUTE COLUMN IS A FIXED PIXEL WIDTH, NOT `1fr` (user, 2026-09-29,
+   comparing two crops of the same layout: "the containers are equal and
+   aligned. you have not done that") — with `1fr` the column's width is a
+   FRACTION of that particular row's own available width, so two rows at
+   different nesting depths (different `padding-left` eating into that
+   available width) land their Operator chip at different x-positions even
+   though the ratios match. A fixed width means every row's Operator chip
+   sits the same distance from ITS OWN left edge; the indentation is then
+   the only thing that moves between nesting levels, not the column math. */
+.ab-row{display:grid;grid-template-columns:340px auto 1fr;gap:32px;align-items:start;padding:8px 0}
+.ab-k{font-size:12px;font-weight:600;letter-spacing:.8px;color:#787e94;text-transform:uppercase;margin-bottom:5px}
+.ab-attr{font-size:16px;color:#3a393d;word-break:break-all}
+.ab-v{font-size:16px;color:#3a393d;word-break:break-all}
+.ab-op{align-self:center;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:8px 14px;font-size:14px;color:#3a393d;white-space:nowrap}
+.ab-conj{display:inline-block;align-self:flex-start;width:fit-content;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:6px 14px;font-size:13px;color:#3a393d;margin:24px 0}
+.ab-orwrap{border-top:1px solid #e9e9ec;margin:24px 0 0;padding-top:24px}
+.ab-orwrap .ab-conj{margin-top:0}
+/* A NAMED GROUP (e.g. AUD3) READS AS NESTED THROUGH INDENTATION ALONE, NOT A
+   BORDERED CARD. A first pass gave `.ab-group` a border+padding box — WRONG,
+   REVERTED (user, 2026-09-29, after seeing it rendered: "why have you given
+   a box outside? our design does not have it"). The real product screen
+   does box its group, but that box is NOT part of THIS design; here nesting
+   is shown the same way the rest of this app shows structure — by shifting
+   the group's rows right, no border, no card. */
+.ab-group{margin-top:16px;padding-left:24px}
+.ab-group__h{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:var(--text-strong);margin:0 0 12px}
+/* THE WHOLE RULE IS ITS OWN NESTED LEVEL — a thin left rule + indent + a
+   collapsible "Conditions" header, so AUD3 and the two conditions added
+   alongside it read as siblings inside one shared level, not flush with
+   the page (user, 2026-09-29, sharing a real nested-rule screenshot: "see
+   the nesting reference. get it?"). This is a DIFFERENT nesting cue than
+   `.ab-group` (AUD3 itself, indent only, no rule) — the two levels need to
+   read as distinct from each other, and the left rule is what the user's
+   reference uses to show a level boundary. */
+.ab-nest{margin-top:8px;padding-left:20px;border-left:1px solid #e5e5ec}
+.ab-nest__h{display:flex;align-items:center;gap:6px;font-size:15px;font-weight:600;color:var(--text-strong);margin:0 0 12px}
+/* A FIXED COLUMN WIDTH ON `.ab-row` ISN'T ENOUGH ON ITS OWN — it fixes the
+   column ratio, but the row's own left edge still shifts with every
+   ancestor's `padding-left`, so the Operator chip still lands at a
+   different x for a row 3 levels deep (AUD3, inside 2×`.ab-nest` +
+   `.ab-group`) than one 2 levels deep (the two added conditions, inside
+   2×`.ab-nest` only) (user, 2026-09-29, re-flagging the same misalignment
+   after the fixed-width fix: "container width not fixed"). Each level's
+   HEADER LABEL stays indented (that's what shows nesting), but `.ab-row`
+   itself pulls back left by exactly what its ancestors pushed it right,
+   so every row's grid starts at the same page-relative x no matter how
+   many `.ab-nest`/`.ab-group` levels it sits inside. */
+.ab-nest .ab-nest .ab-row{margin-left:-40px}
+.ab-nest .ab-nest .ab-group .ab-row{margin-left:-64px}
 
 .cmpTbl__join td{padding-top:10px;padding-bottom:10px;color:#787e94;font-size:13px;letter-spacing:.04em}
 /* The 16% Fields column is sized for "CTA text"; audience attribute names
@@ -911,6 +1042,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region — a single reference screen, no AI panel -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=16"></script>
+<script src="app.js?v=47"></script>
 </body>
 </html>

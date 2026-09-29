@@ -357,8 +357,32 @@ function cmpSections(sections, hl=true){
   return sections.map(sec=>{
     /* a bare join between two sections (the audience's OR) */
     if(sec.join) return `<div class="cmpSec__join">${sec.join}</div>`;
-    return (sec.label ? `<div class="cmpSec__h">${sec.label}</div>` : '')
-      + cmpTable(sec.fields, hl);
+    /* A SECTION DROPPED BY THE NEW VERSION says so ONCE, on its label ("Removed
+       in v4" IS the label text when there's no group name of its own) — dimming
+       the table and turning highlighting off doesn't by itself explain why the
+       cells are empty. An ADDED section needs no such text: the yellow highlight
+       on the new values already says what's new, so it gets just the plain
+       rule (no label) and the table under it, same as every other section
+       header minus the text (user, 2026-09-25: "when did I ask you to add
+       [Added in v4]... you're giving that yellow highlight so why would I
+       need anything else"). */
+    /* THE RULE UNDER A SECTION IS THE FIGMA "Heading 3" COMPONENT
+       (node 5336:122246 / 10268:87260): 13px Demi Bold #656a81, 11px of
+       padding, 1px #ececf0 border-bottom. It renders even with NO label text —
+       an unlabelled section still gets its divider, which is what separates
+       one condition from the next.
+       I briefly removed it when the AND looked detached; that was wrong (user,
+       2026-09-25). The problem was never the rule, it was the SPACING: the AND
+       sat 16px above it and 32px below, so the two drifted apart. They are one
+       unit — the AND and its rule — so the gap between them is now 4px. */
+    const headText = sec.label || (sec.removed ? 'Removed in v4' : '');
+    const head = (headText || sec.added || sec.removed)
+      ? `<div class="cmpSec__h${sec.removed?' cmpSec__h--gone':''}${headText?'':' cmpSec__h--bare'}">${headText}</div>`
+      : '';
+    const body = sec.removed
+      ? `<div class="cmpSec--gone">${cmpTable(sec.fields, false)}</div>`
+      : cmpTable(sec.fields, hl);
+    return head + body;
   }).join('');
 }
 /* the Preview view: the two versions rendered as the real creative,
@@ -399,65 +423,245 @@ const CMP_META_FIELDS = [
 ];
 
 /* ---- BILLING OFFER (built) ----
-   Reading order off the screen: left column top-to-bottom, then right
-   (user supplied the screen, 2026-09-24). The end date moves with the
-   experience-meta one so the two tabs tell the same story, and the
-   offer count rises with it. */
+   The real fields, in the screen's reading order: left column top-to-bottom,
+   then the right (user supplied the screen, 2026-09-25 — an earlier pass had
+   invented Offers/Title/dates, none of which are on it).
+   Diff: the offer moves to a different billing offer and picks up the
+   matching feature set, which is what an upgrade change looks like. */
 const CMP_BILLING_FIELDS = [
-  ['Promotion type','Upgrade','Upgrade'],
-  ['Product','Experts','Experts'],
-  ['Offers','19','24'],
-  ['Title','70% (Email)','70% (Email)'],
-  ['Start date','March 12, 2026','March 12, 2026'],
-  ['End date','April 22, 2026','June 30, 2026'],
-  ['SKU','QB Live Assisted','QB Live Assisted'],
+  ['Promotion type','UPGRADE','UPGRADE'],
+  ['Billing offer','20058338','20059622'],
+  ['Product','QBO','QBO'],
+  ['Feature set codes','QBO_ADVANCED','QBO_PLUS'],
+  ['Pricing category','List Price','List Price'],
+  /* "N" read as a random, unexplained letter next to real values like
+     "QBO_PLUS" — a plain dash reads as "not set/not applicable" instead,
+     same as every other empty field on these screens (user, 2026-09-25) */
+  ['Is targeted','—','—'],
+  ['Is bundle','—','—'],
 ];
 
-/* ---- AUDIENCE (built, NOT SHIPPED — the tab shows a placeholder) ----
-   Held back at the user's request (2026-09-24) while the diff is confirmed.
-   Wire it back up by putting `sections:CMP_AUDIENCE_SECTIONS` on the audience
-   entry in CMP_TABS and restoring its real title.
+/* ---- AUDIENCE (built) ----
+   Source: the real published-vs-draft audience editor screens for
+   20060232-ELM9722-IPD-AdvancedShellBanner..., group AUD3 (user supplied
+   both screens, 2026-09-25). A condition is three fields, Attribute /
+   Operator / Value, each its own row (user, 2026-09-24).
 
-   The audience is a RULE EXPRESSION, not flat field/value pairs: conditions
-   joined by AND, an OR, then a nested attribute group. SECTIONS, same as the
-   experiment tab — the top-level conditions in the leading table, the nested
-   group as its own table under a label — with the AND/OR joins staying as
-   quiet rows inside each table, where they belong.
-   The OPERATOR TRAVELS WITH THE VALUE in the version columns, because the
-   diff here is an operator flip: it has to be on the side being compared.
-   **Rendered WITHOUT the QA errors** (user: "audience, just without errors"):
-   the real screen carries "Audience key does not exist" and "Invalid value"
-   flags and a QA error chip, none of which belong on a clean reference
-   screen. The `~` invalid value is shown as the real value it should be. */
-const AUD_NAME = 'elm_9071_ipd_us_qbl_qblast_naql_xsll_promo_seg_diwm_deep_disc_highprice';
-/* A CONDITION IS THREE FIELDS — Attribute, Operator, Value (user, 2026-09-24),
-   each its own row compared across the two versions. An earlier pass merged
-   the operator into the value ("not equal to  No") in the version columns;
-   they are separate fields on the real screen and read as separate rows here,
-   so an operator change highlights on the Operator row alone. */
+   WHAT ACTUALLY CHANGES between v3 (published) and v4 (draft): the AUD3
+   group itself (gbsgAEPCompanyAudience, isAccountantAccessingClient,
+   qboCompanyId, all AND-joined) is IDENTICAL in both versions. v4 then ADDS
+   two more AND-joined conditions after the group —
+   `qblUsPropensityQbliveAttachDiwmPercentileBt > 10` and
+   `T5RdyNme != abcd` — that v3 does not have.
+   An earlier pass had this backwards (conditions removed in v4) and invented
+   a derived Rule/Score section that has no corresponding UI on these
+   screens; both are replaced here with what the editor actually shows. */
+const AUD_NONE = '—';
+/* a condition is three fields; `op2`/`val2` give the v4 side when it
+   differs from v3 (the attribute itself doesn't change across versions here) */
 const audCond = (attr, op, val, op2, val2)=>[
   ['Attribute', attr, attr],
   ['Operator',  op,  op2===undefined?op:op2],
   ['Value',     val, val2===undefined?val:val2],
 ];
-const CMP_AUDIENCE_SECTIONS = [
-  {fields:[
-    ...audCond('CDPCompanyAudienceName','contains any',AUD_NAME),
-    ['AND','','','join'],
-    /* the diff: this condition's OPERATOR flips */
-    ...audCond('isAccountantAccessingClient','not equal to','No','equal to'),
-    ['AND','','','join'],
-    ...audCond('elm9071payingqbopayingqblnum','not equal to','0'),
-  ]},
-  /* the OR joins the two sections, so it sits BETWEEN the tables — trailing
-     it on the first one left a join with nothing after it */
-  {join:'OR'},
-  {label:'Attribute group', fields:[
-    ...audCond('CDPCompanyAudienceName','contains any',AUD_NAME),
-    ['AND','','','join'],
-    ...audCond('isAccountantAccessingClient','not equal to','No'),
-  ]},
+/* a condition only v4 (the draft) has — v3 shows the empty dash on every field */
+const audAdded = (attr, op, val)=>[
+  ['Attribute', AUD_NONE, attr],
+  ['Operator',  AUD_NONE, op],
+  ['Value',     AUD_NONE, val],
 ];
+const audJoin = (label)=>[[label,'','','join']];
+const CMP_AUDIENCE_SECTIONS = [
+  /* the AUD3 group is unchanged between v3 and v4: one table, its three
+     conditions AND-joined as in-table rows, same as the real screen */
+  {label:'AUD3', fields:[
+    ...audCond('gbsgAEPCompanyAudience','contains any','3b053278-f2d0-486b-b8fc-1ab75a00...'),
+    ...audJoin('AND'),
+    ...audCond('isAccountantAccessingClient','equal to','No'),
+    ...audJoin('AND'),
+    ...audCond('qboCompanyId','contains','9e0a6bf4-e0b7-42f3-b0a7-445a8ab3...'),
+  ]},
+  {join:'AND'},
+  {added:true,
+    fields: audAdded('qblUsPropensityQbliveAttachDiwmPercentileBt','greater than','10')},
+  {join:'AND'},
+  {added:true, fields: audAdded('T5RdyNme','not equal to','abcd')},
+];
+
+/* ---- AUDIENCE — EXPRESSION-BUILDER LAYOUTS (built, 2026-09-29) ----
+   Two more ways to read the same CMP_AUDIENCE_SECTIONS diff, both using
+   the REAL audience builder look (ATTRIBUTE/operator/VALUE rows, AND/OR
+   chips, "Attribute group" disclosure) that the flow builds already use
+   for the live editor — ab-row/ab-k/ab-attr/ab-op/ab-v/ab-conj/ab-group,
+   copied verbatim rather than reworked, per user (2026-09-29: "we have
+   the typical boolean expression with this style... take exactly the
+   example we have in the design"). Both render off the SAME section
+   data as the table view, so the diff never drifts between layouts.
+   A changed value gets `.cd-hl` — the app's one shared yellow token —
+   applied to just the v4 side; an added condition (v3 side is "—") only
+   highlights its v4 row, there being nothing on v3 to mark. */
+function audRow(attr, op, val, hlAttr, hlOp, hlVal){
+  const mark = (s,on)=> on?`<span class="cd-hl">${s}</span>`:s;
+  return `<div class="ab-row">
+    <div class="ab-col"><div class="ab-k">ATTRIBUTE</div><div class="ab-attr">${mark(attr,hlAttr)}</div></div>
+    <div class="ab-op">${mark(op,hlOp)}</div>
+    <div class="ab-col"><div class="ab-k">VALUE</div><div class="ab-v">${mark(val,hlVal)}</div></div>
+  </div>`;
+}
+/* walk CMP_AUDIENCE_SECTIONS into one column's worth of ab-rows/joins/group
+   header (col: 1 = v3/current, 2 = v4/draft); hl gates the yellow marks.
+   A section's `fields` is NOT a flat multiple-of-3 array — audCond/audAdded
+   triples are interleaved with single-element `kind==='join'` rows (the
+   in-table AND chips), same shape cmpTable() itself walks.
+   EACH OF THE THREE FIELDS HIGHLIGHTS INDEPENDENTLY, same as the table view
+   (`cmpTable` marks any cell whose v3/v4 differ) — a first pass only ever
+   checked the Value field, so an added condition's Attribute/Operator (which
+   go from "—" to a real name/operator, same as Value) never highlighted
+   (user, 2026-09-29: "the highlights are incomplete on the 2 new
+   explorations"). */
+/* AN ADDED SECTION DOESN'T EXIST ON V3 AT ALL — IT RENDERS NOTHING THERE,
+   NOT A DASH ROW (user, 2026-09-29, looking at Version 3: "current one
+   should not have the last 2 rows right? because we added those in the
+   draft"). The table view already treats "—" as a per-CELL marker inside a
+   row that exists on both sides; here the whole CONDITION is absent on v3,
+   so v3 should skip the section (and the "AND" that would otherwise dangle
+   in front of it) rather than render an empty ATTRIBUTE/—/VALUE/— row. */
+function audExprCol(sections, col, hl){
+  /* single pass against the ORIGINAL array/indices — a join is dropped on
+     v3 when the section immediately after it is `added` (that join exists
+     only to introduce the added condition, so it dangles with nothing
+     after it once the condition itself is gone); an added section itself
+     is dropped on v3 outright. Filtering in two separate passes reindexes
+     the array between them, so a join's "next section" lookup silently
+     pointed at the wrong element — this only works as one pass over the
+     original `sections`. */
+  const visible = sections.filter((sec,i)=>{
+    if(sec.added) return col===2;
+    if(sec.join) return !(sections[i+1] && sections[i+1].added && col===1);
+    return true;
+  });
+  return visible.map(sec=>{
+    if(sec.join) return `<div class="ab-orwrap"><div class="ab-conj">${sec.join}</div></div>`;
+    const parts = [];
+    for(let i=0;i<sec.fields.length;){
+      if(sec.fields[i][3]==='join'){ parts.push(`<div class="ab-conj">${sec.fields[i][0]}</div>`); i+=1; continue; }
+      const attr = sec.fields[i][col], op = sec.fields[i+1][col], val = sec.fields[i+2][col];
+      const hlAttr = hl && col===2 && sec.fields[i][1] !== sec.fields[i][2];
+      const hlOp   = hl && col===2 && sec.fields[i+1][1] !== sec.fields[i+1][2];
+      const hlVal  = hl && col===2 && sec.fields[i+2][1] !== sec.fields[i+2][2];
+      parts.push(audRow(attr, op, val, hlAttr, hlOp, hlVal));
+      i+=3;
+    }
+    const joined = parts.join('');
+    return sec.label
+      ? `<div class="ab-group"><div class="ab-group__h">${sec.label} ${I.chev}</div>${joined}</div>`
+      : joined;
+  }).join('');
+}
+/* THE REFERENCE HAS TWO STACKED "Conditions" LEVELS BEFORE AUD3, NOT ONE
+   (user, 2026-09-29, re-sharing the same screenshot: "I shared the exact
+   example with this. why do you not have 3 lines then?" — outer
+   "Conditions" > inner "Conditions" > "AUD3", three left-rule lines total).
+   A first pass added only one "Conditions" wrapper, reasoning the second
+   level didn't correspond to anything in our data — WRONG: the user wants
+   the exact nesting depth reproduced, not reinterpreted down to what our
+   data seems to need. Two `.ab-nest` wrappers stack here (each is the same
+   left-rule/indent/chevron-header treatment), then `.ab-group` for AUD3 —
+   three visual levels, matching the reference line for line. */
+function audExprNested(sections, col, hl){
+  return `<div class="ab-nest"><div class="ab-nest__h">Conditions ${I.chev}</div>
+    <div class="ab-nest"><div class="ab-nest__h">Conditions ${I.chev}</div>${audExprCol(sections, col, hl)}</div>
+  </div>`;
+}
+/* LAYOUT A — SIDE BY SIDE: v3 and v4 each render as a full expression
+   builder, the two placed next to each other so the whole rule structure
+   (groups, AND/OR chips) is visible at once for both versions, exactly
+   like the two-panel look of the real Version Compare screen but using
+   the expression-builder rows instead of table cells (user, 2026-09-29:
+   "give both side by side and with yellow highlight"). */
+function audExprSideBySide(hl=true){
+  return `<div class="audExprSbs">
+    <div class="audExprSbs__col"><div class="audExprSbs__h">${CMP_VA}</div>${audExprNested(CMP_AUDIENCE_SECTIONS,1,hl)}</div>
+    <div class="audExprSbs__col"><div class="audExprSbs__h">${CMP_VB}</div>${audExprNested(CMP_AUDIENCE_SECTIONS,2,hl)}</div>
+  </div>`;
+}
+/* LAYOUT B — VERSION TOGGLE: same expression-builder rows, but one
+   version on screen at a time behind a Detail/Preview-shaped toggle
+   relabelled to the two versions (user, 2026-09-29: "give a toggle...
+   we will name versions here instead"). Reuses `.cvtoggle` chrome so it
+   reads as the same family of control as Detail/Preview elsewhere. */
+function audExprToggle(which, hl=true){
+  const col = which==='b' ? 2 : 1;
+  return audExprNested(CMP_AUDIENCE_SECTIONS, col, hl);
+}
+
+/* ---- AUDIENCE — RAW JSON REFERENCE (built, 2026-09-25) ----
+   A second view of the SAME AUD3 diff, as the raw Rules JSON the real
+   Version Compare screen shows (user supplied both screenshots). Trimmed to
+   the parts that actually differ or give them context — segmentIds,
+   conjunction, ruleActions.score, attributeIds, ruleConditions — leaving out
+   fields identical in shape on every audience (id/type/version wrappers,
+   subscriptionAttributes:{}) so the two panels stay short enough to read
+   side by side rather than reproducing the whole wall of JSON.
+   This is a DEV REFERENCE AID, not part of the product design — it renders
+   behind a ghost toggle so it reads as "ours", not a real screen. */
+const escJson = (s)=> String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const AUD_JSON_V3 = `{
+  "segmentIds": ["c8422b50-b58a-11f1-87c7-417cb39bb51e"],
+  "conjunction": "&&",
+  "ruleActions": { "score": { "value": "25.0", "operator": "==" } },
+  "attributeIds": [
+    "gbsgAEPCompanyAudience",
+    "isAccountantAccessingClient",
+    "qboCompanyId"
+  ],
+  "ruleConditions": "(((List) attributes['gbsgAEPCompanyAudience']) contains \\"3b053278-f2d0-486b-b8fc-1ab75a00e17e\\") && attributes['isAccountantAccessingClient'] == false && (((String) attributes['qboCompanyId']) contains \\"9e0a6bf4-e0b7-42f3-b0a7-445a8ab35b51\\")"
+}`;
+const AUD_JSON_V4 = `{
+  "segmentIds": ["c8422b50-b58a-11f1-87c7-417cb39bb51e"],
+  "conjunction": "&&",
+  "ruleActions": { "score": { "value": "25.0", "operator": "==" } },
+  "attributeIds": [
+    "gbsgAEPCompanyAudience",
+    "isAccountantAccessingClient",
+    "qboCompanyId",
+    "qblUsPropensityQbliveAttachDiwmPercentileBt",
+    "T5RdyNme"
+  ],
+  "ruleConditions": "(((List) attributes['gbsgAEPCompanyAudience']) contains \\"3b053278-f2d0-486b-b8fc-1ab75a00e17e\\") && attributes['isAccountantAccessingClient'] == false && (((String) attributes['qboCompanyId']) contains \\"9e0a6bf4-e0b7-42f3-b0a7-445a8ab35b51\\") && attributes['qblUsPropensityQbliveAttachDiwmPercentileBt'] > 10 && attributes['T5RdyNme'] != \\"abcd\\""
+}`;
+/* the v3 panel is plain text; on v4 the two NEW attributeIds entries and the
+   two new ruleConditions clauses they add are wrapped in `.cd-hl` — the same
+   yellow token every other changed cell in this app uses — rather than
+   tinting the whole panel amber like the real Version Compare screen does.
+   Built as markup with the highlight spans already in place (not a
+   find/replace over escaped text), so escaping stays correct either way. */
+const AUD_JSON_V4_HL = `{
+  "segmentIds": ["c8422b50-b58a-11f1-87c7-417cb39bb51e"],
+  "conjunction": "&&",
+  "ruleActions": { "score": { "value": "25.0", "operator": "==" } },
+  "attributeIds": [
+    "gbsgAEPCompanyAudience",
+    "isAccountantAccessingClient",
+    "qboCompanyId",
+    <span class="cd-hl">"qblUsPropensityQbliveAttachDiwmPercentileBt",
+    "T5RdyNme"</span>
+  ],
+  "ruleConditions": "(((List) attributes['gbsgAEPCompanyAudience']) contains \\"3b053278-f2d0-486b-b8fc-1ab75a00e17e\\") && attributes['isAccountantAccessingClient'] == false && (((String) attributes['qboCompanyId']) contains \\"9e0a6bf4-e0b7-42f3-b0a7-445a8ab35b51\\") && <span class="cd-hl">attributes['qblUsPropensityQbliveAttachDiwmPercentileBt'] > 10 && attributes['T5RdyNme'] != \\"abcd\\"</span>"
+}`;
+/* THE JSON VIEW IS A TABLE, NOT TWO FREESTANDING CARDS (user, 2026-09-25:
+   "keep it in the form of a table... newly added just give them that yellow
+   highlight") — one `cmpTbl-wrap`/`cmpTbl`, same border/header styling as
+   every other comparison table in this app, with a single row holding the
+   two JSON blocks as its Version 3 / Version 4 cells. */
+function audJsonCompare(){
+  return `<div class="cmpTbl-wrap"><table class="cmpTbl audJsonTbl"><colgroup><col class="cmp-k"><col><col></colgroup>
+    <thead><tr><th>Fields</th><th>${CMP_VA} ${icon('info',13)}</th><th>${CMP_VB} ${icon('info',13)}</th></tr></thead>
+    <tbody><tr><td>Targeting</td>
+      <td><pre class="audJson__pre">${escJson(AUD_JSON_V3)}</pre></td>
+      <td><pre class="audJson__pre">${AUD_JSON_V4_HL}</pre></td>
+    </tr></tbody></table></div>`;
+}
 
 /* ---- EXPERIMENT (built, NOT SHIPPED — the tab shows a placeholder) ----
    ONE TABLE, with the treatment as a field (user, 2026-09-25: "we will not
@@ -474,9 +678,6 @@ const CMP_EXPERIMENT_FIELDS = [
      treatment there is no reallocation to show, so the change that actually
      happens at this level is WHICH treatment the experience sits on. */
   ['Treatment','Treatment1-ELM9071_Med_70pct','Treatment2-ELM9071_Med_90pct'],
-  /* the allocation belongs to whichever treatment the experience is on, so it
-     moves WITH the treatment change rather than being a separate edit */
-  ['Allocation','~30%','~40%'],
 ];
 
 /* ---- THE TAB REGISTRY ----
@@ -489,10 +690,7 @@ const CMP_TABS = [
   /* AUDIENCE AND EXPERIMENT ARE HELD BACK (user, 2026-09-24: "keep audience
      and experiment local, keep some placeholder"). Their field data is built
      and kept above — to ship either one, just restore `fields:` here. */
-  /* AUDIENCE IS HELD BACK (user, 2026-09-24) while its diff is confirmed. Its
-     field data is built and kept above — to ship it, restore
-     `sections:CMP_AUDIENCE_SECTIONS` here and its real title. */
-  {key:'audience',   label:'Audience',        title:'Audience', wip:true},
+  {key:'audience',   label:'Audience',        title:'AUD_AUDIENCE2-QBO_HighPriceSensitivity', sections:CMP_AUDIENCE_SECTIONS, refJson:audJsonCompare},
   {key:'billing',    label:'Billing offer',   title:'Billing offer', fields:CMP_BILLING_FIELDS},
   {key:'experiment', label:'Experiment',      title:'IPD High Price Sensitivity · IXP 321931', fields:CMP_EXPERIMENT_FIELDS},
 ];
@@ -515,22 +713,53 @@ function cmpScreen(state={}){
   const tab = cmpTab(t);
   const view = state.view==='preview' ? 'preview' : 'detail';
   const hl = state.hl!==false;
-  const tabs = CMP_TABS.map(x=>`<span class="tab ${t===x.key?'active':''}" data-cmptab="${x.key}">${x.label}</span>`).join('');
+  /* the Audience tab ships in this push, but the diff is still being
+     confirmed (user, 2026-09-29: "push all in building blocks just for
+     audience give it a WIP tag somewhere") — a small badge on its own tab
+     label, reusing this build's `.badge--beta` swatch (the closest
+     existing semantic fit for "not finished yet"), rather than a new
+     color or hiding the tab. */
+  const tabs = CMP_TABS.map(x=>`<span class="tab ${t===x.key?'active':''}" data-cmptab="${x.key}">${x.label}${x.key==='audience'?' <span class="badge badge--beta" style="font-size:11px;margin-left:4px">WIP</span>':''}</span>`).join('');
   /* the Detail/Preview toggle only means something where a preview
      exists; a table-only tab would show a dead control */
   const toggle = tab.preview ? `<div class="cvtoggle" data-cvtoggle>
           <button data-cv="detail" class="${view==='detail'?'active':''}">${DETAIL_ICON} Detail</button>
           <button data-cv="preview" class="${view==='preview'?'active':''}">${IMAGE_ICON} Preview</button>
         </div>` : '';
+  /* AUDIENCE OFFERS FOUR LAYOUTS of the same diff, all picked from ONE
+     dropdown at the top right of the tab (user, 2026-09-29) — reusing the
+     `.verselect` pill exactly as the version-history picker elsewhere in
+     this app. The raw-JSON reference view used to sit behind its own
+     dashed "ghost toggle" button; folded into this menu as "Table - Json"
+     instead of keeping two separate controls (user, 2026-09-29: "in the
+     dropdown itself add Table - Json as an item"). Only the audience tab
+     gets this menu: the other tabs have one shape each. */
+  const audLayout = tab.key==='audience' ? (state.audLayout || 'table') : 'table';
+  const AUD_LAYOUTS = [['table','Table view'],['sbs','Side by side'],['toggle','Version toggle']];
+  if(tab.refJson) AUD_LAYOUTS.push(['json','Table - Json']);
+  const layoutPicker = tab.key==='audience' ? `<span class="verselect" data-audlayout-toggle>
+      ${AUD_LAYOUTS.find(l=>l[0]===audLayout)[1]} ${I.chev}
+      <div class="audLayoutMenu" data-audlayout-menu>
+        ${AUD_LAYOUTS.map(([k,label])=>`<div class="audLayoutMenu__item${k===audLayout?' active':''}" data-audlayout="${k}">${label}</div>`).join('')}
+      </div>
+    </span>` : '';
+  const audVer = state.audVer==='b' ? 'b' : 'a';
+  const audVerToggle = `<div class="cvtoggle" data-audvertoggle>
+      <button data-audver="a" class="${audVer==='a'?'active':''}">${CMP_VA}</button>
+      <button data-audver="b" class="${audVer==='b'?'active':''}">${CMP_VB}</button>
+    </div>`;
   const body = tab.sections
-    ? cmpSections(tab.sections, hl) + hlBar(hl)
-    : tab.fields
-      ? ((view==='preview' && tab.preview) ? tab.preview(hl) : cmpTable(tab.fields, hl)) + hlBar(hl)
-      : cmpTodo(tab.label);
+      ? (audLayout==='sbs' ? audExprSideBySide(hl)
+        : audLayout==='toggle' ? audVerToggle + audExprToggle(audVer, hl) + hlBar(hl)
+        : audLayout==='json' ? tab.refJson()
+        : cmpSections(tab.sections, hl) + hlBar(hl))
+      : tab.fields
+        ? ((view==='preview' && tab.preview) ? tab.preview(hl) : cmpTable(tab.fields, hl)) + hlBar(hl)
+        : cmpTodo(tab.label);
   return `<div class="content">${topbar(CMP_CRUMB)}<div class="scroll"><div class="pad">
     <div class="detail-sticky"><div class="detail-h"><span class="title">${CMP_NAME}</span><span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; ${CMP_EID} ${COPY_ICON}</span></div>
     <div class="tabs tabs--insticky tabs--exp">${tabs}</div></div>
-    <div class="cd-head"><span class="cd-head__t">${tab.title}</span>${toggle}</div>
+    <div class="cd-head"><span class="cd-head__t">${tab.title}</span>${toggle}${layoutPicker}</div>
     ${body}</div></div></div>` + cmpPanel();
 }
 
@@ -565,6 +794,15 @@ function wire(){
     cmpState = {...cmpState, view:el.dataset.cv}; render(); });
   const hl = main.querySelector('[data-hlchanges]');
   if(hl) hl.onchange=()=>{ cmpState = {...cmpState, hl:hl.checked}; render(); };
+  const layoutToggle = main.querySelector('[data-audlayout-toggle]');
+  if(layoutToggle) layoutToggle.onclick=(e)=>{
+    if(e.target.closest('[data-audlayout]')) return;
+    layoutToggle.classList.toggle('open');
+  };
+  main.querySelectorAll('[data-audlayout]').forEach(el=>el.onclick=()=>{
+    cmpState = {...cmpState, audLayout:el.dataset.audlayout}; render(); });
+  main.querySelectorAll('[data-audver]').forEach(el=>el.onclick=()=>{
+    cmpState = {...cmpState, audVer:el.dataset.audver}; render(); });
 }
 renderRail();
 render();
