@@ -3362,6 +3362,10 @@ function wire(name, state){
      clear the flow's timers mid-loader */
   main.querySelectorAll('[data-xptab]').forEach(tb=>tb.onclick=()=>{
     autopilot=false; render(name, {...state, xpTab:tb.dataset.xptab}); });
+  /* BACK to the results from an experiment page opened from them (user,
+     2026-09-30) — rendered only until the ask is sent */
+  const xb=main.querySelector('[data-xpback]');
+  if(xb) xb.onclick=()=>{ autopilot=false; go(name==='upDetail'?'upSearch':'xpSearch',{}); };
   wireTreeChevrons(main);   // real expand/collapse on any tree present
   wireTreeToolbar(main);    // group-by / filter / search / expand-collapse on any tree present
 }
@@ -3887,8 +3891,8 @@ const xpVerSelect = (staged, open, pub=true, live=false, edited=false)=>{
 /* Order is TITLE > STATUS > ID (user, 2026-09-15), with the version picker last
    and NO trailing divider after it — a divider separates items, so one after
    the last item separates nothing. */
-const xpHead = (pub=true, staged=false, open=false, live=false, edited=false)=>`<div class="expHead">
-      <span class="expHead__name">${xpName(pub)}</span>
+const xpHead = (pub=true, staged=false, open=false, live=false, edited=false, back=false)=>`<div class="expHead">
+      ${back?`<span class="back" data-xpback>${I.back}</span>`:''}<span class="expHead__name">${xpName(pub)}</span>
       <span class="expHead__div"></span>
       ${xpStatus(pub, staged, live, edited)}
       <span class="expHead__div"></span>
@@ -6267,7 +6271,7 @@ scenes.xpDetail = (state={})=>{
        once. */
     const metaAlsoLoading = !tpub && T==='working';
     return `<div class="content">${topbar(XP_CRUMB(tpub))}<div class="scroll"><div class="pad">
-        ${metaAlsoLoading ? xpPageSkeleton() : `${xpHead(tpub, tstaged, !!state.verOpen, tlive, tedited)}
+        ${metaAlsoLoading ? xpPageSkeleton() : `${xpHead(tpub, tstaged, !!state.verOpen, tlive, tedited, tpub && !T)}
         ${xpBody(state, xpMeta(tpub, tlive, ttOver, ttEditedKeys), xpToolbar() + ttable)}
         ${/* the Highlight-changes bar is the PAGE's footer, not the list's: the meta
              tab carries a highlight too (the holdout value), and it went missing
@@ -6383,7 +6387,7 @@ scenes.xpDetail = (state={})=>{
       + aiPanel({body});
   }
   return `<div class="content">${topbar(XP_CRUMB(pub))}<div class="scroll"><div class="pad">
-      ${xpHead(pub, staged, !!state.verOpen, live)}
+      ${xpHead(pub, staged, !!state.verOpen, live, false, pub && state.ul===undefined && state.lk===undefined && state.tt===undefined)}
       ${xpBody(state, xpMeta(pub, live), xpToolbar() + table)}
     </div></div></div>` + aiPanel({body,
       /* the sticky task tracker: the unlink plan's two tasks map onto the

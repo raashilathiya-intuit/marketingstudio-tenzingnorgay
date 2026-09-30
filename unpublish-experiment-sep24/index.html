@@ -532,6 +532,11 @@ button{font-family:inherit}
    dividers. Same pattern the other builds use for an object's identity row. */
 .expHead{display:flex;align-items:center;gap:16px;margin:0 0 20px}
 .expHead__name{font-size:20px;font-weight:600;color:var(--text-strong)}
+/* BACK ARROW on an experiment page opened from a results table (user,
+   2026-09-30): returns to the results, shown only until the ask is sent. A
+   page opened straight from a prompt that named the experiment has none. */
+.expHead .back{color:var(--icon-primary);cursor:pointer;display:flex;align-items:center;justify-content:center;width:20px;height:20px;padding:2px;margin:-2px -8px -2px -2px;border-radius:4px;transition:background .1s}
+.expHead .back:hover{background:#0000000a}
 .expHead__div{width:1px;height:20px;background:var(--divider)}
 /* the ID block: same look as the drill-down's `.detail-sub` but WITHOUT that
    class's margin-bottom, which knocked the header's baseline out */
@@ -969,6 +974,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=10"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>
