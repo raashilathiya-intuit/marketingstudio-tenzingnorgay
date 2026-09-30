@@ -3358,6 +3358,10 @@ function wire(name, state){
   const hlcb=main.querySelector('[data-hlchanges]');
   if(hlcb) hlcb.onchange=()=>{ autopilot=false; go(current.name,{...current.state, hl:hlcb.checked}); };
 
+  /* experiment page tabs: UI-only, so render() not go() — a click must not
+     clear the flow's timers mid-loader */
+  main.querySelectorAll('[data-xptab]').forEach(tb=>tb.onclick=()=>{
+    autopilot=false; render(name, {...state, xpTab:tb.dataset.xptab}); });
   wireTreeChevrons(main);   // real expand/collapse on any tree present
   wireTreeToolbar(main);    // group-by / filter / search / expand-collapse on any tree present
 }
@@ -3950,6 +3954,32 @@ const xpToolbar = (by='')=>`<div class="toolbar">
       <span class="iconbtn">${I.sliders}</span>
       ${groupByCtl(by)}
     </div>`;
+
+/* THE EXPERIMENT PAGE IS TABBED (user, 2026-09-30): "Experiment meta" holds the
+   attribute-value card, "Linked experiences" holds the toolbar (search /
+   filter / group by) and the experiences table.
+   OPENING an experiment (from the search results or straight from a specific
+   prompt) LANDS ON ITS META (user, 2026-09-30); the user moves to the list
+   themselves. THE TAB NEVER CHANGES ON ITS OWN (user, 2026-09-30: "if I
+   trigger unpublish from meta tab, that should stay, if from experiences
+   tab, then that. don't change randomly"): whatever tab is showing when the
+   ask is sent is the tab the whole flow stays on. So the tab that renders is
+   WRITTEN BACK into the state (`state.xpTab`) — a default counts as the
+   user's tab from then on — and every *Base() carries it like `verOpen`.
+   An earlier version flipped to the list once a conversation was in flight
+   (so the unpublish ask, typed from the meta tab, landed its intent on the
+   list) — wrong. The only default left is for a state that arrives WITHOUT
+   a tab (a fresh open, or an arrow-key jump into a step literal): rows
+   checked → the list (that is where they were checked), otherwise meta.
+   `xpTab` is UI-only state, toggled with render() (no timer clearing). */
+const XP_TABS = [['meta','Experiment meta'],['experiences','Linked experiences']];
+function xpBody(state, metaHtml, listHtml){
+  const st = state || {};
+  const t = st.xpTab || ((st.selected && st.selected.length) ? 'experiences' : 'meta');
+  st.xpTab = t;
+  const tabs = XP_TABS.map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-xptab="${k}">${l}</span>`).join('');
+  return `<div class="tabs tabs--exp xpTabs">${tabs}</div>` + (t==='meta' ? metaHtml : listHtml);
+}
 
 const PC_ROWS = [
   ['ELM9684-IPD-QBPayroll-Banking-MedPS…','4d738ef0-9505-11f1-86ec-a3e65…','v3'],
@@ -5309,9 +5339,7 @@ scenes.mvExp = (state={})=>{
         + xpPager(MV_TO_ROWS.length);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${mvHead(MV_TO, MV_TO_ID, false, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${tbl}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + tbl)}
       </div></div></div>` + aiPanel({body,
         step:`${MV_TASKS.length}.  ${MV_TASKS[MV_TASKS.length-1]}`, stepLoading:readingT,
         draft:c==='tmtask' && state.typedTmt ? MV_TMT_PROMPT_FN() : ''});
@@ -5366,10 +5394,7 @@ scenes.mvExp = (state={})=>{
     const rowsP = [...MV_TO_ROWS, ...MV_ROWS()].map(r=>({...r,status:live?'Published':'Draft'}));
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${mvHead(MV_TO, MV_TO_ID, live, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${c==='pubTo' ? skeletonTable(XP_COLS,true)
-           : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + (c==='pubTo' ? skeletonTable(XP_COLS,true) : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)))}
       </div></div></div>` + aiPanel({body});
   }
   if(c2){
@@ -5387,9 +5412,7 @@ scenes.mvExp = (state={})=>{
     const hd2 = mvHead(MV_TO, MV_TO_ID, live2, !!state.verOpen);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${hd2}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${table2}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + table2)}
       </div></div></div>` + aiPanel({body, draft:c2==='typed'?MV2_PROMPT:''});
   }
   const onExperiment = ti>=0 && ti<=3;
@@ -5415,9 +5438,7 @@ scenes.mvExp = (state={})=>{
     const hd = mvHead(name, showTo?MV_TO_ID:XP_ID, rowStatus==='Published', !!state.verOpen);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${wholePage ? xpPageSkeleton() : `${hd}
-        ${xpMeta(true, false, showTo?mvToMeta():null)}
-        ${xpToolbar()}
-        ${table}`}
+        ${xpBody(state, xpMeta(true, false, showTo?mvToMeta():null), xpToolbar() + table)}`}
       </div></div></div>` + aiPanel({body,
         /* publishing COMPLETES task 2, so the tracker keeps naming task 2 —
            every entry reads "<n>.  <the plan's own task text>" and this one
@@ -5875,9 +5896,7 @@ scenes.mvMulti = (state={})=>{
         + xpPager(MV_TO_ROWS.length);
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${mxHead(MX_TO, MX_TO_ID, false, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${tbl}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + tbl)}
       </div></div></div>` + aiPanel({body,
         step:`${TASKS.length}.  ${TASKS[TASKS.length-1]}`, stepLoading:readingT,
         draft:c==='tmtask' && state.typedTmt ? MX_TMT_PROMPT_FN() : ''});
@@ -5902,9 +5921,7 @@ scenes.mvMulti = (state={})=>{
     const hd = mxHead(g.source.name, g.source.id, rowStatus==='Published', !!state.verOpen);
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${wholePage ? xpPageSkeleton() : `${hd}
-        ${xpMeta(true, false)}
-        ${xpToolbar()}
-        ${table}`}
+        ${xpBody(state, xpMeta(true, false), xpToolbar() + table)}`}
       </div></div></div>` + aiPanel({body,
         step:`${ti+1}.  ${TASKS[ti]}`, stepLoading:!!busy});
   }
@@ -5913,10 +5930,7 @@ scenes.mvMulti = (state={})=>{
     const rowsP = [...MV_TO_ROWS, ...MX_ROWS()].map(r=>({...r,status:live?'Published':'Draft'}));
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${mxHead(MX_TO, MX_TO_ID, live, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${c==='pubTo' ? skeletonTable(XP_COLS,true)
-           : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + (c==='pubTo' ? skeletonTable(XP_COLS,true) : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)))}
       </div></div></div>` + aiPanel({body});
   }
   if(onDest){
@@ -5929,9 +5943,7 @@ scenes.mvMulti = (state={})=>{
     const hd = mxHead(MX_TO, MX_TO_ID, false, !!state.verOpen);
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${wholePage ? xpPageSkeleton() : `${hd}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${table}`}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + table)}`}
       </div></div></div>` + aiPanel({body,
         step:`${ti+1}.  ${TASKS[ti]}`, stepLoading:!!busy});
   }
@@ -6040,9 +6052,7 @@ scenes.xpDetail = (state={})=>{
        gets a draft as task 1, the draft one is already a draft. */
     return `<div class="content">${topbar(XP_CRUMB(lpub))}<div class="scroll"><div class="pad">
         ${xpHead(lpub, lpub && drafted && !livePub, !!state.verOpen, livePub)}
-        ${xpMeta(lpub, livePub)}
-        ${xpToolbar()}
-        ${ltable}
+        ${xpBody(state, xpMeta(lpub, livePub), xpToolbar() + ltable)}
       </div></div></div>` + aiPanel({body:lbody,
         /* THE STICKY TASK TRACKER at the top of the panel, while the plan runs:
            which task, a spinner while it executes, a check when it rests.
@@ -6230,8 +6240,7 @@ scenes.xpDetail = (state={})=>{
     const ttable = tableLoading
       ? skeletonTable(XP_COLS,true)
       : tableHTML(XP_COLS, ttableRows, {checkbox:true, select:true, drillrow:true,
-          selected: tpicking ? tsel : new Set()}) + xpPager(trows.length)
-        + (tchanged ? hlBar(thl) : '');
+          selected: tpicking ? tsel : new Set()}) + xpPager(trows.length);
     /* the DRAFT path's ask also sets the holdout, once the change has landed
        (the "done" message itself claims it — the meta card has to agree).
        The PUBLISHED path's holdout comes from its OWN continuation ask
@@ -6259,9 +6268,11 @@ scenes.xpDetail = (state={})=>{
     const metaAlsoLoading = !tpub && T==='working';
     return `<div class="content">${topbar(XP_CRUMB(tpub))}<div class="scroll"><div class="pad">
         ${metaAlsoLoading ? xpPageSkeleton() : `${xpHead(tpub, tstaged, !!state.verOpen, tlive, tedited)}
-        ${xpMeta(tpub, tlive, ttOver, ttEditedKeys)}
-        ${xpToolbar()}
-        ${ttable}`}
+        ${xpBody(state, xpMeta(tpub, tlive, ttOver, ttEditedKeys), xpToolbar() + ttable)}
+        ${/* the Highlight-changes bar is the PAGE's footer, not the list's: the meta
+             tab carries a highlight too (the holdout value), and it went missing
+             there when the bar was glued onto the table (user, 2026-09-30) */''}
+        ${tchanged ? hlBar(thl) : ''}`}
       </div></div></div>` + aiPanel({body:tbody,
         /* THE HOLDOUT CONTINUATION GETS NO FLOATING STEP BANNER AT ALL —
            it is a SEPARATE task from the reassignment's own 2-step plan,
@@ -6373,9 +6384,7 @@ scenes.xpDetail = (state={})=>{
   }
   return `<div class="content">${topbar(XP_CRUMB(pub))}<div class="scroll"><div class="pad">
       ${xpHead(pub, staged, !!state.verOpen, live)}
-      ${xpMeta(pub, live)}
-      ${xpToolbar()}
-      ${table}
+      ${xpBody(state, xpMeta(pub, live), xpToolbar() + table)}
     </div></div></div>` + aiPanel({body,
       /* the sticky task tracker: the unlink plan's two tasks map onto the
          staging and the unlink itself */
@@ -7000,6 +7009,7 @@ function pcBase(){
   const b={selected:[...(st.selected||[])],asked:(st.selected||[]).length,typed:true,fields:st.fields||{}};
   if(st.expName!==undefined) b.expName=st.expName;
   if(st.hl!==undefined) b.hl=st.hl;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* generic step runner for this flow: subtask loader → next resting state */
@@ -7017,6 +7027,7 @@ function lkBase(){
   const b={typed:true};
   if(st.pub===false) b.pub=false;
   if(st.verOpen!==undefined) b.verOpen=st.verOpen;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 function runLkRead(){
@@ -7084,6 +7095,7 @@ function mvBase(){
   if(st.typed2) b.typed2=true;
   if(st.typedTmt) b.typedTmt=true;
   if(st.verOpen!==undefined) b.verOpen=st.verOpen;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   /* the checked rows stay in state so the landing list keeps showing them
      while the ask is read (user, 2026-09-21) */
   if(st.selected) b.selected=st.selected;
@@ -7195,6 +7207,7 @@ function mxBase(){
   const st=current.state||{};
   const b={typed:true};
   if(st.verOpen!==undefined) b.verOpen=st.verOpen;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   if(st.typedTmt) b.typedTmt=true;
   if(st.selected) b.selected=st.selected;
   return b;
@@ -7269,6 +7282,7 @@ function ulBase(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
   if(st.pub===false) b.pub=false;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* the ask -> the AI reads it and plays back what it will do */
@@ -7317,6 +7331,7 @@ function ttBase(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
   if(st.pub===false) b.pub=false;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 function runTtRead(){
@@ -7467,6 +7482,7 @@ function cl3Base(){
   // the USER chose this grouping; it must not silently reset when the flow
   // continues into the clone conversation
   if(st.groupBy) b.groupBy=st.groupBy;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* the plain clone ask → AI comes back with the CHOICE */
@@ -7546,6 +7562,7 @@ function cl4Base(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
   if(st.path) b.path=st.path;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 const cl4NGroups = ()=> cl4Groups([...(current.state.selected||[])]).length;
@@ -7569,6 +7586,7 @@ function cl5Base(){
   if(st.cl5Prior) b.cl5Prior=st.cl5Prior;
   if(st.groupBy) b.groupBy=st.groupBy;
   if(st.path) b.path=st.path;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* "Clone as they are" → the Clone- PREFIX is confirmed before anything is

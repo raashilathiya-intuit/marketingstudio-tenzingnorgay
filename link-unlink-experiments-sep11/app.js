@@ -3331,6 +3331,10 @@ function wire(name, state){
   const hlcb=main.querySelector('[data-hlchanges]');
   if(hlcb) hlcb.onchange=()=>{ autopilot=false; go(current.name,{...current.state, hl:hlcb.checked}); };
 
+  /* experiment page tabs: UI-only, so render() not go() — a click must not
+     clear the flow's timers mid-loader */
+  main.querySelectorAll('[data-xptab]').forEach(tb=>tb.onclick=()=>{
+    autopilot=false; render(name, {...state, xpTab:tb.dataset.xptab}); });
   wireTreeChevrons(main);   // real expand/collapse on any tree present
   wireTreeToolbar(main);    // group-by / filter / search / expand-collapse on any tree present
 }
@@ -3891,6 +3895,32 @@ const xpToolbar = (by='')=>`<div class="toolbar">
       <span class="iconbtn">${I.sliders}</span>
       ${groupByCtl(by)}
     </div>`;
+
+/* THE EXPERIMENT PAGE IS TABBED (user, 2026-09-30): "Experiment meta" holds the
+   attribute-value card, "Linked experiences" holds the toolbar (search /
+   filter / group by) and the experiences table.
+   OPENING an experiment (from the search results or straight from a specific
+   prompt) LANDS ON ITS META (user, 2026-09-30); the user moves to the list
+   themselves. THE TAB NEVER CHANGES ON ITS OWN (user, 2026-09-30: "if I
+   trigger unpublish from meta tab, that should stay, if from experiences
+   tab, then that. don't change randomly"): whatever tab is showing when the
+   ask is sent is the tab the whole flow stays on. So the tab that renders is
+   WRITTEN BACK into the state (`state.xpTab`) — a default counts as the
+   user's tab from then on — and every *Base() carries it like `verOpen`.
+   An earlier version flipped to the list once a conversation was in flight
+   (so the unpublish ask, typed from the meta tab, landed its intent on the
+   list) — wrong. The only default left is for a state that arrives WITHOUT
+   a tab (a fresh open, or an arrow-key jump into a step literal): rows
+   checked → the list (that is where they were checked), otherwise meta.
+   `xpTab` is UI-only state, toggled with render() (no timer clearing). */
+const XP_TABS = [['meta','Experiment meta'],['experiences','Linked experiences']];
+function xpBody(state, metaHtml, listHtml){
+  const st = state || {};
+  const t = st.xpTab || ((st.selected && st.selected.length) ? 'experiences' : 'meta');
+  st.xpTab = t;
+  const tabs = XP_TABS.map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-xptab="${k}">${l}</span>`).join('');
+  return `<div class="tabs tabs--exp xpTabs">${tabs}</div>` + (t==='meta' ? metaHtml : listHtml);
+}
 
 const PC_ROWS = [
   ['ELM9684-IPD-QBPayroll-Banking-MedPS…','4d738ef0-9505-11f1-86ec-a3e65…','v3'],
@@ -4662,12 +4692,6 @@ const MV_TMT  = 'B_SSG_HighIntent';   // the two DIY/FS recipes
 const MV_TMT2 = 'C_SSG_Control';      // the DIWM recipe
 /* which moved experience lands on which treatment, in MV_PICK() order */
 const MV_TMT_OF = ()=>MV_EXPS().map(e=>/DIWM/.test(e) ? MV_TMT2 : MV_TMT);
-/* "A and B on X, and C on Y" — how the assignment reads in prose */
-const MV_TMT_SUMMARY = ()=>{
-  const g = {};
-  MV_EXPS().forEach((e,i)=>{ const t=MV_TMT_OF()[i]; (g[t]=g[t]||[]).push(e); });
-  return Object.entries(g).map(([t,es])=>`${listAnd(es)} on ${t}`).join(', and ');
-};
 /* "a, b and c" */
 function listAnd(a){ return a.length<2 ? (a[0]||'')
   : a.slice(0,-1).join(', ')+' and '+a[a.length-1]; }
@@ -4743,7 +4767,15 @@ const MV_TASK_MSG = [
   ()=>`I've created a draft of ${MV_FROM}. Its ${XP_ROWS.length} linked experiences carried over as drafts.${objectCard('edit',`${MV_FROM} (draft)`)}`,
   ()=>`I've unlinked the ${MV_N()} experiences from the draft. It now has ${XP_ROWS.length-MV_N()} linked experiences, and the rest are unchanged.${objectCard('edit',`${MV_FROM} (draft)`)}<div class="bubble-q">${MV_FROM} has to be published before the experiences can go on another experiment, so publish it to carry on.</div>`,
   ()=>`I've created a draft of ${MV_TO}. Its ${MV_TO_ROWS.length} linked experiences carried over as drafts.${objectCard('edit',`${MV_TO} (draft)`)}`,
-  ()=>`I've linked the ${MV_N()} experiences to the draft of ${MV_TO}, ${MV_TMT_SUMMARY()}. It now has ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}`,
+  /* SUMMARISE, DON'T RE-LIST (user, 2026-09-30: the per-name, per-treatment
+     run-on "seems like gibberish"). The plan card above already shows name →
+     treatment and the table's Treatment column shows the result, so this
+     only reports what happened. The user wrote this line; same shape as the
+     treatment flow's own done message. */
+  ()=>`${MV_N()===1
+      ? "I've linked the experience to the draft and assigned its treatment."
+      : `I've linked the ${MV_N()} experiences to the draft and assigned their respective treatments.`
+    } It now has ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}`,
 ];
 /* Task 2 REVIEWS AND PUBLISHES X, so it ends in a Publish pill with the
    Campaign Manager alternative and the purple warning above it — the same
@@ -4794,12 +4826,13 @@ const MV_TMT_INTENT = (active)=> agentMsg(
   /* THE ASSIGNMENT IS A LIST, NOT A SENTENCE (user, 2026-09-21 build): three
      full experience names strung into one clause is unreadable. One line per
      experience, each naming its treatment. */
-  /* STACKED, not side by side: the panel is ~200px of usable text width, so a
-     two-column row crushes the experience name into an unreadable overlap.
-     Each experience gets its name on one line and its treatment under it. */
-  + `<div class="summaryCard"><p class="summaryCard__intro">I'll link the ${MV_N()} experiences to ${MV_TO} and assign them like this:</p><ul class="tmtAssign">${
-      MV_EXPS().map((e,i)=>`<li><span class="tmtAssign__exp">${e}</span><span class="tmtAssign__tmt">${MV_TMT_OF()[i]}</span></li>`).join('')
-    }</ul><p class="summaryCard__q">Does this look right? I'll link them once you approve.</p>${
+  /* SAME NUMBERED ARROW LIST AS THE ACROSS-EXPERIMENTS FLOW (user, 2026-09-30:
+     "use the arrow format as in across experiment flow") — `.mxAssign`, name
+     → treatment at the same weight. An earlier version stacked the treatment
+     as a muted second line, which read like a caption under a heading. */
+  + `<div class="summaryCard"><p class="summaryCard__intro">I'll link the ${MV_N()} experiences to ${MV_TO} and assign them like this:</p><ol class="mxAssign">${
+      MV_EXPS().map((e,i)=>`<li><span class="mxAssign__row"><span class="mxAssign__exp">${e}</span><span class="mxAssign__arrow">&rarr;</span><span class="mxAssign__tmt">${MV_TMT_OF()[i]}</span></span></li>`).join('')
+    }</ol><p class="summaryCard__q">Does this look right? I'll link them once you approve.</p>${
       active?replyBtn('Approve','mvApproveTmt'):recordedReply('Approve')}</div>`);
 const MV_TASK = (i, active)=>{
   const last = i===MV_TASKS.length-1;
@@ -4993,7 +5026,7 @@ scenes.mvExp = (state={})=>{
       if(c==='pubTo') t += `<div class="convoTurn">${agentLoader(`Publishing ${MV_TO}`, state.tasks||[])}</div>`;
       else t += `<div class="convoTurn">${agentMsg(
         disclosure('Moved the experiences',['Unlinking and publishing','Linking to the new experiment','Publishing the draft'])
-        + `<div class="chatBubble">The ${MV_N()} experiences are now linked to ${MV_TO} instead of ${MV_FROM}. ${MV_TO} is published with ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
+        + `<div class="chatBubble">I've published the experiment with the ${MV_N()===1?'newly linked experience':`${MV_N()} newly linked experiences`}. It's live with ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
     }
     /* THE CONTINUATION: the plan is finished and task 4's Publish is still on
        offer, un-taken. The user types a second ask instead, so the whole move
@@ -5040,9 +5073,7 @@ scenes.mvExp = (state={})=>{
         + xpPager(MV_TO_ROWS.length);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${mvHead(MV_TO, MV_TO_ID, false, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${tbl}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + tbl)}
       </div></div></div>` + aiPanel({body,
         step:`${MV_TASKS.length}.  ${MV_TASKS[MV_TASKS.length-1]}`, stepLoading:readingT,
         draft:c==='tmtask' && state.typedTmt ? MV_TMT_PROMPT_FN() : ''});
@@ -5097,10 +5128,7 @@ scenes.mvExp = (state={})=>{
     const rowsP = [...MV_TO_ROWS, ...MV_ROWS()].map(r=>({...r,status:live?'Published':'Draft'}));
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${mvHead(MV_TO, MV_TO_ID, live, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${c==='pubTo' ? skeletonTable(XP_COLS,true)
-           : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + (c==='pubTo' ? skeletonTable(XP_COLS,true) : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)))}
       </div></div></div>` + aiPanel({body});
   }
   if(c2){
@@ -5118,9 +5146,7 @@ scenes.mvExp = (state={})=>{
     const hd2 = mvHead(MV_TO, MV_TO_ID, live2, !!state.verOpen);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${hd2}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${table2}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + table2)}
       </div></div></div>` + aiPanel({body, draft:c2==='typed'?MV2_PROMPT:''});
   }
   const onExperiment = ti>=0 && ti<=3;
@@ -5146,9 +5172,7 @@ scenes.mvExp = (state={})=>{
     const hd = mvHead(name, showTo?MV_TO_ID:XP_ID, rowStatus==='Published', !!state.verOpen);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
         ${wholePage ? xpPageSkeleton() : `${hd}
-        ${xpMeta(true, false, showTo?mvToMeta():null)}
-        ${xpToolbar()}
-        ${table}`}
+        ${xpBody(state, xpMeta(true, false, showTo?mvToMeta():null), xpToolbar() + table)}`}
       </div></div></div>` + aiPanel({body,
         /* publishing COMPLETES task 2, so the tracker keeps naming task 2 —
            every entry reads "<n>.  <the plan's own task text>" and this one
@@ -5280,17 +5304,6 @@ const MX_PROMPT = ()=> `Unlink these from their current experiments and link the
 /* which treatment each picked experience lands on: same DIY/FS -> majority,
    DIWM -> minority rule as MV_TMT_OF, generalized to N picks */
 const MX_TMT_OF = ()=> MX_EXPS().map(e=>/DIWM/.test(e) ? MV_TMT2 : MV_TMT);
-/* COUNTS, NOT NAMES (user, 2026-09-28: "no need to name all in this
-   message") — task 8's resting message used to spell out all 7 experience
-   names grouped by treatment, unreadable at this length. The full per-
-   experience assignment already has its own place: the treatment-choice
-   turn's numbered list (MX_TMT_INTENT). This summary line just needs the
-   split, e.g. "4 on B_SSG_HighIntent and 3 on C_SSG_Control". */
-const MX_TMT_SUMMARY = ()=>{
-  const g = {};
-  MX_EXPS().forEach((e,i)=>{ const t=MX_TMT_OF()[i]; g[t]=(g[t]||0)+1; });
-  return Object.entries(g).map(([t,n])=>`${n} on ${t}`).join(', and ');
-};
 const MX_TMT_PROMPT_FN = ()=>{
   const picks = MX_EXPS(), of = MX_TMT_OF();
   const kind = (e)=>(/DIWM/.test(e)?'DIWM':/_FS_/.test(e)?'FS':'DIY');
@@ -5410,7 +5423,11 @@ const MX_TASK_MSG = (i)=>{
   const destTotal = MV_TO_ROWS.length+MX_N();
   return destSetup
     ? `I've created a draft of ${MX_TO}. Its ${MV_TO_ROWS.length} linked experience${MV_TO_ROWS.length===1?'':'s'} carried over as draft${MV_TO_ROWS.length===1?'':'s'}.${objectCard('edit',`${MX_TO} (draft)`)}`
-    : `I've linked the ${MX_N()} experiences to the draft of ${MX_TO}, ${MX_TMT_SUMMARY()}. It now has ${destTotal} linked experience${destTotal===1?'':'s'}.${objectCard('edit',`${MX_TO} (draft)`)}`;
+    /* same summary shape as MV_TASK_MSG's link message (user, 2026-09-30) */
+    : `${MX_N()===1
+        ? "I've linked the experience to the draft and assigned its treatment."
+        : `I've linked the ${MX_N()} experiences to the draft and assigned their respective treatments.`
+      } It now has ${destTotal} linked experience${destTotal===1?'':'s'}.${objectCard('edit',`${MX_TO} (draft)`)}`;
 };
 /* the publish beat after a source's review task. `isLast` = every source is
    now clear, worth a small extra line saying so (per the plan's note). */
@@ -5437,10 +5454,10 @@ const MX_TMT_ASK = ()=> agentMsg(
     }</ol><p class="summaryCard__q">Which treatments should the ${MX_N()} experiences be assigned to?</p></div>`);
 /* A NUMBERED LIST, WITH THE TREATMENT AT THE SAME WEIGHT AS THE NAME (user,
    2026-09-28: "why is treatment font smaller? also, give it as a numbered
-   list"). `.tmtAssign` (mvExp's own class, left untouched) renders the
-   treatment as a muted secondary line — wrong here, since the treatment is
-   the actual answer to the question just asked, not a footnote. `.mxAssign`
-   is this flow's own numbered `<ol>`, same text size/weight on both lines. */
+   list"). A muted second line under the name was wrong here, since the
+   treatment is the actual answer to the question just asked, not a footnote.
+   `.mxAssign` is the numbered `<ol>`, same text size/weight on both lines —
+   since 2026-09-30 the single move's MV_TMT_INTENT uses it too. */
 /* AN ARROW BETWEEN NAME AND TREATMENT, NOT TWO STACKED LINES (user,
    2026-09-28: "give arrow for treatment no.") — stacked lines read
    ambiguously, like a heading over a caption, when what is actually meant is
@@ -5589,7 +5606,7 @@ scenes.mvMulti = (state={})=>{
       if(c==='pubTo') t += `<div class="convoTurn">${agentLoader(`Publishing ${MX_TO}`, state.tasks||[])}</div>`;
       else t += `<div class="convoTurn">${agentMsg(
         disclosure('Moved the experiences',['Unlinking and publishing','Linking to the new experiment','Publishing the draft'])
-        + `<div class="chatBubble">The ${MX_N()} experiences are now linked to ${MX_TO} instead of their previous experiments. ${MX_TO} is published with ${MV_TO_ROWS.length+MX_N()} linked experiences.${objectCard('megaphone',MX_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
+        + `<div class="chatBubble">I've published the experiment with the ${MX_N()===1?'newly linked experience':`${MX_N()} newly linked experiences`}. It's live with ${MV_TO_ROWS.length+MX_N()} linked experiences.${objectCard('megaphone',MX_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
     }
   }
   const body = MX_FETCH_CONV() + (t?`<div class="convoTurn">${t}</div>`:'');
@@ -5606,9 +5623,7 @@ scenes.mvMulti = (state={})=>{
         + xpPager(MV_TO_ROWS.length);
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${mxHead(MX_TO, MX_TO_ID, false, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${tbl}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + tbl)}
       </div></div></div>` + aiPanel({body,
         step:`${TASKS.length}.  ${TASKS[TASKS.length-1]}`, stepLoading:readingT,
         draft:c==='tmtask' && state.typedTmt ? MX_TMT_PROMPT_FN() : ''});
@@ -5633,9 +5648,7 @@ scenes.mvMulti = (state={})=>{
     const hd = mxHead(g.source.name, g.source.id, rowStatus==='Published', !!state.verOpen);
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${wholePage ? xpPageSkeleton() : `${hd}
-        ${xpMeta(true, false)}
-        ${xpToolbar()}
-        ${table}`}
+        ${xpBody(state, xpMeta(true, false), xpToolbar() + table)}`}
       </div></div></div>` + aiPanel({body,
         step:`${ti+1}.  ${TASKS[ti]}`, stepLoading:!!busy});
   }
@@ -5644,10 +5657,7 @@ scenes.mvMulti = (state={})=>{
     const rowsP = [...MV_TO_ROWS, ...MX_ROWS()].map(r=>({...r,status:live?'Published':'Draft'}));
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${mxHead(MX_TO, MX_TO_ID, live, !!state.verOpen)}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${c==='pubTo' ? skeletonTable(XP_COLS,true)
-           : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + (c==='pubTo' ? skeletonTable(XP_COLS,true) : tableHTML(XP_COLS, rowsP, {checkbox:true, select:true, selected:new Set(), drillrow:true}) + xpPager(rowsP.length)))}
       </div></div></div>` + aiPanel({body});
   }
   if(onDest){
@@ -5660,9 +5670,7 @@ scenes.mvMulti = (state={})=>{
     const hd = mxHead(MX_TO, MX_TO_ID, false, !!state.verOpen);
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
         ${wholePage ? xpPageSkeleton() : `${hd}
-        ${xpMeta(true, false, mvToMeta())}
-        ${xpToolbar()}
-        ${table}`}
+        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + table)}`}
       </div></div></div>` + aiPanel({body,
         step:`${ti+1}.  ${TASKS[ti]}`, stepLoading:!!busy});
   }
@@ -5771,9 +5779,7 @@ scenes.xpDetail = (state={})=>{
        gets a draft as task 1, the draft one is already a draft. */
     return `<div class="content">${topbar(XP_CRUMB(lpub))}<div class="scroll"><div class="pad">
         ${xpHead(lpub, lpub && drafted && !livePub, !!state.verOpen, livePub)}
-        ${xpMeta(lpub, livePub)}
-        ${xpToolbar()}
-        ${ltable}
+        ${xpBody(state, xpMeta(lpub, livePub), xpToolbar() + ltable)}
       </div></div></div>` + aiPanel({body:lbody,
         /* THE STICKY TASK TRACKER at the top of the panel, while the plan runs:
            which task, a spinner while it executes, a check when it rests.
@@ -5845,9 +5851,7 @@ scenes.xpDetail = (state={})=>{
     const ttOver = (!tpub && tchanged) ? {'HOLDOUT TREATMENT': TT_HOLDOUT} : null;
     return `<div class="content">${topbar(XP_CRUMB(tpub))}<div class="scroll"><div class="pad">
         ${xpHead(tpub, tstaged, !!state.verOpen, tlive, tedited)}
-        ${xpMeta(tpub, tlive, ttOver)}
-        ${xpToolbar()}
-        ${ttable}
+        ${xpBody(state, xpMeta(tpub, tlive, ttOver), xpToolbar() + ttable)}
       </div></div></div>` + aiPanel({body:tbody,
         ...(tpub && ['staging','stagereview'].includes(T)
               ? {step:'1.  Create a draft of '+XP_NAME, stepLoading:T==='staging'}
@@ -5947,9 +5951,7 @@ scenes.xpDetail = (state={})=>{
   }
   return `<div class="content">${topbar(XP_CRUMB(pub))}<div class="scroll"><div class="pad">
       ${xpHead(pub, staged, !!state.verOpen, live)}
-      ${xpMeta(pub, live)}
-      ${xpToolbar()}
-      ${table}
+      ${xpBody(state, xpMeta(pub, live), xpToolbar() + table)}
     </div></div></div>` + aiPanel({body,
       /* the sticky task tracker: the unlink plan's two tasks map onto the
          staging and the unlink itself */
@@ -6574,6 +6576,7 @@ function pcBase(){
   const b={selected:[...(st.selected||[])],asked:(st.selected||[]).length,typed:true,fields:st.fields||{}};
   if(st.expName!==undefined) b.expName=st.expName;
   if(st.hl!==undefined) b.hl=st.hl;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* generic step runner for this flow: subtask loader → next resting state */
@@ -6591,6 +6594,7 @@ function lkBase(){
   const b={typed:true};
   if(st.pub===false) b.pub=false;
   if(st.verOpen!==undefined) b.verOpen=st.verOpen;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 function runLkRead(){
@@ -6658,6 +6662,7 @@ function mvBase(){
   if(st.typed2) b.typed2=true;
   if(st.typedTmt) b.typedTmt=true;
   if(st.verOpen!==undefined) b.verOpen=st.verOpen;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   /* the checked rows stay in state so the landing list keeps showing them
      while the ask is read (user, 2026-09-21) */
   if(st.selected) b.selected=st.selected;
@@ -6769,6 +6774,7 @@ function mxBase(){
   const st=current.state||{};
   const b={typed:true};
   if(st.verOpen!==undefined) b.verOpen=st.verOpen;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   if(st.typedTmt) b.typedTmt=true;
   if(st.selected) b.selected=st.selected;
   return b;
@@ -6843,6 +6849,7 @@ function ulBase(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
   if(st.pub===false) b.pub=false;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* the ask -> the AI reads it and plays back what it will do */
@@ -6891,6 +6898,7 @@ function ttBase(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
   if(st.pub===false) b.pub=false;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 function runTtRead(){
@@ -7022,6 +7030,7 @@ function cl3Base(){
   // the USER chose this grouping; it must not silently reset when the flow
   // continues into the clone conversation
   if(st.groupBy) b.groupBy=st.groupBy;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* the plain clone ask → AI comes back with the CHOICE */
@@ -7101,6 +7110,7 @@ function cl4Base(){
   const st=current.state||{}, sel=[...(st.selected||[])];
   const b={selected:sel, asked:sel.length||st.asked||1, typed:true};
   if(st.path) b.path=st.path;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 const cl4NGroups = ()=> cl4Groups([...(current.state.selected||[])]).length;
@@ -7124,6 +7134,7 @@ function cl5Base(){
   if(st.cl5Prior) b.cl5Prior=st.cl5Prior;
   if(st.groupBy) b.groupBy=st.groupBy;
   if(st.path) b.path=st.path;
+  if(st.xpTab!==undefined) b.xpTab=st.xpTab;
   return b;
 }
 /* "Clone as they are" → the Clone- PREFIX is confirmed before anything is
