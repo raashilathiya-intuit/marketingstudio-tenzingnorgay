@@ -196,7 +196,16 @@ button{font-family:inherit}
 /* idle mid-task marker: the plan table's dashed number, sized like .chk so the
    step row does not shift when the marker swaps between the three states */
 .ai__step .planNum{width:20px;height:20px;flex:0 0 20px;font-size:11px}
-.ai__step .cv{flex:1;display:inline-flex;align-items:center;gap:6px}
+/* THE STEP TEXT MUST TRUNCATE, NOT WRAP TO A SECOND LINE (user, 2026-09-30,
+   on "2. Reassign the experiences to their new / treatments on the draft"
+   wrapping mid-sentence) — a floating one-line status banner growing to 2
+   lines pushes the chevron/stop icons down and breaks its own fixed-height
+   row. `min-width:0` lets the flex item actually shrink below its content
+   width (the usual flex-item overflow trap); `.ai__step__label` (a real
+   span the step text is now wrapped in, not a bare text node) gets the
+   ellipsis. */
+.ai__step .cv{flex:1;display:inline-flex;align-items:center;gap:6px;min-width:0}
+.ai__step__label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .ai__step .dot{color:var(--icon-secondary)}
 .ai__step .dot--chev{display:inline-flex;align-items:center}
 .ai__body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:0}
@@ -1040,6 +1049,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=20"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>

@@ -188,9 +188,14 @@ function aiPanel(opts){
     : opts.stepNum
       ? `<span class="planNum">${opts.stepNum}</span>`
       : `<span class="chk">${I.checkSm}</span>`;
+  /* THE STEP LABEL NEEDS ITS OWN SPAN TO TRUNCATE — `opts.step` used to sit
+     as a bare text node directly inside `.cv`, so `.cv`'s own
+     text-overflow:ellipsis had nothing but the trailing chevron `<span>`
+     to apply to (a bare text node isn't a selectable element at all).
+     Wrapping it in `.ai__step__label` gives the ellipsis a real target. */
   const step = opts.step ? `<div class="ai__step">
       ${marker}
-      <span class="cv">${opts.step} <span class="dot dot--chev">${I.chev}</span></span>
+      <span class="cv"><span class="ai__step__label">${opts.step}</span> <span class="dot dot--chev">${I.chev}</span></span>
       <span class="dot">${I.stop}</span>
     </div>` : '';
   const draft = opts.draft || '';
@@ -2934,8 +2939,22 @@ function wire(name, state){
        original 3-row pick after `tt` reached `done`, even though the
        scene's own table render had already gone back to an empty
        selection). */
+    /* THE PUBLISHED PATH'S HOLDOUT CONTINUATION NEVER RE-USES THE ORIGINAL
+       ROW SELECTION AT ALL — the 3-row pick belongs to the reassignment
+       sub-step, which is already fully done by the time the continuation
+       starts (user, 2026-09-30: "indeterminate is incorrectly active at
+       this point" — a screenshot on the continuation's OWN pre-approval
+       "intent" card, state.tt==='tt2intent', not even a done/publishing/
+       published state, so a first fix checking only those specific tt2
+       states still missed it). ANY tt2-prefixed state at all — not just
+       its own done/publishing/published — means the table is showing
+       RESULTS, not a picker, so the header checkbox should never go
+       indeterminate over the stale selection once the continuation has
+       started. */
+    const inTt2Here = isTt && state.tt && state.tt.startsWith('tt2');
     const shortList = ['done','publishing','published'].includes(state.ul)
-      || (isTt && ['done','publishing','published'].includes(state.tt));
+      || (isTt && ['done','publishing','published'].includes(state.tt))
+      || inTt2Here;
     wireSelAll(main, shortList?new Set():sel, frozen,
       (s)=>render('xpDetail',{...state,selected:[...s]}));
     /* the LINK flow's ask needs no selection — the experience arrives by ID —
@@ -3752,6 +3771,18 @@ const XP_AP = 'CG TURBOTAXO Content PostOnboardingExperience';
 /* the experiences linked to this experiment. Treatment is what the experiment
    assigns them, so it is a column here and nowhere else in the repo. */
 const hex2 = (n)=>n.toString(16).padStart(2,'0');
+/* TWO ROWS SIT ON C_Dry_SPNewOffer_Copy2 UNTOUCHED BY THE REASSIGNMENT (user,
+   2026-09-30: "there are no experiences assigned to the treatment we're
+   showing as the example for holdout. add a couple experiences to that
+   treatment so that when we set the holdout, that experience also would
+   get edited and then the treatment cell for that experience has a -").
+   Without them, setting the holdout has nothing to visibly clear: the ONLY
+   three rows on that treatment (the DRY_test set) are also the ones the
+   reassignment step itself moves OFF it, so by the time the holdout step
+   runs, the treatment is already empty. `HOLD_2` are extra, never part of
+   `TT_PICK_DEFAULT`, so they ride through the reassignment step unchanged
+   and are exactly what the LATER holdout step clears — see `ttRows`'s
+   `tHoldoutSet` handling below. */
 const XP_ROWS = [
   ['ty25_OICMS_716920_REAL_test_DIY_reco_recipe_D','D_RealTest'],
   ['ty25_OICMS_716920_REAL_test_FS_reco_recipe_D','D_RealTest'],
@@ -3759,11 +3790,17 @@ const XP_ROWS = [
   ['ty25_OICMS_716920_DRY_test_DIWM_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
   ['ty25_OICMS_716920_DRY_test_DIY_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
   ['ty25_OICMS_716920_DRY_test_FS_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
+  ['ty25_OICMS_716920_DRY_test_UPSELL_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
+  ['ty25_OICMS_716920_DRY_test_XSELL_reco_recipe_C','C_Dry_SPNewOffer_Copy2'],
 /* each row carries its OWN experience id, so a drill-down shows the id of the
    experience that was actually clicked (user, 2026-09-16). The varying block is
    fixed-width hex so every id stays a well-formed UUID. */
 ].map(([exp,tr],i)=>({exp, status:'Published', ap:XP_AP, tmt:tr,
   eid:`51738ef0-9505-11f1-86ec-a3e651c6bc${hex2(2+i)}`}));
+/* the two indices HOLD_2 refers to — the last two rows above, i.e. the ones
+   that stay on C_Dry_SPNewOffer_Copy2 through the reassignment step and get
+   cleared once the holdout is set */
+const TT_HOLD_2 = [6,7];
 /* Experience ID sits next to the name here: inside an EXPERIMENT the rows are
    real objects with ids (user, 2026-09-17). The clone build's creatives table
    stays name-only, because a pending creative has no id yet. */
@@ -4506,7 +4543,17 @@ const TT_INTENT = (n, pub, active)=> agentMsg(
     }</div>`);
 /* Step 2 (published only): the plan — create a draft, then reassign on it */
 const TT_PLAN = (n, active)=> agentMsg(
-  `<div class="summaryCard"><p class="summaryCard__intro">I'll update the treatments in this order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>
+  /* "I'll UPDATE THE TREATMENTS in this order" over-promised what step 1
+     actually does — creating the draft doesn't touch any treatment, only
+     step 2 does (user, 2026-09-30: "task 1 doesnt change treatment").
+     A first fix, "I'll make these changes in this order", matched this
+     file's own plan-card pattern (`mvPlanRows`/`lkPlanRows`'s "I'll
+     move/link the experiences in this order") but the user wanted a
+     "Here's my plan" opening instead — bare "Here's my plan:" read as
+     incomplete with no verb, so "Here's how I'll make these changes:"
+     keeps that opening while still being a complete sentence, and still
+     avoids naming treatments specifically. */
+  `<div class="summaryCard"><p class="summaryCard__intro">Here's how I'll make these changes:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>
        <div class="planTable__row"><span class="planNum">1</span><span>Create a draft of the experiment</span></div>
        <div class="planTable__row"><span class="planNum">2</span><span>Reassign ${n===1?'the experience':`the ${n} experiences`} to their new treatments on the draft</span></div>
      </div><p class="summaryCard__q">Does this look right? I'll get started once you approve.</p>${active?replyBtn('Approve','ttApprovePlan'):recordedReply('Approve')}</div>`);
@@ -4522,9 +4569,38 @@ const TT_STAGED = (n, active)=> agentMsg(
    after Publish; DRAFT path's own message covers the holdout too and its
    status is EDITED, not Draft — that difference lives in xpStatus/xpVerSelect,
    not here. */
+/* "I've MOVED the experiences to their new treatments" — WORDED MORE
+   SPECIFICALLY (user, 2026-09-30: "I've assigned the treatments for the 3
+   selected experiences... but more specific?"). Not per-experience/per-
+   treatment naming — that's already shown earlier at the intent step
+   (`ttAssignBlocks`) and the ask was explicitly for a summary, not a name
+   list ("i dont want to be too specific... it's kinda like summarising").
+   "Assigned the treatments for" more precisely describes what happened
+   (a treatment reassignment) than "moved... to their new treatments",
+   which reads more like a relocation. */
+/* "on the draft of X" READ AWKWARDLY — "on" was doing double duty (treatments
+   ARE assigned "on" a treatment, and the change also happens "in"/"on" a
+   draft) (user, 2026-09-30: "on the draft of? is this the best
+   language?"). Switched to the possessive "on X's draft" — the user's own
+   pick was "on X experiment's draft", matching the "experiment" naming
+   this file uses elsewhere (e.g. TT2_DONE just below, "for X experiment");
+   a first pass here dropped the word "experiment" by mistake and was
+   caught and corrected against the same screenshot's exact wording. */
+/* THE DRAFT PATH'S OWN DONE MESSAGE — WAS REPEATING THE EXPERIMENT NAME,
+   NAMING THE HOLDOUT TREATMENT INLINE, AND TACKING ON "It's now edited"
+   (user, 2026-09-30, replacing "I've assigned the treatments for the 3
+   selected experiences on ty25_Catchall_PLU_holdback, and set
+   B_RealTest_Control as the holdout treatment for this experiment. It's
+   now edited." with: "I've assigned the treatments for the 3 selected
+   experiences and set the holdout treatment for this experiment."). Same
+   redundancy pattern as the published path's TT2_DONE fix — the draft
+   object card right below already shows "(draft)"/carries the edited
+   state, and this is the ONE STEP that does both treatment + holdout on
+   the draft path, so neither the location nor the specific holdout name
+   needs restating in the sentence. */
 const TT_DONE = (n, pub, active)=> agentMsg(
   disclosure(`Reassigned ${n} experience${n===1?'':'s'}`,['Applying the change','Reassigning the experiences','Refreshing the list'])
-  + `<div class="chatBubble">I've moved ${n===1?'the experience':`the ${n} experiences`} to ${n===1?'its':'their'} new treatment${n===1?'':'s'} on ${pub?`the draft of ${XP_NAME}`:XP_DRAFT_NAME}${pub?'':`, and set ${TT_HOLDOUT} as the holdout treatment for this experiment. It's now edited`}.${
+  + `<div class="chatBubble">I've assigned the treatment${n===1?'':'s'} for the ${n===1?'selected experience':`${n} selected experiences`}${pub?` on ${XP_NAME} experiment's draft`:' and set the holdout treatment for this experiment'}.${
       objectCard('edit', pub?`${XP_NAME} (draft)`:XP_DRAFT_NAME)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div>${pub?`<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>`:''}${active?replyBtn('Publish','ttPublish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 const TT_PUBLISHED = (n, pub=true)=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Applying the change','Refreshing the view'])
@@ -4549,9 +4625,15 @@ const TT2_INTENT = (active)=> agentMsg(
   disclosure('Checked the experiment',['Reading your request','Checking the experiment','Checking the treatments'])
   + `<div class="summaryCard"><p class="summaryCard__intro">I'll set the holdout treatment for ${XP_NAME}.</p><div class="ttHoldoutFt" style="margin-top:4px">${pcFtBlk('Holdout treatment', 'None', TT_HOLDOUT_PUB)}</div>${ttHoldoutNote(TT_HOLDOUT_PUB)}<p class="summaryCard__q">Does this look right? I'll make the change once you approve.</p>${
       active?replyBtn('Approve','tt2Approve'):recordedReply('Approve')}</div>`);
+/* "It's now edited" DROPPED, "EXPERIMENT" ADDED AFTER THE NAME (user,
+   2026-09-30: "I've set X as the holdout treatment for Y experiment... no
+   need to say it is not edited and all") — the object card right below
+   already shows "(draft)"/the edited state visually, so spelling it out in
+   the sentence too was redundant; naming it "Y experiment" instead of
+   just "Y" matches how the user phrased it back. */
 const TT2_DONE = (active)=> agentMsg(
   disclosure('Set the holdout treatment',['Applying the change','Setting the holdout','Refreshing the view'])
-  + `<div class="chatBubble">I've set ${TT_HOLDOUT_PUB} as the holdout treatment for ${XP_NAME}. It's now edited.${objectCard('edit',`${XP_NAME} (draft)`)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div><div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
+  + `<div class="chatBubble">I've set ${TT_HOLDOUT_PUB} as the holdout treatment for ${XP_NAME} experiment.${objectCard('edit',`${XP_NAME} (draft)`)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div><div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
       active?replyBtn('Publish','tt2Publish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 const TT2_PUBLISHED = ()=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Applying the change','Refreshing the view'])
@@ -4563,9 +4645,25 @@ const TT2_PUBLISHED = ()=> agentMsg(
    the yellow highlight via `tmtEdited` (XP_COLS' `editedKey`) — both are
    per-row signals that THIS row changed, separate from the header badge
    which tracks the EXPERIMENT's own state. */
-const ttRows = (base)=> base.map((r,i)=>{
+/* holdoutSet: once the holdout treatment has actually landed, the rows
+   NOT part of the reassignment but sitting on the (now-holdout) treatment
+   clear to "–", same "Edited" + `tmtEdited` treatment the reassigned rows
+   themselves get, one step later — this is the "treatment cell for that
+   experience has a -" the user asked for (2026-09-30).
+   `live`: ONCE THE EXPERIMENT ITSELF HAS PUBLISHED, EVERY ROW GOES BACK TO
+   "Published" WITH NO HIGHLIGHT (user, 2026-09-30, on the draft path after
+   Publish: "once we publish, everything should be in published state") —
+   a first version always marked a picked/cleared row "Edited" regardless
+   of whether the experiment had since gone live, so the table still read
+   Edited/yellow even after the header's own badge correctly flipped to
+   Published. `status`/`tmtEdited` now fall back to the row's real
+   (already-updated) `tmt`/base status once `live`, matching what `tSRC`
+   itself already does for every OTHER row via `asDraftT`/base `XP_ROWS`. */
+const ttRows = (base, holdoutSet=false, live=false)=> base.map((r,i)=>{
   const pi = TT_PICK().indexOf(i);
-  return pi<0 ? r : {...r, tmt: TT_TMT_OF()[pi], status:'Edited', tmtEdited:true};
+  if(pi>=0) return live ? {...r, tmt: TT_TMT_OF()[pi]} : {...r, tmt: TT_TMT_OF()[pi], status:'Edited', tmtEdited:true};
+  if(holdoutSet && TT_HOLD_2.includes(i)) return live ? {...r, tmt:'–'} : {...r, tmt:'–', status:'Edited', tmtEdited:true};
+  return r;
 });
 
 /* The journey starts where the diagram starts: "Find experiment". The user
@@ -4590,7 +4688,7 @@ const XP_SEARCH_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${XP
 /* the results list: the experiment the user asked for, plus near matches, so
    the search reads as a search rather than a single pre-picked answer. */
 const XP_LIST = [
-  {exp:XP_NAME, status:'Published', eid:XP_ID, ixp:'RUNNING', linked:'6'},
+  {exp:XP_NAME, status:'Published', eid:XP_ID, ixp:'RUNNING', linked:'8'},
   {exp:'ty25_Catchall_SSG', status:'Published', eid:'716931', ixp:'RUNNING', linked:'4'},
   {exp:'ty25_Catchall_PLU_holdback', status:'Draft', eid:'716944', ixp:'DRAFT', linked:'2'},
 ];
@@ -4615,8 +4713,21 @@ const XP_SEARCH_CONV = ()=>
   userBubble(XP_FIND_PROMPT)
   + agentMsg(XP_CREATED,'')
   + agentMsg(
+      /* BARE "Search results" WAS THE OUTLIER — every other search-results
+         message in this file has an actual sentence ("I found N
+         experiences linked to X", "Here's the experiment."). User,
+         2026-09-30: "give a sentence for search results. give here we
+         finalise then you apply" — this step is picking WHICH experiment
+         to open, before any change is applied to it, so the sentence
+         should read as a checkpoint, not an action.
+         "Open one to continue" WAS THEN DROPPED — telling the user what
+         to do next isn't this message's job, it's just reporting what was
+         found (user, 2026-09-30: "dont tell user what to do. just say
+         I've 3 experiments matching your ask"). "Matching your ask" reads
+         as report-only, and doubles as a quiet nod to the actual find
+         prompt above it without repeating it verbatim. */
       disclosure(`Searched and found ${XP_LIST.length} experiments`,['Reading your request','Searching experiments','Compiling results'])
-      + `<div class="chatBubble">Search results${objectCard('search',XP_PROJECT)}</div>`);
+      + `<div class="chatBubble">I found ${XP_LIST.length} experiments matching your ask.${objectCard('search',XP_PROJECT)}</div>`);
 
 /* ---- Scene: experiment SEARCH RESULTS. Clicking a row opens the detail. ---- */
 scenes.xpSearch = (state={})=>{
@@ -5975,21 +6086,59 @@ scenes.xpDetail = (state={})=>{
     /* DRAFT PATH LANDS IN "EDITED", NOT "Draft" (user, 2026-09-28) — true
        once the reassignment has actually been applied and until it goes
        live, mirroring `staged`'s own precedence window on the published
-       path. The PUBLISHED path's own continuation gets the same window,
-       between the holdout landing and its own publish. */
+       path.
+       THE PUBLISHED PATH'S OWN DRAFT LANDS IN "EDITED" TOO, RIGHT AFTER ITS
+       REASSIGNMENT — NOT ONLY ONCE THE LATER HOLDOUT CONTINUATION LANDS
+       (user, 2026-09-30, on the screen right after "Reassigned 3
+       experiences": "at this point, the status of the experiment should
+       also be edited"). A first version of this rule only flipped
+       `tedited` once the tt2 holdout continuation reached working/done —
+       so the draft still showed "Draft" for the whole stretch between its
+       own reassignment landing and the (optional) later holdout ask,
+       which is wrong: the draft IS edited the moment its own change lands,
+       same as the draft-path experiment. `T` (the main reassignment) now
+       flips it on its own, and `T2` (the continuation) keeps it flipped
+       through to publish — either one being in its working/done window is
+       enough. */
+    /* `T` IS THE FULL `state.tt` STRING, WHICH BECOMES THE tt2-PREFIXED
+       VALUE ONCE THE CONTINUATION STARTS — it is NEVER literally 'done'
+       again after that point, even though the main reassignment it refers
+       to is still done (user, 2026-09-30, on the "Reading your request"
+       loader at `tt2reading`: "why has experience status gone back to
+       draft?" — `['working','done'].includes(T)` was comparing 'done'
+       against the literal string 'tt2reading', false; `T2` was 'reading',
+       also not in the done-ish list; ALL THREE clauses came up false,
+       dropping back to the base Draft label even though nothing had
+       un-edited the experiment). Once `inTt2` is true at all, the
+       reassignment that got it there is categorically already
+       done — no need to re-check `T`/`T2` against anything. */
     const tedited = (!tpub && ['working','done'].includes(T))
-      || (tpub && inTt2 && ['working','done'].includes(T2));
-    const tstaged = tpub && (['staging','stagereview','working','done'].includes(T) || inTt2);
+      || (tpub && ['working','done'].includes(T))
+      || (tpub && inTt2);
+    /* ONCE THE CONTINUATION HAS PUBLISHED, THE VERSION PICKER MUST GO BACK
+       TO INERT — there's no longer a separate draft to switch to (user,
+       2026-09-30: "at published state, my dropdown should be disabled
+       since at this point no longer any draft exists"). `tstaged` included
+       `inTt2` unconditionally, so it stayed true straight through
+       `tt2publishing`/`tt2published`, keeping `xpVerSelect` interactive
+       (showing Draft/Published as if there were still two versions to
+       pick between) even after the draft had already been consumed by
+       publish. Excluding `tlive` here mirrors `tSRC`'s own
+       `tlive || (tpub && !tstaged)` check just below — both already treat
+       "live" as "no draft view left", `tstaged` just hadn't caught up. */
+    const tstaged = tpub && !tlive && (['staging','stagereview','working','done'].includes(T) || inTt2);
     const asDraftT = (r)=>({...r,status:'Draft'});
     const tSRC = (tlive || (tpub && !tstaged)) ? XP_ROWS : XP_ROWS.map(asDraftT);
     /* the rows themselves are never removed here — only the picked ones'
        Treatment column changes, and only once the change has landed */
     const tchanged = ['done','publishing','published'].includes(T) || inTt2;
-    const trows = tchanged ? ttRows(tSRC) : tSRC;
     /* the HOLDOUT itself only lands once the continuation's own change has
-       gone through — `tt2working`/before still shows the untouched value */
+       gone through — `tt2working`/before still shows the untouched value.
+       Computed BEFORE `trows` now, since `ttRows` needs it to decide
+       whether TT_HOLD_2's rows have cleared yet. */
     const tHoldoutSet = tpub ? (inTt2 && ['done','publishing','published'].includes(T2))
                               : tchanged;
+    const trows = tchanged ? ttRows(tSRC, tHoldoutSet, tlive) : tSRC;
 
     let tt='';
     if(T) tt += selThread(tn) + userBubble(tpub ? TT_PROMPT() : TT_PROMPT_DRAFT());
@@ -6053,12 +6202,29 @@ scenes.xpDetail = (state={})=>{
        (`state.hl!==false`). Only shown once there is something to
        highlight, i.e. after the change has actually landed. */
     const thl = state.hl!==false;
-    /* ONCE THE HOLDOUT CONTINUATION STARTS, THE TREATMENT CELLS ARE NO
-       LONGER THE LATEST CHANGE (user, 2026-09-29) — the reassignment is
-       old news once the holdout ask is in play; Status stays "Edited"
-       (the row itself is still not live), but only the meta card's
-       Holdout value should carry the yellow highlight from here on. */
-    const ttableRows = (thl && !inTt2) ? trows : trows.map(r=>({...r, tmtEdited:false}));
+    /* ONCE THE HOLDOUT CHANGE HAS ACTUALLY LANDED, THE REASSIGNED ROWS'
+       TREATMENT CELLS ARE NO LONGER THE LATEST CHANGE (user, 2026-09-29)
+       — that reassignment is old news once the holdout has APPLIED; only
+       the meta card's Holdout value should carry the yellow highlight for
+       THOSE rows from here on.
+       NOT THE MOMENT tt2 MERELY STARTS, THOUGH (user, 2026-09-30, on the
+       pre-approval "intent" card: "next step has not happened so why is
+       yellow highlight on the cells removed?") — a first version stripped
+       the reassignment's highlight as soon as `inTt2` was true at all,
+       including `tt2reading`/`tt2intent`, before Approve has even been
+       clicked. The holdout hasn't happened yet at that point, so nothing
+       should look "old news" — the reassignment is still the latest real
+       change on screen. Now gated on T2 itself reaching working/done/
+       publishing/published, not just `inTt2`.
+       TT_HOLD_2's ROWS ARE THE EXCEPTION — their OWN change (clearing to
+       "–") only happens DURING this same `tt2` step, so turning their
+       highlight off at the same moment it appears would mean it never
+       shows at all (2026-09-30, added alongside TT_HOLD_2 so the holdout
+       step has something visible to clear). Only strip `tmtEdited` from
+       rows TT_HOLD_2 doesn't cover. */
+    const holdoutApplied = inTt2 && ['working','done','publishing','published'].includes(T2);
+    const ttableRows = (thl && !holdoutApplied) ? trows
+      : trows.map((r,i)=> TT_HOLD_2.includes(i) ? r : {...r, tmtEdited:false});
     const tableLoading = state.loading||T==='working'||T==='staging'||T==='publishing'
         ||(inTt2 && ['working','publishing'].includes(T2));
     const ttable = tableLoading
@@ -6071,7 +6237,11 @@ scenes.xpDetail = (state={})=>{
        The PUBLISHED path's holdout comes from its OWN continuation ask
        instead, once THAT change has landed (`tHoldoutSet`). */
     const ttOver = tHoldoutSet ? {'HOLDOUT TREATMENT': tpub ? TT_HOLDOUT_PUB : TT_HOLDOUT} : null;
-    const ttEditedKeys = (ttOver && thl) ? ['HOLDOUT TREATMENT'] : null;
+    /* SAME "clears once live" RULE AS THE TABLE ROWS (user, 2026-09-30:
+       "once we publish, everything should be in published state") — this
+       checked `thl` alone, so the Holdout meta value stayed yellow even
+       after the experiment (and every table row) had gone Published. */
+    const ttEditedKeys = (ttOver && thl && !tlive) ? ['HOLDOUT TREATMENT'] : null;
     /* THE META CARD SKELETONS TOO, WHENEVER IT IS ALSO ABOUT TO CHANGE
        (user, 2026-09-29: "if the key value pair is also to get updated,
        why isn't the loader there as well? loading states need fixing
@@ -6093,12 +6263,20 @@ scenes.xpDetail = (state={})=>{
         ${xpToolbar()}
         ${ttable}`}
       </div></div></div>` + aiPanel({body:tbody,
+        /* THE HOLDOUT CONTINUATION GETS NO FLOATING STEP BANNER AT ALL —
+           it is a SEPARATE task from the reassignment's own 2-step plan,
+           not really "step 3" of the same numbered sequence (user,
+           2026-09-30, on the "3. Set the holdout treatment..." banner
+           still floating while scrolled up to review the reassignment's
+           OWN "Here's how I'll make these changes" plan card, which reads
+           as steps 1/2, not step 3: "the third one is a separate task so
+           we do not need the floating thing on top"). Dropped the
+           `tpub && inTt2` branch entirely — steps 1/2 still float their
+           own banner as before, the continuation just doesn't get one. */
         ...(tpub && ['staging','stagereview'].includes(T)
               ? {step:'1.  Create a draft of '+XP_NAME, stepLoading:T==='staging'}
           : tpub && ['working','done'].includes(T)
               ? {step:'2.  Reassign the experiences to their new treatments on the draft', stepLoading:T==='working'}
-          : tpub && inTt2
-              ? {step:'3.  Set the holdout treatment for '+XP_NAME, stepLoading:['reading','working','publishing'].includes(T2)}
           : {}),
         chip: (tn&&!tdone)?tn+' experience'+(tn===1?'':'s')+' selected':'',
         draft: tpub
