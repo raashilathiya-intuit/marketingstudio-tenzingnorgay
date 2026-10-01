@@ -1013,6 +1013,12 @@ select.fbsel--active{border-color:#7b61ff}
 .simWrap{position:relative;display:flex;justify-content:center;margin-top:14px}
 .simPill{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1.5px dashed #b9bcc9;border-radius:999px;background:#fff;color:var(--text-secondary);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer}
 .simPill:hover{background:#faf9ff;border-color:#7b61ff;color:#5d47d5}
+/* Group headings in the sim menu (same chrome as the clone build's sections). */
+.simMenu__label{align-self:stretch;text-align:left;padding:6px 14px;margin-top:10px;
+  font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:#8d93a6}
+.simMenu__label + .simMenu__item{margin-top:0}
+.simMenu__label:not(:first-child){border-top:1px solid #ecedf0;padding-top:12px;margin-top:8px}
+.simMenu__label:first-child{margin-top:2px}
 .simMenu{position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);z-index:20;background:#fff;border:1px solid #dddee3;border-radius:12px;box-shadow:0 8px 24px rgba(13,15,26,.12);padding:6px;display:flex;flex-direction:column;min-width:260px}
 .simMenu__item{display:flex;align-items:center;gap:8px;text-align:left;padding:10px 14px;border:0;background:transparent;border-radius:8px;font-family:inherit;font-size:14px;color:var(--text-primary);cursor:pointer}
 .simMenu__item:hover{background:#f5f3ff;color:#5d47d5}
@@ -1031,6 +1037,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=174"></script>
+<script src="app.js?v=181"></script>
 </body>
 </html>

@@ -798,12 +798,21 @@ scenes.home = (state={})=>{
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
+            <div class="simMenu__label">Link and unlink</div>
             <button class="simMenu__item" data-sim="ulPub">Unlink experiences from a published experiment</button>
             <button class="simMenu__item" data-sim="ulDraft">Unlink experiences from a draft experiment</button>
             <button class="simMenu__item" data-sim="lkExp">Link an experience to a published experiment</button>
             <button class="simMenu__item" data-sim="lkDraft">Link an experience to a draft experiment</button>
+            <!-- The move flows come in two sections (user, 2026-10-01): the
+                 first pair publishes from Marketing Studio; the second pair is
+                 the same flow where publishing is only possible from Campaign
+                 Manager, so the publish beats hand the user there and wait. -->
+            <div class="simMenu__label">Move, publish from Marketing Studio</div>
             <button class="simMenu__item" data-sim="mvExp">Move experiences to another experiment</button>
             <button class="simMenu__item" data-sim="mvMulti">Move experiences across experiments</button>
+            <div class="simMenu__label">Move, publish from Campaign Manager</div>
+            <button class="simMenu__item" data-sim="mvExpCM">Move experiences to another experiment</button>
+            <button class="simMenu__item" data-sim="mvMultiCM">Move experiences across experiments</button>
           </div>
         </div>
       </div>
@@ -2398,9 +2407,9 @@ const trigger = {
       if(inp) inp.textContent=XP_FIND_PROMPT; runIntakeXp(); return; }
     if(scenario==='lkDraft'){
       if(inp) inp.textContent=XP_FIND_ONE_PROMPT; runIntakeXpOne(); return; }
-    if(scenario==='mvExp'){
+    if(scenario==='mvExp' || scenario==='mvExpCM'){
       if(inp) inp.textContent=MV_FIND_PROMPT; runIntakeMv(); return; }
-    if(scenario==='mvMulti'){
+    if(scenario==='mvMulti' || scenario==='mvMultiCM'){
       if(inp) inp.textContent=MX_FIND_PROMPT; runIntakeMx(); return; }
     if((scenario==='cl4'||scenario==='cl5') && inp) inp.textContent=CL4_FIND_PROMPT;
     if(inp) inp.textContent=FIND_EXP_PROMPT; runIntakePC(); },
@@ -2771,8 +2780,8 @@ function wire(name, state){
         if(scenario==='ulDraft') { go('home',{autotype:XP_FIND_ONE_PROMPT}); return; }
         if(scenario==='lkExp')   { go('home',{autotype:XP_FIND_PROMPT}); return; }
         if(scenario==='lkDraft') { go('home',{autotype:XP_FIND_ONE_PROMPT}); return; }
-        if(scenario==='mvExp')   { go('home',{autotype:MV_FIND_PROMPT}); return; }
-        if(scenario==='mvMulti') { go('home',{autotype:MX_FIND_PROMPT}); return; }
+        if(scenario==='mvExp' || scenario==='mvExpCM')     { go('home',{autotype:MV_FIND_PROMPT}); return; }
+        if(scenario==='mvMulti' || scenario==='mvMultiCM') { go('home',{autotype:MX_FIND_PROMPT}); return; }
         go('home',{autotype: (scenario==='cl4'||scenario==='cl5') ? CL4_FIND_PROMPT : FIND_EXP_PROMPT});
       });
       document.addEventListener('click',()=>menu.classList.add('hidden'),{once:true});
@@ -4736,6 +4745,50 @@ const MV_FETCH_CONV = ()=>
   + agentMsg(
       disclosure('Searched experiences',['Reading your request','Searching experiences','Compiling results'])
       + `<div class="chatBubble">I found ${XP_ROWS.length} experiences linked to ${MV_FROM}.${objectCard('search',MV_PROJECT)}</div>`);
+/* ---- PUBLISH FROM CAMPAIGN MANAGER (user, 2026-10-01) ----
+   The `mvExpCM` and `mvMultiCM` scenarios are the two move flows with ONE
+   difference: Marketing Studio cannot publish, so every publish beat (the
+   source experiment mid-plan, the destination at the end, the continuation)
+   swaps its Publish pill for a notice that sends the user to Campaign Manager
+   and asks them to come back and confirm once it's done. The confirm pill
+   reuses the publish trigger, so the state chain (t1 -> pw1 -> p1 -> t2 ...)
+   is identical; only the loader reads "Checking" instead of "Publishing", and
+   the resting turn says the AI CONFIRMED the publish rather than did it. */
+const CM_PUB = ()=> scenario==='mvExpCM' || scenario==='mvMultiCM';
+const CM_PILL = "I've published it";
+/* ONE SENTENCE (user, 2026-10-01: the first version was "too long and
+   redundant"). The task message above already says why it has to be
+   published, so the note only says where and what to press after. */
+const CM_PUBLISH_Q = '';
+/* `next` = what the AI does once the user confirms ("move on to the next
+   task" mid-plan, "confirm the move" at the end) */
+const CM_PUBLISH_FOOT = (name, id, active, next)=>
+  /* LINK BEFORE PILL (user, 2026-10-01): the user goes to Campaign Manager
+     first and confirms second, so the controls sit in that order. */
+  `<div class="infoNote">${INFO_ICON}<span>Publish the draft of ${name} in Campaign Manager. Once that's done, select "${CM_PILL}" here and I'll ${next}.</span></div><div class="link-cm link-cm--first">Go to Campaign Manager</div>${
+    active?replyBtn(CM_PILL,id):recordedReply(CM_PILL)}`;
+/* the Studio publish footer, shared shape for both pairs */
+const MS_PUBLISH_FOOT = (id, active)=>
+  `<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
+    active?replyBtn('Publish',id):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div>`;
+/* THE LAST TASK'S PUBLISH IS OPTIONAL (user, 2026-10-01): nothing in the
+   plan waits on it, so the CM variant only points at Campaign Manager, no
+   confirm pill, the same ending the clone builds use. */
+const CM_OPTIONAL_Q = 'If you want to make the change live, you can publish the draft from Campaign Manager.';
+const CM_OPTIONAL_FOOT = '<div class="link-cm">Go to Campaign Manager</div>';
+const PUB_LOADER = (name)=> CM_PUB() ? `Checking ${name}` : `Publishing ${name}`;
+const PUB_SUBS = ()=> CM_PUB()
+  ? ['Reading the experiment','Checking its status','Refreshing the view']
+  : ['Validating the draft','Publishing the experiment','Refreshing the view'];
+const PUB_DISCLOSURE = (name)=> disclosure(CM_PUB()?`Confirmed ${name} is published`:`Published ${name}`, PUB_SUBS());
+/* the closing turn after the destination goes live */
+const PUB_DONE_DISCLOSURE = ()=> disclosure('Moved the experiences', CM_PUB()
+  ? ['Unlinking the experiences','Linking to the new experiment','Confirming the publish']
+  : ['Unlinking and publishing','Linking to the new experiment','Publishing the draft']);
+const PUB_DONE_TEXT = (to, n, total)=> CM_PUB()
+  ? `${to} is published with the ${n===1?'newly linked experience':`${n} newly linked experiences`}. It's live with ${total} linked experiences.`
+  : `I've published the experiment with the ${n===1?'newly linked experience':`${n} newly linked experiences`}. It's live with ${total} linked experiences.`;
+
 /* Step 1: the INTENT — what moves, from where to where. Both experiments are
    published, so both need a draft; that is what earns the plan. */
 const MV_INTENT = (active)=> agentMsg(
@@ -4790,7 +4843,7 @@ const MV_LAST_TASK = 3;
 /* X published: the state change the user just caused, resting with an
    Approve that carries on to task 3. */
 const MV_PUBLISHED = (active)=> agentMsg(
-  disclosure(`Published ${MV_FROM}`,['Validating the draft','Publishing the experiment','Refreshing the view'])
+  PUB_DISCLOSURE(MV_FROM)
   + `<div class="chatBubble">${MV_FROM} is published with ${XP_ROWS.length-MV_N()} linked experiences. The ${MV_N()} experiences are off it, so they are free to go on ${MV_TO}.${objectCard('megaphone',MV_FROM)}<div class="bubble-q">Does this look ok? I'll move on to the next task once you approve.</div>${active?replyBtn('Approve','mvApproveTask'):recordedReply('Approve')}<div class="link-cm">View in Campaign Manager</div></div>`);
 /* ---- the TREATMENT CHOICE, between tasks 3 and 4 (user, 2026-09-16) ----
    The draft of Y exists but nothing is linked yet: an experiment assigns its
@@ -4847,17 +4900,19 @@ const MV_TASK = (i, active)=>{
      next rather than asking the user to vet an unchanged draft */
   const setup = i===0 || i===2;
   const q = publishing
-    ? 'I can publish the experiment for you, or you can do it from Campaign Manager.'
+    ? (CM_PUB() ? (last ? CM_OPTIONAL_Q : CM_PUBLISH_Q) : 'I can publish the experiment for you, or you can do it from Campaign Manager.')
     : setup
       ? `The draft is ready. I'll ${i===0?`unlink the ${MV_N()} experiences from it`:`link the ${MV_N()} experiences to it`} once you approve.`
       : `Does this look ok?${last?'':" I'll move on to the next task once you approve."}`;
+  const pubId = i===MV_LAST_TASK?'mvPublishTo':'mvPublishTask';
   const foot = publishing
-    ? `<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
-        active?replyBtn('Publish', i===MV_LAST_TASK?'mvPublishTo':'mvPublishTask'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div>`
+    ? (CM_PUB()
+        ? (last ? CM_OPTIONAL_FOOT : CM_PUBLISH_FOOT(MV_FROM, pubId, active, 'move on to the next task'))
+        : MS_PUBLISH_FOOT(pubId, active))
     : (active?replyBtn('Approve','mvApproveTask'):recordedReply('Approve'));
   return agentMsg(
     disclosure(MV_TASKS[i],['Reading the experiments','Applying the change','Refreshing the view'])
-    + `<div class="chatBubble">${MV_TASK_MSG[i]()}<div class="bubble-q">${q}</div>${foot}</div>`);
+    + `<div class="chatBubble">${MV_TASK_MSG[i]()}${q?`<div class="bubble-q">${q}</div>`:''}${foot}</div>`);
 };
 /* ---- the CONTINUATION's turns ----
    Both experiments are drafts by now, so there is nothing to stage and no plan
@@ -4867,9 +4922,9 @@ const MV2_INTENT = (active)=> agentMsg(
   + `<div class="summaryCard"><p class="summaryCard__intro">This experience will be linked to the draft of ${MV_TO} and assigned to treatment ${MV2_TMT}.</p><div class="infoNote">${INFO_ICON}<span>${MV_TO} is already in draft, so I'll apply the change there. The change goes live when you publish the draft.</span></div><p class="summaryCard__q">Does this look right? I'll link it once you approve.</p>${active?replyBtn('Approve','mv2Approve'):recordedReply('Approve')}</div>`);
 const MV2_DONE = (active)=> agentMsg(
   disclosure('Linked the experience',['Reading the draft','Linking the experience','Refreshing the list'])
-  + `<div class="chatBubble">I've linked the experience to the draft of ${MV_TO}, assigned to treatment ${MV2_TMT}. It now has ${MV_TO_ROWS.length+MV_N()+1} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div><div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${active?replyBtn('Publish','mv2Publish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
+  + `<div class="chatBubble">I've linked the experience to the draft of ${MV_TO}, assigned to treatment ${MV2_TMT}. It now has ${MV_TO_ROWS.length+MV_N()+1} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}<div class="bubble-q">${CM_PUB() ? CM_OPTIONAL_Q : 'I can publish the experiment for you, or you can do it from Campaign Manager.'}</div>${CM_PUB() ? CM_OPTIONAL_FOOT : MS_PUBLISH_FOOT('mv2Publish',active)}</div>`);
 const MV2_PUBLISHED = ()=> agentMsg(
-  disclosure(`Published ${MV_TO}`,['Validating the draft','Publishing the experiment','Refreshing the view'])
+  PUB_DISCLOSURE(MV_TO)
   + `<div class="chatBubble">${MV_TO} is published with ${MV_TO_ROWS.length+MV_N()+1} linked experiences. All of them are live on it.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`);
 /* Step 3: the ending. It SUMMARISES the move and offers the publish, so the
    flow can either end here or carry on (user, 2026-09-16). Two fixes on the
@@ -5019,7 +5074,7 @@ scenes.mvExp = (state={})=>{
         + prior(i)
         + `<div class="convoTurn">${MV_TASK(i,false)}</div>`
         + `<div class="convoTurn">${running
-            ? agentLoader(`Publishing ${MV_FROM}`, state.tasks||[])
+            ? agentLoader(PUB_LOADER(MV_FROM), state.tasks||[])
             : MV_PUBLISHED(true)}</div>`;
     }
     /* task 4's Publish TAKEN: Y goes live, flow ends */
@@ -5027,10 +5082,10 @@ scenes.mvExp = (state={})=>{
       t += MV_INTENT(false)
         + `<div class="convoTurn">${MV_PLAN(MV_TASKS.length,-1)}</div>`
         + prior(MV_TASKS.length);
-      if(c==='pubTo') t += `<div class="convoTurn">${agentLoader(`Publishing ${MV_TO}`, state.tasks||[])}</div>`;
+      if(c==='pubTo') t += `<div class="convoTurn">${agentLoader(PUB_LOADER(MV_TO), state.tasks||[])}</div>`;
       else t += `<div class="convoTurn">${agentMsg(
-        disclosure('Moved the experiences',['Unlinking and publishing','Linking to the new experiment','Publishing the draft'])
-        + `<div class="chatBubble">I've published the experiment with the ${MV_N()===1?'newly linked experience':`${MV_N()} newly linked experiences`}. It's live with ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
+        PUB_DONE_DISCLOSURE()
+        + `<div class="chatBubble">${PUB_DONE_TEXT(MV_TO, MV_N(), MV_TO_ROWS.length+MV_N())}${objectCard('megaphone',MV_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
     }
     /* THE CONTINUATION: the plan is finished and task 4's Publish is still on
        offer, un-taken. The user types a second ask instead, so the whole move
@@ -5049,7 +5104,7 @@ scenes.mvExp = (state={})=>{
         + `<div class="convoTurn">${MV2_DONE(true)}</div>`;
       else if(c==='c2publishing')tail += MV2_INTENT(false)
         + `<div class="convoTurn">${MV2_DONE(false)}</div>`
-        + `<div class="convoTurn">${agentLoader(`Publishing ${MV_TO}`, state.tasks||[])}</div>`;
+        + `<div class="convoTurn">${agentLoader(PUB_LOADER(MV_TO), state.tasks||[])}</div>`;
       else if(c==='c2published') tail += MV2_INTENT(false)
         + `<div class="convoTurn">${MV2_DONE(false)}</div>`
         + `<div class="convoTurn">${MV2_PUBLISHED()}</div>`;
@@ -5448,7 +5503,7 @@ const MX_PUBLISHED = (gi, active)=>{
      plural. */
   const remaining = g.source.rows.length-g.rows.length;
   return agentMsg(
-    disclosure(`Published ${g.source.name}`,['Validating the draft','Publishing the experiment','Refreshing the view'])
+    PUB_DISCLOSURE(g.source.name)
     + `<div class="chatBubble">${g.source.name} is published with ${remaining} linked experience${remaining===1?'':'s'}. The ${g.rows.length} experience${g.rows.length===1?'':'s'} ${g.rows.length===1?'is':'are'} unlinked and can now be linked to ${MX_TO}.${objectCard('megaphone',g.source.name)}<div class="bubble-q">${isLast ? `All ${groups.length} source experiments are now unlinked and published; every selected experience can be linked to ${MX_TO}. ` : ''}Does this look ok? I'll move on to the next task once you approve.</div>${active?replyBtn('Approve','mxApproveTask'):recordedReply('Approve')}<div class="link-cm">View in Campaign Manager</div></div>`);
 };
 const MX_TMT_ASK = ()=> agentMsg(
@@ -5500,17 +5555,21 @@ const MX_TASK = (i, active)=>{
      never to redo the unlink/link — that line belongs to the setup task
      before it. */
   const q = publishing
-    ? 'I can publish the experiment for you, or you can do it from Campaign Manager.'
+    ? (CM_PUB() ? (last ? CM_OPTIONAL_Q : CM_PUBLISH_Q) : 'I can publish the experiment for you, or you can do it from Campaign Manager.')
     : setup
       ? `The draft is ready. I'll ${i===MX_DEST_DRAFT_TASK()?`link the ${MX_N()} experiences to it`:`unlink the ${groups[Math.floor(i/2)].rows.length} experience${groups[Math.floor(i/2)].rows.length===1?'':'s'} from it`} once you approve.`
       : `Does this look ok?${last?'':" I'll move on to the next task once you approve."}`;
+  const isLastTask = i===MX_LAST_TASK();
+  const pubId = isLastTask?'mxPublishTo':'mxPublishTask';
+  const pubName = isLastTask ? MX_TO : (gi>=0 ? groups[gi].source.name : MX_TO);
   const foot = publishing
-    ? `<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
-        active?replyBtn('Publish', i===MX_LAST_TASK()?'mxPublishTo':'mxPublishTask'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div>`
+    ? (CM_PUB()
+        ? (isLastTask ? CM_OPTIONAL_FOOT : CM_PUBLISH_FOOT(pubName, pubId, active, 'move on to the next task'))
+        : MS_PUBLISH_FOOT(pubId, active))
     : (active?replyBtn('Approve','mxApproveTask'):recordedReply('Approve'));
   return agentMsg(
     disclosure(tasks[i],['Reading the experiments','Applying the change','Refreshing the view'])
-    + `<div class="chatBubble">${MX_TASK_MSG(i)}<div class="bubble-q">${q}</div>${foot}</div>`);
+    + `<div class="chatBubble">${MX_TASK_MSG(i)}${q?`<div class="bubble-q">${q}</div>`:''}${foot}</div>`);
 };
 /* the move flow's experiment headers, same shape as mvHead */
 const mxHead = (name, id, live, open=false)=>`<div class="expHead">
@@ -5600,17 +5659,17 @@ scenes.mvMulti = (state={})=>{
         + prior(i)
         + `<div class="convoTurn">${MX_TASK(i,false)}</div>`
         + `<div class="convoTurn">${running
-            ? agentLoader(`Publishing ${MX_PICK_BY_SOURCE()[gi].source.name}`, state.tasks||[])
+            ? agentLoader(PUB_LOADER(MX_PICK_BY_SOURCE()[gi].source.name), state.tasks||[])
             : MX_PUBLISHED(gi,true)}</div>`;
     }
     else if(c==='pubTo' || c==='donePub'){
       t += MX_INTENT(false)
         + `<div class="convoTurn">${MX_PLAN(TASKS.length,-1)}</div>`
         + prior(TASKS.length);
-      if(c==='pubTo') t += `<div class="convoTurn">${agentLoader(`Publishing ${MX_TO}`, state.tasks||[])}</div>`;
+      if(c==='pubTo') t += `<div class="convoTurn">${agentLoader(PUB_LOADER(MX_TO), state.tasks||[])}</div>`;
       else t += `<div class="convoTurn">${agentMsg(
-        disclosure('Moved the experiences',['Unlinking and publishing','Linking to the new experiment','Publishing the draft'])
-        + `<div class="chatBubble">I've published the experiment with the ${MX_N()===1?'newly linked experience':`${MX_N()} newly linked experiences`}. It's live with ${MV_TO_ROWS.length+MX_N()} linked experiences.${objectCard('megaphone',MX_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
+        PUB_DONE_DISCLOSURE()
+        + `<div class="chatBubble">${PUB_DONE_TEXT(MX_TO, MX_N(), MV_TO_ROWS.length+MX_N())}${objectCard('megaphone',MX_TO)}<div class="link-cm">View in Campaign Manager</div></div>`)}</div>`;
     }
   }
   const body = MX_FETCH_CONV() + (t?`<div class="convoTurn">${t}</div>`:'');
@@ -6716,8 +6775,7 @@ function runMvTask(i){
    with an Approve to carry on to task 3. */
 function runMvPublish(i){
   const base={...mvBase(),mv:'pw'+i};
-  runPCStep(base, `Publishing ${MV_FROM}`,
-    ['Validating the draft','Publishing the experiment','Refreshing the view'],2600,
+  runPCStep(base, PUB_LOADER(MV_FROM), PUB_SUBS(),2600,
     {...base,mv:'p'+i},'mvExp');
 }
 function runMvNext(i){
@@ -6748,8 +6806,7 @@ function runMvTmtRead(){
 /* task 4's Publish: Y goes live, then the closing summary */
 function runMvPublishTo(){
   const base={...mvBase(),mv:'pubTo'};
-  runPCStep(base,`Publishing ${MV_TO}`,
-    ['Validating the draft','Publishing the experiment','Refreshing the view'],2600,
+  runPCStep(base, PUB_LOADER(MV_TO), PUB_SUBS(),2600,
     {...base,mv:'donePub'},'mvExp');
 }
 /* ---- the CONTINUATION runners: task 4's Publish left un-taken, the user
@@ -6768,8 +6825,7 @@ function runMv2Link(){
 }
 function runMv2Publish(){
   const base={...mvBase(),mv:'c2publishing'};
-  runPCStep(base,`Publishing ${MV_TO}`,
-    ['Validating the draft','Publishing the experiment','Refreshing the view'],2600,
+  runPCStep(base, PUB_LOADER(MV_TO), PUB_SUBS(),2600,
     {...base,mv:'c2published'},'mvExp');
 }
 
@@ -6819,8 +6875,7 @@ function runMxPublish(i){
   const gi = MX_PUBLISH_TASKS().indexOf(i);
   const name = MX_PICK_BY_SOURCE()[gi].source.name;
   const base={...mxBase(),mv2:'pw'+i};
-  runPCStep(base, `Publishing ${name}`,
-    ['Validating the draft','Publishing the experiment','Refreshing the view'],2600,
+  runPCStep(base, PUB_LOADER(name), PUB_SUBS(),2600,
     {...base,mv2:'p'+i},'mvMulti');
 }
 function runMxNext(i){
@@ -6843,8 +6898,7 @@ function runMxTmtRead(){
 }
 function runMxPublishTo(){
   const base={...mxBase(),mv2:'pubTo'};
-  runPCStep(base,`Publishing ${MX_TO}`,
-    ['Validating the draft','Publishing the experiment','Refreshing the view'],2600,
+  runPCStep(base, PUB_LOADER(MX_TO), PUB_SUBS(),2600,
     {...base,mv2:'donePub'},'mvMulti');
 }
 
@@ -7444,8 +7498,16 @@ const STEPS_MV = ()=>{
   });
   /* the SELECTION is its own step now (user, 2026-09-21): the list, then the
      list with the rows checked, then the conversation */
+  /* THE CONTINUATION IS PART OF THE STEP LIST (user, 2026-10-01: "this flow
+     does not work on left right click"). It branches off the last task with
+     its Publish un-taken, so it follows the Studio pair's donePub; the CM pair
+     has no publish beat, so it stops at c2done. `typed2` keeps the second ask
+     from retyping over its own recorded bubble. */
+  const C=(mv)=>['mvExp',{typed:true,typed2:true,selected:MV_PICK_DEFAULT,mv}];
   return [ ['home',{}], ['mvExp',{}], ['mvExp',{selected:MV_PICK_DEFAULT}],
-    S('intent'), S('plan'), ...tasks, S('donePub') ];
+    S('intent'), S('plan'), ...tasks,
+    ...(CM_PUB() ? [C('c2intent'), C('c2done')]
+                 : [S('donePub'), C('c2intent'), C('c2done'), C('c2published')]) ];
 };
 /* flow 3, scaled up: home -> search -> the picks -> the ask -> intent -> plan
    -> N source tasks (each with a publish beat) -> treatment ask/answer ->
@@ -7459,7 +7521,7 @@ const STEPS_MX = ()=>{
     if(PUB.includes(i)) tasks.push(S('p'+i));
   });
   return [ ['home',{}], ['mvMulti',{}], ['mvMulti',{selected:MX_PICK_DEFAULT}],
-    S('intent'), S('plan'), ...tasks, S('donePub') ];
+    S('intent'), S('plan'), ...tasks, ...(CM_PUB()?[]:[S('donePub')]) ];
 };
 /* flow 1: home -> search -> the experiment -> the ask -> intent -> done -> published */
 /* PUBLISHED: search intake, intent -> plan -> two tasks -> done -> published.
@@ -7477,8 +7539,8 @@ function FLOW_STEPS(){
   // only this build's scenarios; ulPub is the default for anything else
   if(scenario==='lkExp')   return STEPS_LK(true);
   if(scenario==='lkDraft') return STEPS_LK(false);
-  if(scenario==='mvExp') return STEPS_MV();
-  if(scenario==='mvMulti') return STEPS_MX();
+  if(scenario==='mvExp' || scenario==='mvExpCM') return STEPS_MV();
+  if(scenario==='mvMulti' || scenario==='mvMultiCM') return STEPS_MX();
   return STEPS_UL(scenario!=='ulDraft');
 }
 const PC_ORDER = ['understood','done'];
@@ -7495,8 +7557,8 @@ function stepIndex(){
              tmworking:'tmtask', tmreading:'tmtask'}[st.mv] || st.mv || '';
     const m=/^w(\d+)$/.exec(r); if(m) r='t'+m[1];         // executing -> its resting task
     const pm=/^pw(\d+)$/.exec(r); if(pm) r='p'+pm[1];     // publishing X -> X published
-    /* the continuation hangs off the last task, so it keeps that index */
-    if(r.startsWith('c2')) r='t'+(MV_TASKS.length-1);
+    /* the continuation's executing states resolve to the turn they head for */
+    r = {c2reading:'c2intent', c2working:'c2done', c2publishing:'c2published'}[r] || r;
     /* MUST mirror STEPS_MV, publish beat included, or a state that the list
        contains cannot be located and the arrow keys jump past it
        (user, 2026-09-16). */
@@ -7505,7 +7567,8 @@ function stepIndex(){
       if(i===MV_TASKS.length-1){ ORDER.push('tmtask','tmtyped'); }
       ORDER.push('t'+i);
       if(i===MV_PUBLISH_TASK) ORDER.push('p'+i); });
-    ORDER.push('donePub');
+    if(CM_PUB()) ORDER.push('c2intent','c2done');
+    else ORDER.push('donePub','c2intent','c2done','c2published');
     const i=ORDER.indexOf(r);
     /* no conversation yet: the list is step 1, the list with rows checked is 2 */
     if(i===-1) return (st.selected&&st.selected.length)?2:1;
