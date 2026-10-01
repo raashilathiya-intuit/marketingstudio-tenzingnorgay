@@ -937,11 +937,12 @@ function cmpScreen(state={}){
      instead of keeping two separate controls (user, 2026-09-29: "in the
      dropdown itself add Table - Json as an item"). Only the audience tab
      gets this menu: the other tabs have one shape each. */
-  const audLayout = tab.key==='audience' ? (state.audLayout || 'table') : 'table';
-  const AUD_LAYOUTS = [['table','Table view'],['sbs','Side by side'],['toggle','Version toggle']];
-  if(tab.refJson) AUD_LAYOUTS.push(['json','Table - Json']);
-  /* the second, nested example (ELM 7172) — same table view, richer rule */
-  if(tab.key==='audience') AUD_LAYOUTS.push(['nested','Table - Nested']);
+  /* ORDER AND DEFAULT (user, 2026-10-01): the nested example (ELM 7172) is the
+     default and sits first, then the simple table, its JSON, then the two
+     expression-builder layouts */
+  const audLayout = tab.key==='audience' ? (state.audLayout || 'nested') : 'table';
+  const AUD_LAYOUTS = [['nested','Table - Nested'],['table','Table view'],['json','Table - Json'],['sbs','Side by side'],['toggle','Version toggle']]
+    .filter(([k])=> k!=='json' || tab.refJson);
   const layoutPicker = tab.key==='audience' ? `<span class="verselect verselect--ghost" data-audlayout-toggle>
       ${AUD_LAYOUTS.find(l=>l[0]===audLayout)[1]} ${I.chev}
       <div class="audLayoutMenu" data-audlayout-menu>
