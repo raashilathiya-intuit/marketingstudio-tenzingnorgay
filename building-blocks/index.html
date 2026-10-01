@@ -883,8 +883,31 @@ select.fbsel--active{border-color:#7b61ff}
    the AND and the underline so far apart?"). The rule is the Figma Heading 3
    divider and stays; the JOIN now binds to it at 4px, and the pair is
    separated from the table above by 20px. */
-.cmpSec__join{margin:20px 0 4px;font-size:13px;letter-spacing:.04em;color:#787e94}
-.cmpSec__join + .cmpSec__h{margin-top:0}
+/* laid out on the comparison table's three columns (Fields | v3 | v4), each
+   cell padded like a td, so the join reads under BOTH versions and lines up
+   with the tables above and below it (user, 2026-10-01) */
+/* the join sits EVENLY between what is above and below it, 16px each way
+   (user, 2026-10-01: "see spacing") — it used to hug the thing below, from the
+   days when that was a section rule it belonged to */
+.cmpSec__join{display:grid;grid-template-columns:24% 1fr 1fr;align-items:center;margin:16px 0 0;font-size:13px;letter-spacing:.04em;color:#787e94}
+/* THE COMPLETE STROKE, WITH THE SAME GAP AROUND EACH CHIP AS BEFORE (user,
+   2026-10-01: "couple pixels gap between box and stroke as before, just the
+   left part was missing"). Built per column so it reads as one line: the
+   empty Fields cell is all line; a version cell is 16px of line (so the chip
+   sits at the table's text start), a gap, the chip, a gap, then line to the
+   cell's end, which meets the next cell's line. */
+/* THE CHIP ALIGNS WITH THE COLUMN'S TEXT (user, 2026-10-01: "and alignment with
+   version 3?"): a version cell has the table's 16px padding and the chip
+   starts right there, so the padding IS the gap after the previous cell's
+   line; then a gap and the line to the cell's end. The Fields cell is all line. */
+.cmpSec__join>span{display:flex;align-items:center;gap:16px;min-width:0;padding-left:16px}
+.cmpSec__join>span::after{content:'';flex:1;height:1px;background:#e9e9ec}
+.cmpSec__join>span:first-child{padding-left:0}
+/* the conjunction chip, the real builder's `.ab-conj` look: grey pill, 13px */
+.cmpConj{display:inline-block;background:#f6f7f9;border:1px solid #e5e5ec;border-radius:8px;padding:6px 14px;font-size:13px;letter-spacing:0;color:#3a393d;line-height:1.3}
+.cmpConj.cd-hl{background:var(--edited-cell)}
+
+.cmpSec__join + .cmpSec__h{margin-top:16px}
 /* an unlabelled section: the divider alone, with no text box above it */
 .cmpSec__h--bare{padding-bottom:0}
 /* a section the new version drops: "Removed in v4" IS the label text (same
@@ -892,7 +915,25 @@ select.fbsel--active{border-color:#7b61ff}
    than highlighting every emptied cell, which made one removed condition
    read as three separate changes, or a pill badge, which broke from every
    other header's plain label+rule treatment */
-.cmpSec--gone{opacity:.55}
+/* a REMOVED part: nothing dims as a whole any more (user, 2026-10-01) — v3
+   stays at full strength, only the v4 cells read a muted dash */
+.cmpTbl__gone{color:#b3b6c2}
+
+/* NESTED RULE EXAMPLE (Table - Nested): a group is a BOX, the way the rule
+   diagram draws it (user, 2026-10-01: "instead of line use a box container"):
+   solid border for an attribute group, dashed for a nested one, the heading
+   inside at the top. Each level nests one box deeper; the tables inside keep
+   every bit of the shared chrome. A first pass used a left rule only. */
+.audGrp{margin-top:16px;padding:16px;border:1px solid #dddee3;border-radius:12px}
+/* a nested group is a box inside a box — that already reads as nesting, so it
+   stays SOLID (user, 2026-10-01: "why dashed container?"); the dashed border
+   was lifted from the diagram's legend and dropped */
+.audGrp > .cmpSec__h:first-child{margin-top:0}
+.cmpSec__join + .audGrp{margin-top:16px}
+/* the group heading: the audience builder's "Attribute group" + chevron,
+   expanded (chevron up) since the group's tables are open below it */
+.audGrp__h{margin:0 0 4px}
+.audGrp__h .ico-box{transform:rotate(180deg)}
 
 /* THE RAW-JSON GHOST TOGGLE — a dev/reference control, not a real product
    affordance (user, 2026-09-25: "it should show that it's not a part of the
@@ -1124,6 +1165,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region — a single reference screen, no AI panel -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=60"></script>
+<script src="app.js?v=75"></script>
 </body>
 </html>

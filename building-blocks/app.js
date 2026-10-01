@@ -333,13 +333,39 @@ const CMP_CREATIVE_FIELDS = [
    the same three columns — Fields / version A / version B — with the
    changed rows highlighted in the B column only, so the eye lands on
    what would change. A new tab only has to supply its own field list. */
-function cmpTable(fields, hl=true){
-  const rows = fields.map(([k,cur,next,kind])=>{
+/* `removed`: the part exists on v3 and is GONE on v4 (user, 2026-10-01: "if
+   something is removed from v4, why is it in inactive state in v3?") — so v3
+   keeps its values at full strength and every v4 cell, joins included, reads
+   a muted "—". The "Removed in v4" label above the table says why. An earlier
+   treatment dimmed the whole table, both versions, which read as v3 being
+   inactive too. */
+/* the v4 side of a removed part: a dash, HIGHLIGHTED like every other change
+   in v4 while Highlight changes is on (user, 2026-10-01: "removal should still
+   have yellow highlight?" — yes) */
+const cmpGone = (hl)=> hl ? `<span class="cd-hl">${AUD_NONE}</span>` : AUD_NONE;
+/* NO "Removed in v4" LABEL ANY MORE (user, 2026-10-01: "i still see a lot of
+   removed in v4s") — the highlighted dashes on v4 already say it, exactly as
+   an added part's highlighted values do; the label repeated them. A row can
+   also be gone on its own (5th field 'gone'), so a removed condition stays
+   inside its run's table rather than being split out under a label. */
+function cmpTable(fields, hl=true, removed=false){
+  const rows = fields.map(([k,cur,next,kind,gone])=>{
+    const isGone = removed || gone==='gone';
     /* a JOIN row (AND / OR) is structure, not a field being compared: it
        spans the version columns and reads quietly, the way the AND/OR chips
        sit between conditions on the real audience screen. Nesting is NOT a
        row type — a nested part gets its own table via cmpSections(). */
-    if(kind==='join') return `<tr class="cmpTbl__join"><td></td><td colspan="2">${k}</td></tr>`;
+    if(kind==='join'){
+      /* THE JOIN READS UNDER BOTH VERSIONS (user, 2026-10-01: "these ORs that
+         we have for current, we should also be having for the new draft") —
+         it still exists in the draft, so it is a value in each column like
+         any other row, not one cell spanning both. A join that CHANGES
+         (AND -> OR) or is NEW shows the new one highlighted. */
+      const changedJoin = next && next!==k;
+      if(isGone) return `<tr class="cmpTbl__join"><td></td><td>${cmpConj(k)}</td><td class="cmpTbl__gone">${cmpGone(hl)}</td></tr>`;
+      return `<tr class="cmpTbl__join"><td></td><td>${cmpConj(k)}</td><td>${cmpConj(changedJoin?next:k, changedJoin && hl)}</td></tr>`;
+    }
+    if(isGone) return `<tr><td>${k}</td><td>${cur}</td><td class="cmpTbl__gone">${cmpGone(hl)}</td></tr>`;
     const changed = cur!==next;
     const mark = (changed && hl) ? `<span class="cd-hl">${next}</span>` : next;
     return `<tr><td>${k}</td><td>${cur}</td><td>${mark}</td></tr>`;
@@ -353,10 +379,40 @@ function cmpTable(fields, hl=true){
    rather than one long table with group rows inside it. The experiment tab is
    the case: the experience's own fields, then a table per treatment.
    A section with no label is rendered bare, as the leading table. */
+/* a join BETWEEN two tables, laid out on the table's own three columns so it
+   reads under BOTH versions like an in-table join (user, 2026-10-01). `next`
+   is the v4 join when it differs (flipped, or new with k = "—"); `gone` dims
+   it along with the removed part it leads into. */
+/* THE JOIN IS THE AUDIENCE BUILDER'S CONJUNCTION CHIP (user, 2026-10-01, "styling
+   for and or (between each expression)"): the same grey pill `.ab-conj` draws
+   between conditions on the real editor, here `.cmpConj` in a table cell. A
+   changed join fills the chip with the yellow token instead of hugging the
+   text, so the pill itself reads as what changed. "—" (no join on this side)
+   stays plain text. */
+/* CHIP + RULE, as the builder draws a join between rows (user, 2026-10-01: the
+   OR pill followed by a thin line running to the right) — one per version
+   column, so the pair reads under both the current and the draft */
+/* The chip alone. INSIDE a table the row borders already rule it (user,
+   2026-10-01: "we don't need horizontal stroke within table"); BETWEEN tables
+   the stroke is one COMPLETE line across the whole join row, drawn by
+   `.cmpSec__join::before` behind both chips (user: "give complete stroke"). */
+const cmpConj = (t, hl=false)=> (!t || t===AUD_NONE) ? (t||'')
+  : `<span class="cmpConj${hl?' cd-hl':''}">${t}</span>`;
+const cmpJoin = (k, next, {hl=true, gone=false}={})=>{
+  const changed = !!(next && next!==k);
+  const b = gone ? `<span class="cmpTbl__gone">${cmpGone(hl)}</span>` : cmpConj(changed?next:k, changed && hl);
+  return `<div class="cmpSec__join"><span></span><span>${cmpConj(k)}</span><span>${b}</span></div>`;
+};
 function cmpSections(sections, hl=true){
-  return sections.map(sec=>{
-    /* a bare join between two sections (the audience's OR) */
-    if(sec.join) return `<div class="cmpSec__join">${sec.join}</div>`;
+  return sections.map((sec,i)=>{
+    /* a bare join between two sections (the audience's OR). A join leading
+       into an ADDED section is itself new (nothing followed on v3), one
+       leading into a REMOVED section dims with it — same as the nested view */
+    if(sec.join){
+      const next = sections[i+1] || {};
+      if(next.added) return cmpJoin(AUD_NONE, sec.join, {hl});
+      return cmpJoin(sec.join, sec.joinB, {hl, gone:!!next.removed});
+    }
     /* A SECTION DROPPED BY THE NEW VERSION says so ONCE, on its label ("Removed
        in v4" IS the label text when there's no group name of its own) — dimming
        the table and turning highlighting off doesn't by itself explain why the
@@ -375,13 +431,18 @@ function cmpSections(sections, hl=true){
        2026-09-25). The problem was never the rule, it was the SPACING: the AND
        sat 16px above it and 32px below, so the two drifted apart. They are one
        unit — the AND and its rule — so the gap between them is now 4px. */
-    const headText = sec.label || (sec.removed ? 'Removed in v4' : '');
-    const head = (headText || sec.added || sec.removed)
-      ? `<div class="cmpSec__h${sec.removed?' cmpSec__h--gone':''}${headText?'':' cmpSec__h--bare'}">${headText}</div>`
+    /* a label only when the section has a NAME; a removed section carries no
+       text (2026-10-01) — its highlighted v4 dashes say it, like an added one's
+       highlighted values do */
+    const headText = sec.label || '';
+    /* NO bare divider for an added section any more (user, 2026-10-01: "we will
+       not unnecessarily use horizontal strokes. we will use box containers") —
+       this supersedes the 2026-09-25 rule that kept the empty Heading 3 rule.
+       A label still gets its rule; an unlabelled added part gets nothing. */
+    const head = headText
+      ? `<div class="cmpSec__h">${headText}</div>`
       : '';
-    const body = sec.removed
-      ? `<div class="cmpSec--gone">${cmpTable(sec.fields, false)}</div>`
-      : cmpTable(sec.fields, hl);
+    const body = cmpTable(sec.fields, hl, !!sec.removed);
     return head + body;
   }).join('');
 }
@@ -595,6 +656,138 @@ function audExprToggle(which, hl=true){
   return audExprNested(CMP_AUDIENCE_SECTIONS, col, hl);
 }
 
+/* ---- AUDIENCE — NESTED RULE EXAMPLE (built, 2026-10-01) ----
+   A second, richer audience for the Table view: the ELM 7172 targeting rule
+   (user supplied the rule diagram). Containers NEST: the rule root holds
+   conditions and ATTRIBUTE GROUPS, a group can hold nested groups, and
+   siblings are joined by AND unless marked OR. Rendered with the same
+   cmpTable primitive, one table per run of conditions, each group an
+   indented container (solid left rule; dashed when nested, as the diagram's
+   legend draws it) under the Heading 3 label.
+   The v3 -> v4 diff touches every kind of thing a rule can change (user,
+   2026-10-01: "remove some, add some, AND changes to OR, a very rich
+   example"): two values narrowed, one root condition removed, one nested
+   group removed, two joins flipped AND -> OR, one condition added inside a
+   group, one added at the root. Removal and addition are SYMMETRIC and wordless (2026-10-01):
+   values on one side, highlighted dashes or values on the other; a removed
+   group keeps its heading, nothing is labelled or dimmed. */
+const audN = (attr, op, val, op2, val2)=>({cond:[attr, op, val, op2, val2]});
+const AUD_NESTED = [
+  audN('moneyEntitlementState','not equal to','ACTIVE'),
+  {join:'AND'},
+  {group:[
+    {group:[
+      audN('liveServiceSkuName','in','Expert Assisted, Assisted', undefined, 'Expert Assisted'),
+      {join:'AND'},
+      audN('liveServiceEntitlementState','equal to','ACTIVE'),
+    ], nested:true},
+    {join:'OR'},
+    {group:[
+      audN('LiveSkuName','equal to','Assisted'),
+      {join:'AND'},
+      audN('LiveEntitlementState','equal to','ACTIVE'),
+    ], nested:true, removed:true},
+  ]},
+  {join:'AND'},
+  audN('gbsgAEPCompanyAudience','does not contain all','9dd631b3…dd5'),
+  {join:'AND'},
+  {...audN('qboProductSkuName','not equal to','Solopreneur'), removed:true},
+  {join:'AND'},
+  {group:[
+    audN('liveServiceSubscriptionStatus','in','PAID, TRIAL, TRIAL_OPTED_IN', undefined, 'PAID, TRIAL'),
+    {join:'OR'},
+    audN('LiveSubscriptionStatus','in','PAID, TRIAL, TRIAL_OPTED_IN'),
+    {join:'OR'},
+    audN('liveFullServiceSubscriptionStatus','in','PAID, TRIAL, TRIAL_OPTED_IN'),
+  ]},
+  {join:'AND'},
+  {group:[
+    audN('irRAL6MC','has no value',''),
+    {join:'OR'},
+    audN('irRAL6MC','equal to','0'),
+  ]},
+  {join:'AND'},
+  audN('gbsgAEPCompanyAudience','does not contain all','c496342d…82af'),
+  {join:'AND'},
+  {group:[
+    audN('isAccountantAccessingClient','equal to','No'),
+    {join:'AND', joinB:'OR'},
+    audN('gbsgAEPCompanyAudience','does not contain all','eb01a075…42af'),
+  ]},
+  {join:'AND'},
+  {group:[
+    audN('qblivenumberofcallscompletedlifetimebucl','has any value',''),
+    {join:'AND'},
+    audN('qblivenumberofcallscompletedlifetimebucl','in','1-5, 6-10, 11+'),
+    {join:'AND', joinB:'OR'},
+    audN('qblivenumberofcallscompletedlifetimebucl','not equal to','0'),
+    {join:'AND', added:true},
+    {...audN('qblivenumberofcallscompletedlifetimebucl','not equal to','11+'), added:true},
+  ]},
+  {join:'AND', added:true},
+  {...audN('gbsgAEPCompanyAudience','contains any','3b053278…e17e'), added:true},
+];
+/* a condition's three rows; an ADDED one reads "—" on the v3 side */
+const audCondRows = (n)=>{
+  const [attr,op,val,op2,val2]=n.cond;
+  const v = (x)=> (x===''||x===undefined) ? AUD_NONE : x;
+  if(n.added) return [['Attribute',AUD_NONE,attr],['Operator',AUD_NONE,op],['Value',AUD_NONE,v(val)]];
+  /* a REMOVED condition: v3 values, v4 dashes (cmpTable highlights them) */
+  if(n.removed) return [['Attribute',attr,'','','gone'],['Operator',op,'','','gone'],['Value',v(val),'','','gone']];
+  return [['Attribute',attr,attr],['Operator',op,op2===undefined?op:op2],['Value',v(val),v(val2===undefined?val:val2)]];
+};
+/* walks the rule: consecutive plain conditions share ONE table (joins as
+   in-table rows); a group is a container with its own tables; a join next to
+   a group or a removed/added part sits BETWEEN tables, dimmed when what it
+   joins is removed, highlighted when it is new */
+function audTree(nodes, hl, removed=false){
+  let out='', run=[];
+  const flush=()=>{ if(run.length){ out += cmpTable(run, hl, removed); run=[]; } };
+  /* only a GROUP breaks a run of conditions into its own box; a removed or
+     added condition is just rows in the run */
+  const special = (n)=> !!n && !!n.group;
+  nodes.forEach((n,i)=>{
+    const prev=nodes[i-1], next=nodes[i+1];
+    if(n.join){
+      if(special(prev) || special(next)){
+        flush();
+        const gone = !!(next && next.removed);
+        const isNew = !!(n.added || (next && next.added));
+        const flipped = n.joinB && n.joinB!==n.join;
+        out += flipped ? cmpJoin(n.join, n.joinB, {hl})
+             : isNew   ? cmpJoin(AUD_NONE, n.join, {hl})
+             :           cmpJoin(n.join, null, {hl, gone: gone || removed});
+      } else {
+        /* in a run: a flipped join shows AND | OR, a new one — | AND */
+        /* a new join: — | AND; a flipped one: AND | OR; the join INTO a removed
+           condition goes with it (v3 chip, v4 dash) */
+        const isNew = n.added || (next && next.added);
+        run.push([isNew?AUD_NONE:n.join, '', isNew ? n.join : (n.joinB && n.joinB!==n.join ? n.joinB : ''), 'join', (next && next.removed) ? 'gone' : '']);
+      }
+      return;
+    }
+    if(n.group){
+      flush();
+      /* the group heading is the audience builder's own "Attribute group" with
+         its chevron (user, 2026-10-01), not the small-caps label; a removed
+         group keeps "Removed in v4" as its Heading 3 label, an added one the
+         bare rule (the Sep-25 conventions) */
+      /* a removed group keeps its normal heading — it still exists on v3; its
+         cells say it is gone on v4 */
+      const head = n.added ? '' : `<div class="ab-group__h audGrp__h">Attribute group ${I.chev}</div>`;
+      out += `<div class="audGrp${n.nested?' audGrp--nested':''}">
+          ${head}
+          ${audTree(n.group, hl, removed || !!n.removed)}
+        </div>`;
+      return;
+    }
+    run.push(...audCondRows(n));
+  });
+  flush();
+  return out;
+}
+const audNestedTable = (hl=true)=> audTree(AUD_NESTED, hl);
+
 /* ---- AUDIENCE — RAW JSON REFERENCE (built, 2026-09-25) ----
    A second view of the SAME AUD3 diff, as the raw Rules JSON the real
    Version Compare screen shows (user supplied both screenshots). Trimmed to
@@ -737,6 +930,8 @@ function cmpScreen(state={}){
   const audLayout = tab.key==='audience' ? (state.audLayout || 'table') : 'table';
   const AUD_LAYOUTS = [['table','Table view'],['sbs','Side by side'],['toggle','Version toggle']];
   if(tab.refJson) AUD_LAYOUTS.push(['json','Table - Json']);
+  /* the second, nested example (ELM 7172) — same table view, richer rule */
+  if(tab.key==='audience') AUD_LAYOUTS.push(['nested','Table - Nested']);
   const layoutPicker = tab.key==='audience' ? `<span class="verselect verselect--ghost" data-audlayout-toggle>
       ${AUD_LAYOUTS.find(l=>l[0]===audLayout)[1]} ${I.chev}
       <div class="audLayoutMenu" data-audlayout-menu>
@@ -752,6 +947,7 @@ function cmpScreen(state={}){
       ? (audLayout==='sbs' ? audExprSideBySide(hl)
         : audLayout==='toggle' ? audVerToggle + audExprToggle(audVer, hl) + hlBar(hl)
         : audLayout==='json' ? tab.refJson()
+        : audLayout==='nested' ? audNestedTable(hl) + hlBar(hl)
         : cmpSections(tab.sections, hl) + hlBar(hl))
       : tab.fields
         ? ((view==='preview' && tab.preview) ? tab.preview(hl) : cmpTable(tab.fields, hl)) + hlBar(hl)
@@ -759,7 +955,7 @@ function cmpScreen(state={}){
   return `<div class="content">${topbar(CMP_CRUMB)}<div class="scroll"><div class="pad">
     <div class="detail-sticky"><div class="detail-h"><span class="title">${CMP_NAME}</span><span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; ${CMP_EID} ${COPY_ICON}</span></div>
     <div class="tabs tabs--insticky tabs--exp">${tabs}</div></div>
-    <div class="cd-head"><span class="cd-head__t">${tab.title}</span>${toggle}${layoutPicker}</div>
+    <div class="cd-head"><span class="cd-head__t">${audLayout==='nested' ? 'ELM 7172' : tab.title}</span>${toggle}${layoutPicker}</div>
     ${body}</div></div></div>` + cmpPanel();
 }
 
