@@ -398,10 +398,16 @@ function cmpTable(fields, hl=true, removed=false){
    `.cmpSec__join::before` behind both chips (user: "give complete stroke"). */
 const cmpConj = (t, hl=false)=> (!t || t===AUD_NONE) ? (t||'')
   : `<span class="cmpConj${hl?' cd-hl':''}">${t}</span>`;
-const cmpJoin = (k, next, {hl=true, gone=false}={})=>{
+/* `inset`: the join follows a GROUP BOX, so its columns must match the table
+   INSIDE that box, which is a border plus padding (17px) narrower on each
+   side — otherwise its 24% column edge lands left of the box's and the chip
+   drifts off the text (user, 2026-10-01: "check or box alignment"). */
+const cmpJoin = (k, next, {hl=true, gone=false, inset=0}={})=>{
   const changed = !!(next && next!==k);
   const b = gone ? `<span class="cmpTbl__gone">${cmpGone(hl)}</span>` : cmpConj(changed?next:k, changed && hl);
-  return `<div class="cmpSec__join"><span></span><span>${cmpConj(k)}</span><span>${b}</span></div>`;
+  /* one box = 1px border + 16px padding on each side */
+  const style = inset ? ` style="padding:0 ${17*inset}px"` : '';
+  return `<div class="cmpSec__join"${style}><span></span><span>${cmpConj(k)}</span><span>${b}</span></div>`;
 };
 function cmpSections(sections, hl=true){
   return sections.map((sec,i)=>{
@@ -754,9 +760,13 @@ function audTree(nodes, hl, removed=false){
         const gone = !!(next && next.removed);
         const isNew = !!(n.added || (next && next.added));
         const flipped = n.joinB && n.joinB!==n.join;
-        out += flipped ? cmpJoin(n.join, n.joinB, {hl})
-             : isNew   ? cmpJoin(AUD_NONE, n.join, {hl})
-             :           cmpJoin(n.join, null, {hl, gone: gone || removed});
+        /* align with the table ABOVE, however many boxes deep it sits: the
+           previous group's trailing table may itself be inside a nested group */
+        const trailingDepth = (nd)=>{ if(!nd || !nd.group) return 0; const kids=nd.group.filter(x=>!x.join); return 1 + trailingDepth(kids[kids.length-1]); };
+        const inset = trailingDepth(prev);
+        out += flipped ? cmpJoin(n.join, n.joinB, {hl, inset})
+             : isNew   ? cmpJoin(AUD_NONE, n.join, {hl, inset})
+             :           cmpJoin(n.join, null, {hl, gone: gone || removed, inset});
       } else {
         /* in a run: a flipped join shows AND | OR, a new one — | AND */
         /* a new join: — | AND; a flipped one: AND | OR; the join INTO a removed

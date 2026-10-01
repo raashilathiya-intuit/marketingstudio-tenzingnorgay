@@ -932,7 +932,9 @@ select.fbsel--active{border-color:#7b61ff}
 .cmpSec__join + .audGrp{margin-top:16px}
 /* the group heading: the audience builder's "Attribute group" + chevron,
    expanded (chevron up) since the group's tables are open below it */
-.audGrp__h{margin:0 0 4px}
+/* spec (user, 2026-10-01): 16px, medium, #393a3d — doubled selector so it
+   beats the flow builds' `.ab-group__h` (600, text-strong) declared later */
+.ab-group__h.audGrp__h{margin:0 0 4px;font-size:16px;font-weight:500;color:#393a3d}
 .audGrp__h .ico-box{transform:rotate(180deg)}
 
 /* THE RAW-JSON GHOST TOGGLE — a dev/reference control, not a real product
@@ -1165,6 +1167,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region — a single reference screen, no AI panel -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=75"></script>
+<script src="app.js?v=77"></script>
 </body>
 </html>
