@@ -986,6 +986,10 @@ select.fbsel--active{border-color:#7b61ff}
 /* 14px to match .summaryCard__intro/__q around it — 16px came from the plan
    table's row style and read oversized (user, 2026-09-16) */
 .tmtList{margin:10px 0 0;padding:0 0 0 20px;display:flex;flex-direction:column;gap:6px}
+/* the same list without markers, for naming things that are not options */
+.tmtList--plain{list-style:none;padding-left:0}
+/* experience names have no spaces; without this they run off the card */
+.tmtList li{overflow-wrap:anywhere}
 .tmtList li{font-size:14px;line-height:1.5;color:var(--text-primary)}
 .tmtList li::marker{color:var(--text-secondary)}
 /* the treatment ASSIGNMENT list: one experience per row, its treatment stacked
@@ -1057,6 +1061,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=45"></script>
+<script src="app.js?v=55"></script>
 </body>
 </html>

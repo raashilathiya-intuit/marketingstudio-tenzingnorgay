@@ -2506,6 +2506,7 @@ const trigger = {
   ttPublish:()=>{ recordPillThen(()=>runTtPublish()); },
   // ── published-path holdout continuation ──
   tt2Send:()=>{ clearTimers(); runTt2Read(); },
+  tt2AnswerSend:()=>{ clearTimers(); runTt2Answer(); },
   tt2Approve:()=>{ recordPillThen(()=>runTt2Work()); },
   tt2Publish:()=>{ recordPillThen(()=>runTt2Publish()); },
   cl3Direct:()=>{ recordPillThen(()=>runCl3NamingDirect()); },
@@ -2988,6 +2989,8 @@ function wire(name, state){
          before deciding whether to take that Publish pill or keep going. */
       const atPubDone = state.pub!==false && state.tt==='done';
       if(atPubDone && !state.typed2) scheduleAskType('xpDetail', TT_HOLDOUT_PROMPT_PUB, 'typed2');
+      /* the answer to the holdout question types itself once the AI has asked */
+      if(state.tt==='tt2ask' && !state.typed3) scheduleAskType('xpDetail', TT2_ANSWER, 'typed3');
       const t2ipill=main.querySelector('#tt2Approve');
       if(t2ipill) t2ipill.onclick=()=>{autopilot=false;trigger.tt2Approve();};
       const t2pubpill=main.querySelector('#tt2Publish');
@@ -3000,6 +3003,7 @@ function wire(name, state){
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{e.stopPropagation();autopilot=false;
       if(scenario==='lkExp'||scenario==='lkDraft') trigger.lkSend();
+      else if(isTt && state.tt==='tt2ask') trigger.tt2AnswerSend();
       else if(isTt && state.pub!==false && state.tt==='done') trigger.tt2Send();
       else if(isTt) trigger.ttSend();
       else trigger.ulSend();};
@@ -3780,17 +3784,12 @@ const XP_AP = 'CG TURBOTAXO Content PostOnboardingExperience';
    assigns them, so it is a column here and nowhere else in the repo. */
 const hex2 = (n)=>n.toString(16).padStart(2,'0');
 /* TWO ROWS SIT ON C_Dry_SPNewOffer_Copy2 UNTOUCHED BY THE REASSIGNMENT (user,
-   2026-09-30: "there are no experiences assigned to the treatment we're
-   showing as the example for holdout. add a couple experiences to that
-   treatment so that when we set the holdout, that experience also would
-   get edited and then the treatment cell for that experience has a -").
-   Without them, setting the holdout has nothing to visibly clear: the ONLY
-   three rows on that treatment (the DRY_test set) are also the ones the
-   reassignment step itself moves OFF it, so by the time the holdout step
-   runs, the treatment is already empty. `HOLD_2` are extra, never part of
-   `TT_PICK_DEFAULT`, so they ride through the reassignment step unchanged
-   and are exactly what the LATER holdout step clears — see `ttRows`'s
-   `tHoldoutSet` handling below. */
+   2026-09-30): without them, setting that treatment as the holdout has
+   nothing to affect, since the only other rows on it (the DRY_test set) are
+   the ones the reassignment moves off. These two ride through the
+   reassignment unchanged and are exactly what the later holdout step
+   REASSIGNS to the treatment the user answers with (TT2_AFFECTED /
+   TT2_NEW_TMT) — never cleared to "–" (user, 2026-10-05). */
 const XP_ROWS = [
   ['ty25_OICMS_716920_REAL_test_DIY_reco_recipe_D','D_RealTest'],
   ['ty25_OICMS_716920_REAL_test_FS_reco_recipe_D','D_RealTest'],
@@ -3805,10 +3804,6 @@ const XP_ROWS = [
    fixed-width hex so every id stays a well-formed UUID. */
 ].map(([exp,tr],i)=>({exp, status:'Published', ap:XP_AP, tmt:tr,
   eid:`51738ef0-9505-11f1-86ec-a3e651c6bc${hex2(2+i)}`}));
-/* the two indices HOLD_2 refers to — the last two rows above, i.e. the ones
-   that stay on C_Dry_SPNewOffer_Copy2 through the reassignment step and get
-   cleared once the holdout is set */
-const TT_HOLD_2 = [6,7];
 /* Experience ID sits next to the name here: inside an EXPERIMENT the rows are
    real objects with ids (user, 2026-09-17). The clone build's creatives table
    stays name-only, because a pending creative has no id yet. */
@@ -4356,7 +4351,7 @@ const ulNames = (sel)=> sel.map(i=>XP_ROWS[i] && XP_ROWS[i].exp).filter(Boolean)
    2026-09-15). It answers the question staging raises — what happens to the
    live experiment meanwhile. */
 const ulInfoNote = (pub)=>`<div class="infoNote">${INFO_ICON}<span>${
-  pub ? `A new draft version will be created from the current published experiment. You can make changes to the draft without affecting the live experiment.`
+  pub ? `A new draft version will be created from the current published experiment. The changes will be made to the draft without affecting the live experiment.`
       : `This experiment is already a draft, so changes apply to it directly. Nothing is live until you publish it.`}</span></div>`;
 /* Step 1: the INTENT, played back before any plan (user, 2026-09-15). It states
    the scope plainly — how many of how many, and from what — rather than a
@@ -4406,7 +4401,7 @@ const UL_DONE = (n, pub, active)=> agentMsg(
    unlinked experiences gone for good. */
 const UL_PUBLISHED = (n, pub=true)=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Applying the change','Refreshing the list'])
-  + `<div class="chatBubble">${xpName(pub)} is published with ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}. The ${n===1?'experience is':`${n} experiences are`} no longer part of it.${
+  + `<div class="chatBubble">${xpName(pub)} is published with ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}. The ${n===1?'unlinked experience is':`${n} unlinked experiences are`} no longer part of it.${
       objectCard('megaphone', xpName(pub))}<div class="link-cm">View in Campaign Manager</div></div>`);
 
 /* ============================================================
@@ -4553,7 +4548,16 @@ const ttAssignBlocks = ()=> TT_PICK().map((ri,i)=>
 /* "OFFER" -> "EXPERIENCE" (user, 2026-09-29) — this build's own object is
    the experience, not an offer; "association" stays as the user's own
    phrasing, slightly tightened by naming it as "the ... treatment". */
-const ttHoldoutNote = (tmt)=> `<div class="infoNote">${INFO_ICON}<span>This will clear all current experience associations on the ${tmt} treatment.</span></div>`;
+/* honest about what sits on the holdout treatment (user, 2026-10-05): the draft
+   path's holdout (B_RealTest_Control) has nothing on it, so nothing else
+   changes — it used to claim it would "clear all current experience
+   associations", which is the error state this flow now avoids */
+const ttHoldoutNote = (tmt)=>{
+  const n = XP_ROWS.filter((r,i)=> r.tmt===tmt && !TT_PICK().includes(i)).length;
+  return `<div class="infoNote">${INFO_ICON}<span>${n
+    ? `${n} experience${n===1?' is':'s are'} on ${tmt} and can't stay there once it's the holdout.`
+    : `No experiences are on ${tmt}, so nothing else changes.`}</span></div>`;
+};
 /* `.summaryCard .ft-label{margin-bottom:0}` (index.html) deliberately
    zeroes pcFtBlk's own label gap for its OTHER callers inside a
    summaryCard — a `.ttHoldoutFt` wrapper class lets this one caller opt
@@ -4571,9 +4575,12 @@ const TT_INTENT = (n, pub, active)=> agentMsg(
       !pub ? ttHoldoutBlock(pub) : ''
     }${
       pub ? ulInfoNote(pub) : ''
-    }${pub
-      ? `<p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','ttApproveIntent'):recordedReply('Proceed')}`
-      : `<p class="summaryCard__q">Does this look right? I'll make the change once you approve.</p>${active?replyBtn('Approve','ttApprove'):recordedReply('Approve')}`
+    }${
+      /* ONE STEP, NO PLAN (user, 2026-10-05: "we can create the draft and make
+         changes to that draft in the same step"): the draft is created and
+         the treatments reassigned together, so this card is the confirmation
+         on both paths. */
+      `<p class="summaryCard__q">Does this look right? I'll ${pub?'create the draft and make the change':'make the change'} once you approve.</p>${active?replyBtn('Approve','ttApprove'):recordedReply('Approve')}`
     }</div>`);
 /* Step 2 (published only): the plan — create a draft, then reassign on it */
 const TT_PLAN = (n, active)=> agentMsg(
@@ -4633,8 +4640,11 @@ const TT_STAGED = (n, active)=> agentMsg(
    the draft path, so neither the location nor the specific holdout name
    needs restating in the sentence. */
 const TT_DONE = (n, pub, active)=> agentMsg(
-  disclosure(`Reassigned ${n} experience${n===1?'':'s'}`,['Applying the change','Reassigning the experiences','Refreshing the list'])
-  + `<div class="chatBubble">I've assigned the treatment${n===1?'':'s'} for the ${n===1?'selected experience':`${n} selected experiences`}${pub?` on ${XP_NAME} experiment's draft`:' and set the holdout treatment for this experiment'}.${
+  disclosure(pub ? `Created the draft and reassigned ${n} experience${n===1?'':'s'}` : `Reassigned ${n} experience${n===1?'':'s'}`,
+    pub ? ['Creating the draft','Reassigning the experiences','Refreshing the list'] : ['Applying the change','Reassigning the experiences','Refreshing the list'])
+  + `<div class="chatBubble">${pub
+      ? `I've created a draft of ${XP_NAME} and assigned the treatment${n===1?'':'s'} for the ${n===1?'selected experience':`${n} selected experiences`} on it.`
+      : `I've assigned the treatment${n===1?'':'s'} for the ${n===1?'selected experience':`${n} selected experiences`} and set the holdout treatment for this experiment.`}${
       objectCard('edit', pub?`${XP_NAME} (draft)`:XP_DRAFT_NAME)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div>${pub?`<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>`:''}${active?replyBtn('Publish','ttPublish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 const TT_PUBLISHED = (n, pub=true)=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Applying the change','Refreshing the view'])
@@ -4653,12 +4663,50 @@ const TT_PUBLISHED = (n, pub=true)=> agentMsg(
    value, same single-field convention `mv`'s own continuation uses. */
 const TT_HOLDOUT_PUB = 'C_Dry_SPNewOffer_Copy2';
 const TT_HOLDOUT_PROMPT_PUB = `Set ${TT_HOLDOUT_PUB} as the holdout treatment for this experiment.`;
+/* THE HOLDOUT QUESTION (user, 2026-10-05: "ask for new treatment associations
+   when setting a holdout because we should not lead users into an error
+   state. having no treatment associated to an experience leads to an
+   error"). The experiences sitting on the treatment about to become the
+   holdout would be left with NO treatment, so before anything is applied
+   the AI lists them and asks where they go; the user answers (typed, like
+   the move flow's treatment answer) and the confirmation shows name ->
+   treatment. Nothing ever reads "–" any more — a first version cleared
+   those rows to a dash, which is exactly the error state. */
+const TT2_AFFECTED = ()=> XP_ROWS.map((r,i)=>i).filter(i=> XP_ROWS[i].tmt===TT_HOLDOUT_PUB && !TT_PICK().includes(i));
+const TT2_NEW_TMT = TT_TMT_A;                      // D_RealTest, where the user sends them
+const TT2_ANSWER = `Assign them to treatment ${TT2_NEW_TMT}.`;
+/* CONTEXT BEFORE THE QUESTION (user, 2026-10-05: "what does these 2 mean to
+   the user? where is the context?"). The first line ties the question back
+   to the ask — making this treatment the holdout is WHY these experiences
+   need a new one — then the names, the question, and the options with each
+   treatment's allocation and current count ("we cant use these two. give
+   context"). The rule is implied by the first line, so no purple note. */
+const TT2_ASK = ()=>{
+  const aff = TT2_AFFECTED(), n = aff.length;
+  const tmtNow = (i)=>{ const pi=TT_PICK().indexOf(i); return pi>=0 ? TT_TMT_OF()[pi] : XP_ROWS[i].tmt; };
+  const others = XP_TREATMENT_NAMES.filter(([t])=>t!==TT_HOLDOUT_PUB).map(([t,alloc])=>{
+    const c = XP_ROWS.filter((_,i)=>tmtNow(i)===t).length;
+    return `${t} (${alloc}, ${c} experience${c===1?'':'s'})`;
+  });
+  return agentMsg(
+    disclosure('Checked the treatments',['Reading your request','Checking the experiment','Checking the treatments'])
+    + `<div class="summaryCard"><p class="summaryCard__intro">To make ${TT_HOLDOUT_PUB} the holdout, ${n===1?'the experience on it needs':`the ${n} experiences on it need`} a new treatment first:</p><ul class="tmtList tmtList--plain">${
+        aff.map(i=>`<li>${XP_ROWS[i].exp}</li>`).join('')
+      }</ul><p class="summaryCard__intro" style="margin-top:14px">${n===1?'It':'They'} can go on:</p><ol class="tmtList" style="margin-top:0">${
+        others.map(t=>`<li>${t}</li>`).join('')
+      }</ol><p class="summaryCard__q">Which treatment should ${n===1?'it':'they'} be assigned to?</p></div>`);
+};
 /* SAME WEIGHT AS THE TREATMENT-REASSIGNMENT INTENT (user, 2026-09-29) —
    a bold intro line + its own From/To block, not a single sentence. */
-const TT2_INTENT = (active)=> agentMsg(
-  disclosure('Checked the experiment',['Reading your request','Checking the experiment','Checking the treatments'])
-  + `<div class="summaryCard"><p class="summaryCard__intro">I'll set the holdout treatment for ${XP_NAME}.</p><div class="ttHoldoutFt" style="margin-top:4px">${pcFtBlk('Holdout treatment', 'None', TT_HOLDOUT_PUB)}</div>${ttHoldoutNote(TT_HOLDOUT_PUB)}<p class="summaryCard__q">Does this look right? I'll make the change once you approve.</p>${
-      active?replyBtn('Approve','tt2Approve'):recordedReply('Approve')}</div>`);
+const TT2_INTENT = (active)=>{
+  const aff = TT2_AFFECTED(), n = aff.length;
+  return agentMsg(
+    disclosure('Checked the experiment',['Reading your request','Checking the treatment','Checking the experiment'])
+    + `<div class="summaryCard"><p class="summaryCard__intro">I'll set the holdout treatment for ${XP_NAME}.</p><div class="ttHoldoutFt" style="margin-top:4px">${pcFtBlk('Holdout treatment', 'None', TT_HOLDOUT_PUB)}</div><p class="summaryCard__intro" style="margin-top:14px">And assign ${n===1?'the experience':`the ${n} experiences`} on it to ${TT2_NEW_TMT}:</p><ol class="mxAssign" style="margin-top:0">${
+        aff.map(i=>`<li><span class="mxAssign__row"><span class="mxAssign__exp">${XP_ROWS[i].exp}</span><span class="mxAssign__arrow">&rarr;</span><span class="mxAssign__tmt">${TT2_NEW_TMT}</span></span></li>`).join('')
+      }</ol><p class="summaryCard__q">Does this look right? I'll make the change once you approve.</p>${
+        active?replyBtn('Approve','tt2Approve'):recordedReply('Approve')}</div>`);
+};
 /* "It's now edited" DROPPED, "EXPERIMENT" ADDED AFTER THE NAME (user,
    2026-09-30: "I've set X as the holdout treatment for Y experiment... no
    need to say it is not edited and all") — the object card right below
@@ -4667,7 +4715,7 @@ const TT2_INTENT = (active)=> agentMsg(
    just "Y" matches how the user phrased it back. */
 const TT2_DONE = (active)=> agentMsg(
   disclosure('Set the holdout treatment',['Applying the change','Setting the holdout','Refreshing the view'])
-  + `<div class="chatBubble">I've set ${TT_HOLDOUT_PUB} as the holdout treatment for ${XP_NAME} experiment.${objectCard('edit',`${XP_NAME} (draft)`)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div><div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
+  + `<div class="chatBubble">I've set ${TT_HOLDOUT_PUB} as the holdout treatment for ${XP_NAME} experiment and assigned the ${TT2_AFFECTED().length} experiences that were on it to ${TT2_NEW_TMT}.${objectCard('edit',`${XP_NAME} (draft)`)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div><div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>${
       active?replyBtn('Publish','tt2Publish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 const TT2_PUBLISHED = ()=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Applying the change','Refreshing the view'])
@@ -4693,10 +4741,15 @@ const TT2_PUBLISHED = ()=> agentMsg(
    Published. `status`/`tmtEdited` now fall back to the row's real
    (already-updated) `tmt`/base status once `live`, matching what `tSRC`
    itself already does for every OTHER row via `asDraftT`/base `XP_ROWS`. */
-const ttRows = (base, holdoutSet=false, live=false)=> base.map((r,i)=>{
+/* `holdout`: the treatment being made the holdout. Once it lands, every row
+   still on it is ASSIGNED TO THE TREATMENT THE USER ANSWERED WITH
+   (TT2_NEW_TMT) — never cleared to "–" (user, 2026-10-05). Decided by the
+   row's own current treatment, so the draft path's holdout
+   (B_RealTest_Control, nothing on it) touches no rows. */
+const ttRows = (base, holdoutSet=false, live=false, holdout=null)=> base.map((r,i)=>{
   const pi = TT_PICK().indexOf(i);
   if(pi>=0) return live ? {...r, tmt: TT_TMT_OF()[pi]} : {...r, tmt: TT_TMT_OF()[pi], status:'Edited', tmtEdited:true};
-  if(holdoutSet && TT_HOLD_2.includes(i)) return live ? {...r, tmt:'–'} : {...r, tmt:'–', status:'Edited', tmtEdited:true};
+  if(holdoutSet && holdout && r.tmt===holdout) return live ? {...r, tmt:TT2_NEW_TMT} : {...r, tmt:TT2_NEW_TMT, status:'Edited', tmtEdited:true};
   return r;
 });
 
@@ -4823,7 +4876,7 @@ const LK_INTENT = (active, pub=true)=> agentMsg(
      added. A From/To is the MOVE flow's pattern and does not belong here. */
   + `<div class="summaryCard"><p class="summaryCard__intro">This experience will be linked to ${xpName(pub)} on treatment ${LK_TMT}.</p>${pub
       /* PUBLISHED: a draft has to be created first, so a plan is worth making. */
-      ? `<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from the current published experiment. You can make changes to the draft without affecting the live experiment.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','lkApproveIntent'):recordedReply('Proceed')}`
+      ? `<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from the current published experiment. The changes will be made to the draft without affecting the live experiment.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','lkApproveIntent'):recordedReply('Proceed')}`
       /* DRAFT: nothing to stage, so this card IS the confirmation. */
       : `<p class="summaryCard__q">Does this look right? I'll link it once you approve.</p>${active?replyBtn('Approve','lkApprove'):recordedReply('Approve')}`
     }</div>`);
@@ -5017,7 +5070,7 @@ const MV_INTENT = (active)=> agentMsg(
   disclosure('Read your request, checked both experiments',['Reading your request','Checking the experiments','Checking the linked experiences'])
   + `<div class="summaryCard"><p class="summaryCard__intro">${MV_N()} experiences will move from ${MV_FROM} to ${MV_TO}.</p>${
       pcFtBlk('Experiment:', MV_FROM, MV_TO)
-    }<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each published experiment. You can make changes to both drafts without affecting the live experiments. ${MV_FROM} has to be published before its experiences can move to ${MV_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mvApproveIntent'):recordedReply('Proceed')}</div>`);
+    }<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each published experiment. The changes will be made to both drafts without affecting the live experiments. ${MV_FROM} has to be published before its experiences can move to ${MV_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mvApproveIntent'):recordedReply('Proceed')}</div>`);
 /* Step 2: the PLAN — four tasks, alternating SETUP and REVIEW (user, 2026-09-16). The odd tasks
    only create a draft — there is nothing to review yet, so they carry a plain
    Approve. The change itself lands in the even task, where the user reviews it
@@ -5664,7 +5717,7 @@ const MX_INTENT = (active)=>{
   return agentMsg(
     disclosure(`Read your request, checked ${groups.length} experiments`,
       ['Reading your request','Checking the experiments','Checking the linked experiences'])
-    + `<div class="summaryCard"><p class="summaryCard__intro">${MX_N()} experiences will move from ${froms} to ${MX_TO}.</p><div class="ft"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v"><ol class="tmtList" style="margin-top:0">${fromList}</ol></div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">${MX_TO}</div></div></div><div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each of the ${groups.length} published experiments. You can make changes to the drafts without affecting the live experiments. Each draft has to be published before its experiences can move to ${MX_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mxApproveIntent'):recordedReply('Proceed')}</div>`);
+    + `<div class="summaryCard"><p class="summaryCard__intro">${MX_N()} experiences will move from ${froms} to ${MX_TO}.</p><div class="ft"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v"><ol class="tmtList" style="margin-top:0">${fromList}</ol></div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">${MX_TO}</div></div></div><div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each of the ${groups.length} published experiments. The changes will be made to the drafts without affecting the live experiments. Each draft has to be published before its experiences can move to ${MX_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mxApproveIntent'):recordedReply('Proceed')}</div>`);
 };
 /* Step 2: the PLAN table, same shape as MV_PLAN but N tasks long */
 const mxPlanRows = (done=0, loading=-1)=> MX_TASKS().map((w,i)=>{
@@ -6089,7 +6142,7 @@ scenes.xpDetail = (state={})=>{
        `state.mv` with `c2`-prefixed values — so every check below that
        used to test `T==='done'`/`'published'` etc. has a `tt2` sibling. */
     const inTt2 = T && T.startsWith('tt2');
-    const T2 = inTt2 ? T.slice(3) : null;   // 'reading'|'intent'|'working'|'done'|'publishing'|'published'
+    const T2 = inTt2 ? T.slice(3) : null;   // 'reading'|'ask'|'reading2'|'intent'|'working'|'done'|'publishing'|'published'
     const tdone = ['done','publishing','published'].includes(T) || inTt2;
     /* once the continuation starts the experiment goes back to NOT-live
        until IT publishes again — the main reassignment already published,
@@ -6140,7 +6193,7 @@ scenes.xpDetail = (state={})=>{
        publish. Excluding `tlive` here mirrors `tSRC`'s own
        `tlive || (tpub && !tstaged)` check just below — both already treat
        "live" as "no draft view left", `tstaged` just hadn't caught up. */
-    const tstaged = tpub && !tlive && (['staging','stagereview','working','done'].includes(T) || inTt2);
+    const tstaged = tpub && !tlive && (['working','done'].includes(T) || inTt2);
     const asDraftT = (r)=>({...r,status:'Draft'});
     const tSRC = (tlive || (tpub && !tstaged)) ? XP_ROWS : XP_ROWS.map(asDraftT);
     /* the rows themselves are never removed here — only the picked ones'
@@ -6149,18 +6202,20 @@ scenes.xpDetail = (state={})=>{
     /* the HOLDOUT itself only lands once the continuation's own change has
        gone through — `tt2working`/before still shows the untouched value.
        Computed BEFORE `trows` now, since `ttRows` needs it to decide
-       whether TT_HOLD_2's rows have cleared yet. */
+       whether the rows on the holdout treatment have moved yet. */
     const tHoldoutSet = tpub ? (inTt2 && ['done','publishing','published'].includes(T2))
                               : tchanged;
-    const trows = tchanged ? ttRows(tSRC, tHoldoutSet, tlive) : tSRC;
+    const trows = tchanged ? ttRows(tSRC, tHoldoutSet, tlive, tpub ? TT_HOLDOUT_PUB : TT_HOLDOUT) : tSRC;
 
     let tt='';
     if(T) tt += selThread(tn) + userBubble(tpub ? TT_PROMPT() : TT_PROMPT_DRAFT());
     const TINTENT = ()=> TT_INTENT(tn, tpub, false);
     if(T==='reading')        tt += agentLoader('Reading your request', state.tasks||[]);
     else if(T==='intent')    tt += TT_INTENT(tn, tpub, true);
-    const TPLAN = ()=> tpub ? `<div class="convoTurn">${TT_PLAN(tn, false)}</div>` : '';
-    const TSTAGED = ()=> `<div class="convoTurn">${TT_STAGED(tn, false)}</div>`;
+    /* no plan and no separate draft turn since 2026-10-05 (TT_PLAN /
+       TT_STAGED are unused): the draft is created in the same step */
+    const TPLAN = ()=> '';
+    const TSTAGED = ()=> '';
     if(T==='planning') tt += TINTENT()
       + `<div class="convoTurn">${agentLoader('Preparing the tasks', state.tasks||[])}</div>`;
     else if(T==='plan') tt += TINTENT()
@@ -6170,7 +6225,7 @@ scenes.xpDetail = (state={})=>{
     else if(T==='stagereview') tt += TINTENT() + TPLAN()
       + `<div class="convoTurn">${TT_STAGED(tn, true)}</div>`;
     else if(T==='working') tt += TINTENT() + TPLAN() + (tpub?TSTAGED():'')
-      + `<div class="convoTurn">${agentLoader('Reassigning the experiences', state.tasks||[])}</div>`;
+      + `<div class="convoTurn">${agentLoader(tpub ? 'Creating the draft and reassigning the experiences' : 'Reassigning the experiences', state.tasks||[])}</div>`;
     else if(T==='done') tt += TINTENT() + TPLAN() + (tpub?TSTAGED():'')
       + `<div class="convoTurn">${TT_DONE(tn, tpub, true)}</div>`;
     else if(T==='publishing') tt += TINTENT() + TPLAN() + (tpub?TSTAGED():'')
@@ -6190,19 +6245,30 @@ scenes.xpDetail = (state={})=>{
     else if(inTt2) tt += TINTENT() + TPLAN() + (tpub?TSTAGED():'')
       + `<div class="convoTurn">${TT_DONE(tn, tpub, false)}</div>`;
     if(inTt2){
+      /* the holdout ask -> the AI's QUESTION (which treatment do the affected
+         experiences move to) -> the typed answer -> the confirmation. The
+         question is `tt2ask`, the answer's loader `tt2reading2`
+         (user, 2026-10-05). */
       tt += `<div class="convoTurn">${userBubble(TT_HOLDOUT_PROMPT_PUB)}`;
       if(T2==='reading')        tt += agentLoader('Reading your request', state.tasks||[]) + `</div>`;
-      else if(T2==='intent')    tt += TT2_INTENT(true) + `</div>`;
-      else if(T2==='working')   tt += TT2_INTENT(false)
-        + `<div class="convoTurn">${agentLoader('Setting the holdout treatment', state.tasks||[])}</div>` + `</div>`;
-      else if(T2==='done')      tt += TT2_INTENT(false)
-        + `<div class="convoTurn">${TT2_DONE(true)}</div>` + `</div>`;
-      else if(T2==='publishing')tt += TT2_INTENT(false)
-        + `<div class="convoTurn">${TT2_DONE(false)}</div>`
-        + `<div class="convoTurn">${agentLoader('Publishing the experiment', state.tasks||[])}</div>` + `</div>`;
-      else if(T2==='published') tt += TT2_INTENT(false)
-        + `<div class="convoTurn">${TT2_DONE(false)}</div>`
-        + `<div class="convoTurn">${TT2_PUBLISHED()}</div>` + `</div>`;
+      else {
+        tt += TT2_ASK() + `</div>`;
+        if(T2!=='ask'){
+          tt += `<div class="convoTurn">${userBubble(TT2_ANSWER)}`;
+          if(T2==='reading2')       tt += agentLoader('Reading your request', state.tasks||[]) + `</div>`;
+          else if(T2==='intent')    tt += TT2_INTENT(true) + `</div>`;
+          else if(T2==='working')   tt += TT2_INTENT(false)
+            + `<div class="convoTurn">${agentLoader('Setting the holdout treatment', state.tasks||[])}</div>` + `</div>`;
+          else if(T2==='done')      tt += TT2_INTENT(false)
+            + `<div class="convoTurn">${TT2_DONE(true)}</div>` + `</div>`;
+          else if(T2==='publishing')tt += TT2_INTENT(false)
+            + `<div class="convoTurn">${TT2_DONE(false)}</div>`
+            + `<div class="convoTurn">${agentLoader('Publishing the experiment', state.tasks||[])}</div>` + `</div>`;
+          else if(T2==='published') tt += TT2_INTENT(false)
+            + `<div class="convoTurn">${TT2_DONE(false)}</div>`
+            + `<div class="convoTurn">${TT2_PUBLISHED()}</div>` + `</div>`;
+        }
+      }
     }
     const tintake = tpub ? XP_SEARCH_CONV() : XP_FETCH_CONV();
     const tbody = tintake + (tt ? `<div class="convoTurn">${tt}</div>` : '');
@@ -6230,15 +6296,13 @@ scenes.xpDetail = (state={})=>{
        should look "old news" — the reassignment is still the latest real
        change on screen. Now gated on T2 itself reaching working/done/
        publishing/published, not just `inTt2`.
-       TT_HOLD_2's ROWS ARE THE EXCEPTION — their OWN change (clearing to
-       "–") only happens DURING this same `tt2` step, so turning their
-       highlight off at the same moment it appears would mean it never
-       shows at all (2026-09-30, added alongside TT_HOLD_2 so the holdout
-       step has something visible to clear). Only strip `tmtEdited` from
-       rows TT_HOLD_2 doesn't cover. */
+       THE ROWS ON THE HOLDOUT TREATMENT ARE THE EXCEPTION — their OWN change
+       (moving to the treatment the user answered with) happens DURING this
+       same `tt2` step, so stripping their highlight at the moment it appears
+       would mean it never shows. Only strip `tmtEdited` from the other rows. */
     const holdoutApplied = inTt2 && ['working','done','publishing','published'].includes(T2);
     const ttableRows = (thl && !holdoutApplied) ? trows
-      : trows.map((r,i)=> TT_HOLD_2.includes(i) ? r : {...r, tmtEdited:false});
+      : trows.map((r,i)=> TT2_AFFECTED().includes(i) ? r : {...r, tmtEdited:false});
     const tableLoading = state.loading||T==='working'||T==='staging'||T==='publishing'
         ||(inTt2 && ['working','publishing'].includes(T2));
     const ttable = tableLoading
@@ -6288,14 +6352,12 @@ scenes.xpDetail = (state={})=>{
            we do not need the floating thing on top"). Dropped the
            `tpub && inTt2` branch entirely — steps 1/2 still float their
            own banner as before, the continuation just doesn't get one. */
-        ...(tpub && ['staging','stagereview'].includes(T)
-              ? {step:'1.  Create a draft of '+XP_NAME, stepLoading:T==='staging'}
-          : tpub && ['working','done'].includes(T)
-              ? {step:'2.  Reassign the experiences to their new treatments on the draft', stepLoading:T==='working'}
-          : {}),
+        /* no plan, so no sticky task tracker (2026-10-05) */
         chip: (tn&&!tdone)?tn+' experience'+(tn===1?'':'s')+' selected':'',
         draft: tpub
-          ? (T==='done' && !state.typed2 ? TT_HOLDOUT_PROMPT_PUB : (state.typed&&!T)?TT_PROMPT():'')
+          ? (T==='done' && !state.typed2 ? TT_HOLDOUT_PROMPT_PUB
+             : T==='tt2ask' && !state.typed3 ? TT2_ANSWER
+             : (state.typed&&!T)?TT_PROMPT():'')
           : (state.typed&&!T)?TT_PROMPT_DRAFT():''});
   }
   const sel = new Set(state.selected||[]);
@@ -7365,9 +7427,11 @@ function runTtPublish(){
     {...base,tt:'published'},'xpDetail');
 }
 function runTtWork(){
+  const pub=(current.state||{}).pub!==false;
   const base={...ttBase(),tt:'working'};
-  runPCStep(base,'Reassigning the experiences',
-    ['Applying the change','Reassigning the experiences','Refreshing the list'],2900,
+  runPCStep(base, pub ? 'Creating the draft and reassigning the experiences' : 'Reassigning the experiences',
+    pub ? ['Creating the draft','Reassigning the experiences','Refreshing the list']
+        : ['Applying the change','Reassigning the experiences','Refreshing the list'],2900,
     {...base,tt:'done'},'xpDetail');
 }
 /* ---- the PUBLISHED-PATH holdout continuation, after `published` ---- */
@@ -7375,6 +7439,13 @@ function runTt2Read(){
   const base={...ttBase(),tt:'tt2reading'};
   runPCStep(base,'Reading your request',
     ['Reading your request','Checking the experiment','Checking the treatments'],2600,
+    {...base,tt:'tt2ask'},'xpDetail');          // -> the question, not the confirmation
+}
+/* the typed answer to the holdout question -> the confirmation */
+function runTt2Answer(){
+  const base={...ttBase(),tt:'tt2reading2',typed3:true};
+  runPCStep(base,'Reading your request',
+    ['Reading your request','Checking the treatment','Checking the experiment'],2400,
     {...base,tt:'tt2intent'},'xpDetail');
 }
 function runTt2Work(){
@@ -7891,8 +7962,9 @@ const STEPS_TT = (pub)=>{
        rule STEPS_UL already follows for `reading`/`planning`/`staging`/
        `publishing` (never listed, only reachable mid-animation). */
     ...(pub
-      ? [S('plan'), S('stagereview'), S('done'),
-         S('tt2intent',{typed2:true}), S('tt2done',{typed2:true}), S('tt2published',{typed2:true})]
+      ? [S('done'),
+         S('tt2ask',{typed2:true}), S('tt2intent',{typed2:true,typed3:true}),
+         S('tt2done',{typed2:true,typed3:true}), S('tt2published',{typed2:true,typed3:true})]
       : [S('working'), S('done')]),
   ];
 };
@@ -8027,11 +8099,11 @@ function stepIndex(){
          together in that one state) — so it must NOT be collapsed. */
       const R = tpub
         ? {reading:'intent',planning:'plan',staging:'stagereview',working:'done',
-           tt2reading:'tt2intent',tt2working:'tt2done',tt2publishing:'tt2published'}
+           tt2reading:'tt2ask',tt2reading2:'tt2intent',tt2working:'tt2done',tt2publishing:'tt2published'}
         : {reading:'intent'};
       const r=R[st.tt]||st.tt;
       const ORDER = tpub
-        ? ['intent','plan','stagereview','done','tt2intent','tt2done','tt2published']
+        ? ['intent','done','tt2ask','tt2intent','tt2done','tt2published']
         : ['intent','working','done'];
       const i=ORDER.indexOf(r);
       return i===-1 ? tbase+1 : i+tbase+2;

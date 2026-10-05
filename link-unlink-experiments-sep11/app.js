@@ -4306,7 +4306,7 @@ const ulNames = (sel)=> sel.map(i=>XP_ROWS[i] && XP_ROWS[i].exp).filter(Boolean)
    2026-09-15). It answers the question staging raises — what happens to the
    live experiment meanwhile. */
 const ulInfoNote = (pub)=>`<div class="infoNote">${INFO_ICON}<span>${
-  pub ? `A new draft version will be created from the current published experiment. You can make changes to the draft without affecting the live experiment.`
+  pub ? `A new draft version will be created from the current published experiment. The changes will be made to the draft without affecting the live experiment.`
       : `This experiment is already a draft, so changes apply to it directly. Nothing is live until you publish it.`}</span></div>`;
 /* Step 1: the INTENT, played back before any plan (user, 2026-09-15). It states
    the scope plainly — how many of how many, and from what — rather than a
@@ -4319,12 +4319,12 @@ const UL_INTENT = (n, pub, active)=> agentMsg(
      status chip already shows. */
   + `<div class="summaryCard"><p class="summaryCard__intro">${n} experience${n===1?'':'s'} will be unlinked from ${xpName(pub)}.</p>${
       pub ? ulInfoNote(pub) : ''
-    }${pub
-      /* PUBLISHED: a draft has to be created first, so a plan is worth making. */
-      ? `<p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','ulApproveIntent'):recordedReply('Proceed')}`
-      /* DRAFT: nothing to stage, so there is no plan — this card IS the
-         confirmation and approving it does the unlink (user, 2026-09-15). */
-      : `<p class="summaryCard__q">Does this look right? I'll unlink ${n===1?'it':'them'} once you approve.</p>${active?replyBtn('Approve','ulApprove'):recordedReply('Approve')}`
+    }${
+      /* ONE STEP, NO PLAN (user, 2026-10-05: "we can create the draft and make
+         changes to that draft in the same step"). Creating the draft and
+         unlinking from it is one task, and a one-task plan is no plan, so this
+         card IS the confirmation on both paths; only the verb differs. */
+      `<p class="summaryCard__q">Does this look right? I'll ${pub?'create the draft and unlink':'unlink'} ${n===1?'it':'them'} once you approve.</p>${active?replyBtn('Approve','ulApprove'):recordedReply('Approve')}`
     }</div>`);
 /* Step 2: the PLAN. Only the published path has one — staging is a real second
    task; on a draft the unlink is the whole job. */
@@ -4346,17 +4346,20 @@ const UL_STAGED = (n, active)=> agentMsg(
 /* done: the draft with those experiences gone. Everything stays in Draft —
    publishing is Campaign Manager's job, so the message points there. */
 const UL_DONE = (n, pub, active)=> agentMsg(
-  disclosure(`Unlinked ${n} experience${n===1?'':'s'}`,['Applying the change','Unlinking the experiences','Refreshing the list'])
-  /* on the PUBLISHED path the change lives on a draft copy, so the message and
-     the object card name that draft; on the DRAFT path the experiment itself is
-     the draft, so neither should say "the draft" as if it were separate. */
-  + `<div class="chatBubble">I've unlinked ${n===1?'the experience':`the ${n} experiences`} from ${xpName(pub)}. ${pub?'The draft':'It'} now has ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}.${
+  disclosure(pub ? `Created the draft and unlinked ${n} experience${n===1?'':'s'}` : `Unlinked ${n} experience${n===1?'':'s'}`,
+    pub ? ['Creating the draft','Unlinking the experiences','Refreshing the list'] : ['Applying the change','Unlinking the experiences','Refreshing the list'])
+  /* on the PUBLISHED path the draft is created in the same step as the
+     unlink (user, 2026-10-05), so the message reports both; on the DRAFT path
+     the experiment itself is the draft. */
+  + `<div class="chatBubble">${pub
+      ? `I've created a draft of ${XP_NAME} and unlinked ${n===1?'1':n} of its ${XP_ROWS.length} linked experiences.`
+      : `I've unlinked ${n===1?'1':n} of the ${XP_ROWS.length} linked experiences from ${xpName(pub)}.`} ${pub?'The draft':'It'} now has ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}.${
       objectCard('edit', pub?`${XP_NAME} (draft)`:XP_DRAFT_NAME)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div>${pub?`<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>`:''}${active?replyBtn('Publish','ulPublish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 /* published: the draft is live, so the experiment is back to Published with the
    unlinked experiences gone for good. */
 const UL_PUBLISHED = (n, pub=true)=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Applying the change','Refreshing the list'])
-  + `<div class="chatBubble">${xpName(pub)} is published with ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}. The ${n===1?'experience is':`${n} experiences are`} no longer part of it.${
+  + `<div class="chatBubble">${xpName(pub)} is published with ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}. The ${n===1?'unlinked experience is':`${n} unlinked experiences are`} no longer part of it.${
       objectCard('megaphone', xpName(pub))}<div class="link-cm">View in Campaign Manager</div></div>`);
 
 /* ============================================================
@@ -4563,7 +4566,10 @@ const LK_INTENT = (active, pub=true)=> agentMsg(
      added. A From/To is the MOVE flow's pattern and does not belong here. */
   + `<div class="summaryCard"><p class="summaryCard__intro">This experience will be linked to ${xpName(pub)} on treatment ${LK_TMT}.</p>${pub
       /* PUBLISHED: a draft has to be created first, so a plan is worth making. */
-      ? `<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from the current published experiment. You can make changes to the draft without affecting the live experiment.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','lkApproveIntent'):recordedReply('Proceed')}`
+      /* ONE STEP, NO PLAN (user, 2026-10-05): the draft is created and the
+         experience linked into it in the same step, so this card is the
+         confirmation on both paths. */
+      ? `<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from the current published experiment. The changes will be made to the draft without affecting the live experiment.</span></div><p class="summaryCard__q">Does this look right? I'll create the draft and link it once you approve.</p>${active?replyBtn('Approve','lkApprove'):recordedReply('Approve')}`
       /* DRAFT: nothing to stage, so this card IS the confirmation. */
       : `<p class="summaryCard__q">Does this look right? I'll link it once you approve.</p>${active?replyBtn('Approve','lkApprove'):recordedReply('Approve')}`
     }</div>`);
@@ -4610,8 +4616,11 @@ const LK_TASK = (i, active)=>{
 };
 /* Step 3: linked — the experiment's draft now carries the new experience. */
 const LK_DONE = (active, pub=true)=> agentMsg(
-  disclosure('Linked the experience',['Creating the draft','Linking the experience','Refreshing the list'])
-  + `<div class="chatBubble">I've linked the experience to ${xpName(pub)} on treatment ${LK_TMT}. ${pub?'The draft':'It'} now has ${XP_ROWS.length+1} linked experiences.${objectCard('edit', pub?`${XP_NAME} (draft)`:XP_DRAFT_NAME)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div>${active?replyBtn('Publish','lkPublish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
+  disclosure(pub ? 'Created the draft and linked the experience' : 'Linked the experience',
+    pub ? ['Creating the draft','Linking the experience','Refreshing the list'] : ['Reading the experiment','Linking the experience','Refreshing the list'])
+  + `<div class="chatBubble">${pub
+      ? `I've created a draft of ${XP_NAME} and linked the experience to it on treatment ${LK_TMT}.`
+      : `I've linked the experience to ${xpName(pub)} on treatment ${LK_TMT}.`} ${pub?'The draft':'It'} now has ${XP_ROWS.length+1} linked experiences, from ${XP_ROWS.length}.${objectCard('edit', pub?`${XP_NAME} (draft)`:XP_DRAFT_NAME)}<div class="bubble-q">I can publish the experiment for you, or you can do it from Campaign Manager.</div>${pub?`<div class="infoNote">${INFO_ICON}<span>Publishing this draft will replace the version that's live now.</span></div>`:''}${active?replyBtn('Publish','lkPublish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
 /* Step 3: published — the diagram's "ready to go live? YES". */
 const LK_PUBLISHED = (pub=true)=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Linking the experience','Refreshing the list'])
@@ -4795,17 +4804,19 @@ const MV_INTENT = (active)=> agentMsg(
   disclosure('Read your request, checked both experiments',['Reading your request','Checking the experiments','Checking the linked experiences'])
   + `<div class="summaryCard"><p class="summaryCard__intro">${MV_N()} experiences will move from ${MV_FROM} to ${MV_TO}.</p>${
       pcFtBlk('Experiment:', MV_FROM, MV_TO)
-    }<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each published experiment. You can make changes to both drafts without affecting the live experiments. ${MV_FROM} has to be published before its experiences can move to ${MV_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mvApproveIntent'):recordedReply('Proceed')}</div>`);
+    }<div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each published experiment. The changes will be made to both drafts without affecting the live experiments. ${MV_FROM} has to be published before its experiences can move to ${MV_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mvApproveIntent'):recordedReply('Proceed')}</div>`);
 /* Step 2: the PLAN — four tasks, alternating SETUP and REVIEW (user, 2026-09-16). The odd tasks
    only create a draft — there is nothing to review yet, so they carry a plain
    Approve. The change itself lands in the even task, where the user reviews it
    ONCE. Bundling draft+unlink into task 1 made the user approve the same state
    twice, in task 1 and again in task 2. */
+/* TWO TASKS, NOT FOUR (user, 2026-10-05: "we can create the draft and make
+   changes to that draft in the same step, so our plan widget cuts out some
+   steps"). Each task creates the draft AND applies its change; the review
+   and the publish decision rest on the result. */
 const MV_TASKS = [
-  `Create a draft of ${MV_FROM}`,
-  `Review and publish the draft of ${MV_FROM}`,
-  `Create a draft of ${MV_TO}`,
-  `Review the updated draft of ${MV_TO}`,
+  `Create a draft of ${MV_FROM} with the experiences unlinked, and publish`,
+  `Create a draft of ${MV_TO} with the experiences linked`,
 ];
 const mvPlanRows = (done=0, loading=-1)=> MV_TASKS.map((w,i)=>{
   const marker = i<done
@@ -4821,25 +4832,23 @@ const MV_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
    per-task reviews (user, 2026-09-15: "how can we do 5 tasks when you show me
    nothing on the canvas for each?"). `t{i}` is the resting state for task i. */
 const MV_TASK_MSG = [
-  ()=>`I've created a draft of ${MV_FROM}. Its ${XP_ROWS.length} linked experiences carried over as drafts.${objectCard('edit',`${MV_FROM} (draft)`)}`,
-  ()=>`I've unlinked the ${MV_N()} experiences from the draft. It now has ${XP_ROWS.length-MV_N()} linked experiences, and the rest are unchanged.${objectCard('edit',`${MV_FROM} (draft)`)}<div class="bubble-q">${MV_FROM} has to be published before the experiences can go on another experiment, so publish it to carry on.</div>`,
-  ()=>`I've created a draft of ${MV_TO}. Its ${MV_TO_ROWS.length} linked experiences carried over as drafts.${objectCard('edit',`${MV_TO} (draft)`)}`,
+  ()=>`I've created a draft of ${MV_FROM} and unlinked ${MV_N()} of its ${XP_ROWS.length} linked experiences. The draft now has ${XP_ROWS.length-MV_N()} linked experiences, and the rest are unchanged.${objectCard('edit',`${MV_FROM} (draft)`)}<div class="bubble-q">${MV_FROM} has to be published before the experiences can go on another experiment, so publish it to carry on.</div>`,
   /* SUMMARISE, DON'T RE-LIST (user, 2026-09-30: the per-name, per-treatment
      run-on "seems like gibberish"). The plan card above already shows name →
      treatment and the table's Treatment column shows the result, so this
      only reports what happened. The user wrote this line; same shape as the
      treatment flow's own done message. */
-  ()=>`${MV_N()===1
-      ? "I've linked the experience to the draft and assigned its treatment."
-      : `I've linked the ${MV_N()} experiences to the draft and assigned their respective treatments.`
-    } It now has ${MV_TO_ROWS.length+MV_N()} linked experiences.${objectCard('edit',`${MV_TO} (draft)`)}`,
+  ()=>`I've created a draft of ${MV_TO} and ${MV_N()===1
+      ? 'linked the experience to it with its treatment.'
+      : `linked the ${MV_N()} experiences to it with their respective treatments.`
+    } The draft now has ${MV_TO_ROWS.length+MV_N()} linked experiences, from ${MV_TO_ROWS.length}.${objectCard('edit',`${MV_TO} (draft)`)}`,
 ];
 /* Task 2 REVIEWS AND PUBLISHES X, so it ends in a Publish pill with the
    Campaign Manager alternative and the purple warning above it — the same
    shape as ulPub and lkExp (user, 2026-09-16). It is mid-sequence, so the
    pill also has to carry the flow on to task 3. */
-const MV_PUBLISH_TASK = 1;
-const MV_LAST_TASK = 3;
+const MV_PUBLISH_TASK = 0;
+const MV_LAST_TASK = 1;
 /* X published: the state change the user just caused, resting with an
    Approve that carries on to task 3. */
 const MV_PUBLISHED = (active)=> agentMsg(
@@ -4896,9 +4905,8 @@ const MV_TASK = (i, active)=>{
   /* task 2 publishes X; task 4 offers to publish Y (user, 2026-09-16). The user
      may take it, or ignore it and carry on with another ask. */
   const publishing = i===MV_PUBLISH_TASK || i===MV_LAST_TASK;
-  /* the setup tasks (0 and 2) have nothing to review — they say what comes
-     next rather than asking the user to vet an unchanged draft */
-  const setup = i===0 || i===2;
+  /* no setup-only tasks since 2026-10-05: every task applies its change */
+  const setup = false;
   const q = publishing
     ? (CM_PUB() ? (last ? CM_OPTIONAL_Q : CM_PUBLISH_Q) : 'I can publish the experiment for you, or you can do it from Campaign Manager.')
     : setup
@@ -4911,7 +4919,7 @@ const MV_TASK = (i, active)=>{
         : MS_PUBLISH_FOOT(pubId, active))
     : (active?replyBtn('Approve','mvApproveTask'):recordedReply('Approve'));
   return agentMsg(
-    disclosure(MV_TASKS[i],['Reading the experiments','Applying the change','Refreshing the view'])
+    disclosure(MV_TASKS[i],['Creating the draft','Applying the change','Refreshing the view'])
     + `<div class="chatBubble">${MV_TASK_MSG[i]()}${q?`<div class="bubble-q">${q}</div>`:''}${foot}</div>`);
 };
 /* ---- the CONTINUATION's turns ----
@@ -5127,14 +5135,18 @@ scenes.mvExp = (state={})=>{
        unchanged. Blanking the table implied work on the list that was not
        happening (user, 2026-09-16). The tracker still shows the loader. */
     const readingT = c==='tmworking' || c==='tmreading';
-    const tbl = tableHTML(XP_COLS, MV_TO_ROWS.map(r=>({...r,status:'Draft'})),
+    /* Y has NO draft yet (2026-10-05): the draft is created in the last task,
+       after the treatment is chosen, so this stands on the LIVE experiment */
+    const tbl = tableHTML(XP_COLS, MV_TO_ROWS.map(r=>({...r,status:'Published'})),
           {checkbox:true, select:true, selected:new Set(), drillrow:true})
         + xpPager(MV_TO_ROWS.length);
     return `<div class="content">${topbar(MV_CRUMB())}<div class="scroll"><div class="pad">
-        ${mvHead(MV_TO, MV_TO_ID, false, !!state.verOpen)}
-        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + tbl)}
+        ${mvHead(MV_TO, MV_TO_ID, true, !!state.verOpen)}
+        ${xpBody(state, xpMeta(true, true, mvToMeta()), xpToolbar() + tbl)}
       </div></div></div>` + aiPanel({body,
         step:`${MV_TASKS.length}.  ${MV_TASKS[MV_TASKS.length-1]}`, stepLoading:readingT,
+        /* the task has NOT run yet, it is waiting on the treatment answer: dashed number, never a check (user, 2026-10-05) */
+        stepNum:MV_TASKS.length,
         draft:c==='tmtask' && state.typedTmt ? MV_TMT_PROMPT_FN() : ''});
   }
   /* the publish beat still stands on task 2's experiment (X) */
@@ -5155,12 +5167,12 @@ scenes.mvExp = (state={})=>{
   const drillBusy = c==='pubTo' || (c||'').startsWith('pw') || (c||'').startsWith('w')
     || ['c2reading','c2working','c2publishing'].includes(c||'');
   if(state.expDrill!==undefined && state.expDrill!==false && !drillBusy){
-    const onTo = ti>=2 || (c||'').startsWith('c2') || c==='pubTo' || c==='donePub';
+    const onTo = ti>=1 || (c||'').startsWith('c2') || c==='pubTo' || c==='donePub';
     /* the list the click came from, rebuilt so the clicked row can be found */
     /* Must mirror EXACTLY what the list rendered, or the index points at the
        wrong experience. X loses the moved experience from task 1's review
        onward (and stays without it once published), Y gains it from task 3. */
-    const xLost = ti>=1 || (c||'').startsWith('p');
+    const xLost = ti>=0 || (c||'').startsWith('p');
     const srcRows = onTo
       ? [...MV_TO_ROWS, ...MV_ROWS(), ...((c||'').startsWith('c2') && ['done','publishing','published'].includes((c||'').slice(2)) ? [MV2_ROW] : [])]
       : (xLost ? MV_KEPT() : XP_ROWS);
@@ -5208,14 +5220,13 @@ scenes.mvExp = (state={})=>{
         ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + table2)}
       </div></div></div>` + aiPanel({body, draft:c2==='typed'?MV2_PROMPT:''});
   }
-  const onExperiment = ti>=0 && ti<=3;
+  const onExperiment = ti>=0 && ti<=MV_LAST_TASK;
   if(onExperiment){
-    const showTo = ti>=2;                            // tasks 3 and 4 act on Y
+    const showTo = ti>=1;                            // task 2 acts on Y
     const name = showTo ? MV_TO : MV_FROM;
-    /* The SETUP task shows the draft UNCHANGED — the experience is still on X
-       at task 1, and not yet on Y at task 3. The change appears in the review
-       task that follows it (user, 2026-09-16). */
-    const changed = ti===1 || ti===3 || xPublished;
+    /* every task applies its change (2026-10-05), so the resting canvas
+       always shows the changed list */
+    const changed = true;
     const rows = showTo
       ? (changed ? [...MV_TO_ROWS, ...MV_ROWS()] : MV_TO_ROWS)
       : (changed ? MV_KEPT() : XP_ROWS);
@@ -5224,7 +5235,7 @@ scenes.mvExp = (state={})=>{
        WHOLE page, not just the table (user, 2026-09-16): the header, the meta
        card and the list are all about to be replaced. Every other task stays on
        the experiment it is already showing, so only its table reloads. */
-    const wholePage = busy && ti===2;
+    const wholePage = busy && ti===1;
     const table = busy ? skeletonTable(XP_COLS,true)
       : tableHTML(XP_COLS, rows.map(r=>({...r,status:rowStatus})), {checkbox:true, select:true, selected:new Set(), drillrow:true})
         + xpPager(rows.length);
@@ -5404,20 +5415,21 @@ const MX_TASKS = ()=>{
      noun). The EXPERIENCES were unlinked, FROM the draft, not the draft
      itself, so that has to be its own clause naming the real object of the
      unlink rather than an adjective borrowed onto "draft". */
+  /* ONE TASK PER EXPERIMENT (user, 2026-10-05): the draft is created and the
+     change applied in the same step, so the plan has N source tasks and one
+     destination task instead of two of each. */
   MX_PICK_BY_SOURCE().forEach(g=>{
-    t.push(`Create a draft of ${g.source.name}`);
-    t.push(`Review the draft of ${g.source.name} with experiences unlinked, and publish`);
+    t.push(`Create a draft of ${g.source.name} with experiences unlinked, and publish`);
   });
-  t.push(`Create a draft of ${MX_TO}`);
   /* the destination task never publishes on its own — that choice comes
-     after, so it stays a plain review with no "and publish" */
-  t.push(`Review the draft of ${MX_TO} with experiences linked`);
+     after, so it carries no "and publish" */
+  t.push(`Create a draft of ${MX_TO} with experiences linked`);
   return t;
 };
-/* the index, within MX_TASKS(), of each source's publish task (the even
-   tasks: 1, 3, 5, ...) and of the two destination tasks (the last two) */
-const MX_PUBLISH_TASKS = ()=> MX_PICK_BY_SOURCE().map((_,i)=>i*2+1);
-const MX_DEST_DRAFT_TASK = ()=> MX_TASKS().length-2;
+/* every source task (0 .. N-1) ends in a publish beat; the last task is the
+   destination's. MX_DEST_DRAFT_TASK is gone with the merge: the destination
+   has one task, MX_LAST_TASK(). */
+const MX_PUBLISH_TASKS = ()=> MX_PICK_BY_SOURCE().map((_,i)=>i);
 const MX_LAST_TASK = ()=> MX_TASKS().length-1;
 /* the intake's finished transcript: a generic search, so the message and
    object card are about the PROJECT, not any one experiment */
@@ -5442,7 +5454,7 @@ const MX_INTENT = (active)=>{
   return agentMsg(
     disclosure(`Read your request, checked ${groups.length} experiments`,
       ['Reading your request','Checking the experiments','Checking the linked experiences'])
-    + `<div class="summaryCard"><p class="summaryCard__intro">${MX_N()} experiences will move from ${froms} to ${MX_TO}.</p><div class="ft"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v"><ol class="tmtList" style="margin-top:0">${fromList}</ol></div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">${MX_TO}</div></div></div><div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each of the ${groups.length} published experiments. You can make changes to the drafts without affecting the live experiments. Each draft has to be published before its experiences can move to ${MX_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mxApproveIntent'):recordedReply('Proceed')}</div>`);
+    + `<div class="summaryCard"><p class="summaryCard__intro">${MX_N()} experiences will move from ${groups.length} experiments to ${MX_TO}.</p><div class="ft"><div class="ft__row"><div class="ft__k">From</div><div class="ft__v"><ol class="tmtList" style="margin-top:0">${fromList}</ol></div></div><div class="ft__row"><div class="ft__k">To</div><div class="ft__v">${MX_TO}</div></div></div><div class="infoNote">${INFO_ICON}<span>A new draft version will be created from each of the ${groups.length} published experiments. The changes will be made to the drafts without affecting the live experiments. Each draft has to be published before its experiences can move to ${MX_TO}.</span></div><p class="summaryCard__q">If this looks okay, I'll proceed to create a plan for you.</p>${active?replyBtn('Proceed','mxApproveIntent'):recordedReply('Proceed')}</div>`);
 };
 /* Step 2: the PLAN table, same shape as MV_PLAN but N tasks long */
 const mxPlanRows = (done=0, loading=-1)=> MX_TASKS().map((w,i)=>{
@@ -5460,9 +5472,9 @@ const MX_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
    mirror MV_TASK_MSG[2]/[3]. */
 const MX_TASK_MSG = (i)=>{
   const groups = MX_PICK_BY_SOURCE();
-  const srcTaskCount = groups.length*2;
+  const srcTaskCount = groups.length;
   if(i < srcTaskCount){
-    const gi = Math.floor(i/2), setup = i%2===0;
+    const gi = i, setup = false;
     const g = groups[gi];
     /* ONE .bubble-q, NOT TWO STACKED ONES (user, 2026-09-28: "what is this
        awkward spacing?"). This used to embed its own "has to be published
@@ -5474,19 +5486,14 @@ const MX_TASK_MSG = (i)=>{
        hardcoded plural "linked experiences" bug as MX_PUBLISHED, whichever
        count lands on exactly 1). */
     const remaining = g.source.rows.length-g.rows.length;
-    return setup
-      ? `I've created a draft of ${g.source.name}. Its ${g.source.rows.length} linked experience${g.source.rows.length===1?'':'s'} carried over as draft${g.source.rows.length===1?'':'s'}.${objectCard('edit',`${g.source.name} (draft)`)}`
-      : `I've unlinked the ${g.rows.length} experience${g.rows.length===1?'':'s'} from the draft. It now has ${remaining} linked experience${remaining===1?'':'s'}, and the rest are unchanged.${objectCard('edit',`${g.source.name} (draft)`)}`;
+    return `I've created a draft of ${g.source.name} and unlinked ${g.rows.length} of its ${g.source.rows.length} linked experiences. The draft now has ${remaining} linked experience${remaining===1?'':'s'}, and the rest are unchanged.${objectCard('edit',`${g.source.name} (draft)`)}`;
   }
-  const destSetup = i===srcTaskCount;
   const destTotal = MV_TO_ROWS.length+MX_N();
-  return destSetup
-    ? `I've created a draft of ${MX_TO}. Its ${MV_TO_ROWS.length} linked experience${MV_TO_ROWS.length===1?'':'s'} carried over as draft${MV_TO_ROWS.length===1?'':'s'}.${objectCard('edit',`${MX_TO} (draft)`)}`
-    /* same summary shape as MV_TASK_MSG's link message (user, 2026-09-30) */
-    : `${MX_N()===1
-        ? "I've linked the experience to the draft and assigned its treatment."
-        : `I've linked the ${MX_N()} experiences to the draft and assigned their respective treatments.`
-      } It now has ${destTotal} linked experience${destTotal===1?'':'s'}.${objectCard('edit',`${MX_TO} (draft)`)}`;
+  /* same summary shape as MV_TASK_MSG's link message (user, 2026-09-30) */
+  return `I've created a draft of ${MX_TO} and ${MX_N()===1
+      ? 'linked the experience to it with its treatment.'
+      : `linked the ${MX_N()} experiences to it with their respective treatments.`
+    } The draft now has ${destTotal} linked experience${destTotal===1?'':'s'}, from ${MV_TO_ROWS.length}.${objectCard('edit',`${MX_TO} (draft)`)}`;
 };
 /* the publish beat after a source's review task. `isLast` = every source is
    now clear, worth a small extra line saying so (per the plan's note). */
@@ -5546,7 +5553,7 @@ const MX_TASK = (i, active)=>{
   /* the DRAFT-CREATION tasks (source: even index, destination: MX_DEST_DRAFT_TASK)
      have nothing to review yet — they say what the NEXT task will do, mirroring
      MV_TASK's `setup` branch */
-  const setup = !publishing && (i%2===0 || i===MX_DEST_DRAFT_TASK());
+  const setup = false;   // every task applies its change (2026-10-05)
   const gi = publishTasks.indexOf(i);
   /* PUBLISHING TASKS ALREADY PERFORMED THEIR CHANGE (user, 2026-09-28: "why are
      we talking about unlinking ... where unlink has already happened" — this
@@ -5557,7 +5564,7 @@ const MX_TASK = (i, active)=>{
   const q = publishing
     ? (CM_PUB() ? (last ? CM_OPTIONAL_Q : CM_PUBLISH_Q) : 'I can publish the experiment for you, or you can do it from Campaign Manager.')
     : setup
-      ? `The draft is ready. I'll ${i===MX_DEST_DRAFT_TASK()?`link the ${MX_N()} experiences to it`:`unlink the ${groups[Math.floor(i/2)].rows.length} experience${groups[Math.floor(i/2)].rows.length===1?'':'s'} from it`} once you approve.`
+      ? ''   // unreachable: no setup-only tasks remain
       : `Does this look ok?${last?'':" I'll move on to the next task once you approve."}`;
   const isLastTask = i===MX_LAST_TASK();
   const pubId = isLastTask?'mxPublishTo':'mxPublishTask';
@@ -5568,7 +5575,7 @@ const MX_TASK = (i, active)=>{
         : MS_PUBLISH_FOOT(pubId, active))
     : (active?replyBtn('Approve','mxApproveTask'):recordedReply('Approve'));
   return agentMsg(
-    disclosure(tasks[i],['Reading the experiments','Applying the change','Refreshing the view'])
+    disclosure(tasks[i],['Creating the draft','Applying the change','Refreshing the view'])
     + `<div class="chatBubble">${MX_TASK_MSG(i)}${q?`<div class="bubble-q">${q}</div>`:''}${foot}</div>`);
 };
 /* the move flow's experiment headers, same shape as mvHead */
@@ -5677,18 +5684,21 @@ scenes.mvMulti = (state={})=>{
   const tm = /^([wt])(\d+)$/.exec(c||'');
   const pcm = /^(pw|p)(\d+)$/.exec(c||'');
   const groups = MX_PICK_BY_SOURCE();
-  const srcTaskCount = groups.length*2;
+  const srcTaskCount = groups.length;
 
   if(c==='tmtask' || c==='tmtyped' || c==='tmworking' || c==='tmreading'){
     const readingT = c==='tmworking' || c==='tmreading';
-    const tbl = tableHTML(XP_COLS, MV_TO_ROWS.map(r=>({...r,status:'Draft'})),
+    /* the destination has no draft yet (2026-10-05): it is created in the
+       last task, after the treatment is chosen, so this is the LIVE list */
+    const tbl = tableHTML(XP_COLS, MV_TO_ROWS.map(r=>({...r,status:'Published'})),
           {checkbox:true, select:true, selected:new Set(), drillrow:true})
         + xpPager(MV_TO_ROWS.length);
     return `<div class="content">${topbar(MX_CRUMB())}<div class="scroll"><div class="pad">
-        ${mxHead(MX_TO, MX_TO_ID, false, !!state.verOpen)}
-        ${xpBody(state, xpMeta(true, false, mvToMeta()), xpToolbar() + tbl)}
+        ${mxHead(MX_TO, MX_TO_ID, true, !!state.verOpen)}
+        ${xpBody(state, xpMeta(true, true, mvToMeta()), xpToolbar() + tbl)}
       </div></div></div>` + aiPanel({body,
         step:`${TASKS.length}.  ${TASKS[TASKS.length-1]}`, stepLoading:readingT,
+        stepNum:TASKS.length,
         draft:c==='tmtask' && state.typedTmt ? MX_TMT_PROMPT_FN() : ''});
   }
   const ti = tm ? +tm[2] : pcm ? +pcm[2] : -1;
@@ -5698,10 +5708,10 @@ scenes.mvMulti = (state={})=>{
   const onDest = ti>=srcTaskCount && ti<TASKS.length;
 
   if(onSource){
-    const gi = Math.floor(ti/2);
+    const gi = ti;
     const g = groups[gi];
-    const isNewSource = ti%2===0 && ti>0;  // the FIRST task of a new source
-    const changed = ti%2===1 || xPublished;   // the review task, or once published
+    const isNewSource = ti>0;               // every source task opens a new experiment
+    const changed = true;                   // the task applies its change (2026-10-05)
     const rows = changed ? MX_KEPT(g.source) : g.source.rows;
     const rowStatus = xPublished ? 'Published' : 'Draft';
     const wholePage = busy && isNewSource;
@@ -5724,9 +5734,8 @@ scenes.mvMulti = (state={})=>{
       </div></div></div>` + aiPanel({body});
   }
   if(onDest){
-    const showChanged = ti===MX_LAST_TASK() || xPublished;
-    const rows = showChanged ? [...MV_TO_ROWS, ...MX_ROWS()] : MV_TO_ROWS;
-    const wholePage = busy && ti===MX_DEST_DRAFT_TASK();
+    const rows = [...MV_TO_ROWS, ...MX_ROWS()];
+    const wholePage = busy && ti===MX_LAST_TASK();
     const table = busy ? skeletonTable(XP_COLS,true)
       : tableHTML(XP_COLS, rows.map(r=>({...r,status:'Draft'})), {checkbox:true, select:true, selected:new Set(), drillrow:true})
         + xpPager(rows.length);
@@ -5793,8 +5802,10 @@ scenes.xpDetail = (state={})=>{
     const lmT = /^([wt])(\d+)$/.exec(L||'');
     const lti = lmT ? +lmT[2] : -1;
     const lbusy = lmT && lmT[1]==='w';
-    const drafted = lti>=0 || ['done','publishing','published'].includes(L);
-    const linked = lti>=1 || ['done','publishing','published'].includes(L);
+    /* the draft is created and the experience linked in ONE step
+       (2026-10-05), so both become true at `done` together */
+    const drafted = ['done','publishing','published'].includes(L);
+    const linked = drafted;
     const livePub = L==='published';
     let lt = userBubble(LK_PROMPT);
     const lprior=(upto)=>{ let o=''; for(let i=0;i<upto;i++) o += `<div class="convoTurn">${LK_TASK(i,false)}</div>`; return o; };
@@ -5816,12 +5827,11 @@ scenes.xpDetail = (state={})=>{
       /* the published path's tail replays the plan + every task (the last one
          carries the publish offer); the draft path has no plan, so it uses
          LK_DONE as its single closing message. */
-      const tail = lpub
-        ? `<div class="convoTurn">${LK_PLAN(LK_TASKS.length,-1)}</div>`
-          + lprior(LK_TASKS.length-1)
-          + `<div class="convoTurn">${LK_TASK(LK_TASKS.length-1, L==='done')}</div>`
-        : `<div class="convoTurn">${LK_DONE(L==='done', lpub)}</div>`;
-      if(L==='done')            lt += LK_INTENT(false, lpub) + tail;
+      /* no plan on either path since 2026-10-05: LK_DONE closes both */
+      const tail = `<div class="convoTurn">${LK_DONE(L==='done', lpub)}</div>`;
+      if(L==='linking')         lt += LK_INTENT(false, lpub)
+        + `<div class="convoTurn">${agentLoader(lpub ? 'Creating the draft and linking the experience' : 'Linking the experience', state.tasks||[])}</div>`;
+      else if(L==='done')       lt += LK_INTENT(false, lpub) + tail;
       else if(L==='publishing') lt += LK_INTENT(false, lpub) + tail
         + `<div class="convoTurn">${agentLoader('Publishing the experiment', state.tasks||[])}</div>`;
       else if(L==='published')  lt += LK_INTENT(false, lpub) + tail
@@ -5834,7 +5844,7 @@ scenes.xpDetail = (state={})=>{
        until the experiment is published again */
     const lrows = (linked ? [...XP_ROWS, LK_ROW] : XP_ROWS)
       .map(r=>({...r, status: ((!lpub || drafted) && !livePub) ? 'Draft' : 'Published'}));
-    const ltable = (lbusy||L==='publishing')
+    const ltable = (lbusy||L==='linking'||L==='publishing')
       ? skeletonTable(XP_COLS,true)
       : tableHTML(XP_COLS, lrows, {checkbox:true, select:true, selected:new Set(), drillrow:true})
         + xpPager(lrows.length);
@@ -5941,7 +5951,7 @@ scenes.xpDetail = (state={})=>{
      `staged` covers the draft states only — once published we are back on the
      live experiment. */
   const live = state.ul==='publishing' || state.ul==='published';
-  const staged = pub && ['staging','stagereview','working','done'].includes(state.ul);
+  const staged = pub && ['working','done'].includes(state.ul);
   const asDraft = (r)=>({...r,status:'Draft'});
   /* once published the rows are live again, whichever path got here; before
      that they are drafts on the draft path and inside a draft copy. */
@@ -5959,8 +5969,10 @@ scenes.xpDetail = (state={})=>{
   if(state.ul==='reading')       t += agentLoader('Reading your request', state.tasks||[]);
   else if(state.ul==='intent')   t += UL_INTENT(count, pub, true);
   // the draft path has no plan, so its transcript must not replay one
-  const PLAN = ()=> pub ? `<div class="convoTurn">${UL_PLAYBACK(count, pub, false)}</div>` : '';
-  const STAGED = ()=> `<div class="convoTurn">${UL_STAGED(count, false)}</div>`;
+  /* no plan and no separate draft turn since 2026-10-05: the draft is created
+     in the same step as the unlink (UL_PLAYBACK / UL_STAGED are unused now) */
+  const PLAN = ()=> '';
+  const STAGED = ()=> '';
   if(state.ul==='planning') t += INTENT()
     + `<div class="convoTurn">${agentLoader('Preparing the tasks', state.tasks||[])}</div>`;
   else if(state.ul==='playback') t += INTENT()
@@ -5971,7 +5983,7 @@ scenes.xpDetail = (state={})=>{
   else if(state.ul==='stagereview') t += INTENT() + PLAN()
     + `<div class="convoTurn">${UL_STAGED(count, true)}</div>`;
   else if(state.ul==='working')  t += INTENT() + PLAN() + (pub?STAGED():'')
-    + `<div class="convoTurn">${agentLoader('Unlinking the experiences', state.tasks||[])}</div>`;
+    + `<div class="convoTurn">${agentLoader(pub ? 'Creating the draft and unlinking the experiences' : 'Unlinking the experiences', state.tasks||[])}</div>`;
   else if(state.ul==='done')     t += INTENT() + PLAN() + (pub?STAGED():'')
     + `<div class="convoTurn">${UL_DONE(count, pub, true)}</div>`;
   else if(state.ul==='publishing') t += INTENT() + PLAN() + (pub?STAGED():'')
@@ -6016,13 +6028,7 @@ scenes.xpDetail = (state={})=>{
       ${xpHead(pub, staged, !!state.verOpen, live, false, pub && state.ul===undefined && state.lk===undefined && state.tt===undefined)}
       ${xpBody(state, xpMeta(pub, live), xpToolbar() + table)}
     </div></div></div>` + aiPanel({body,
-      /* the sticky task tracker: the unlink plan's two tasks map onto the
-         staging and the unlink itself */
-      ...(pub && ['staging','stagereview'].includes(state.ul)
-            ? {step:'1.  Create a draft of '+XP_NAME, stepLoading:state.ul==='staging'}
-        : pub && ['working','done'].includes(state.ul)
-            ? {step:'2.  Unlink the experiences from the draft', stepLoading:state.ul==='working'}
-        : {}),
+      /* no plan, so no sticky task tracker (2026-10-05) */
       chip: (n&&!done)?n+' experience'+(n===1?'':'s')+' selected':'',
       /* which ask is typing depends on the scenario: the link flow's arrives by
          ID with no selection, the unlink flow's acts on the checked rows. */
@@ -6698,9 +6704,18 @@ function runLkNext(i){
    and approving it links straight away (user, 2026-09-15 — same shape as the
    draft unlink flow). */
 function runLkWork(){
-  const base={...lkBase(),lk:'linking'};
-  runPCStep(base,'Linking the experience',
-    ['Reading the experiment','Linking the experience','Refreshing the list'],2600,
+  const pub=(current.state||{}).pub!==false;
+  /* THE CHANGE HAPPENS ON THE EXPERIENCES, SO THE CANVAS GOES THERE (user,
+     2026-10-05: "take us to experiences tab so that it is explicit that the
+     change is being made to experiences"). The link ask has no selection, so
+     it is typed from whichever tab is showing; the moment the work starts the
+     list tab opens with the table skeleton, and the result rests on it. The
+     one exception to the tab-never-moves rule, because here the agent's own
+     action is what the tab shows. */
+  const base={...lkBase(),lk:'linking',xpTab:'experiences'};
+  runPCStep(base, pub ? 'Creating the draft and linking the experience' : 'Linking the experience',
+    pub ? ['Creating the draft','Linking the experience','Refreshing the list']
+        : ['Reading the experiment','Linking the experience','Refreshing the list'],2600,
     {...base,lk:'done'},'xpDetail');
 }
 /* Publish -> the diagram's "ready to go live? YES" */
@@ -6767,7 +6782,7 @@ function runMvPlan(){
 function runMvTask(i){
   const base={...mvBase(),mv:'w'+i};
   runPCStep(base, MV_TASKS[i],
-    ['Reading the experiments','Applying the change','Refreshing the view'],2400,
+    ['Creating the draft','Applying the change','Refreshing the view'],2400,
     {...base,mv:'t'+i},'mvExp');
 }
 /* Publishing X is its own beat: a publishing loader, then X rests as
@@ -6868,7 +6883,7 @@ function runMxPlan(){
 function runMxTask(i){
   const base={...mxBase(),mv2:'w'+i};
   runPCStep(base, MX_TASKS()[i],
-    ['Reading the experiments','Applying the change','Refreshing the view'],2400,
+    ['Creating the draft','Applying the change','Refreshing the view'],2400,
     {...base,mv2:'t'+i},'mvMulti');
 }
 function runMxPublish(i){
@@ -6945,9 +6960,11 @@ function runUlPublish(){
 /* Approve on the draft confirmation -> perform the unlink, staying on the draft
    with those experiences gone */
 function runUlWork(){
+  const pub=(current.state||{}).pub!==false;
   const base={...ulBase(),ul:'working'};
-  runPCStep(base,'Unlinking the experiences',
-    ['Applying the change','Unlinking the experiences','Refreshing the list'],2900,
+  runPCStep(base, pub ? 'Creating the draft and unlinking the experiences' : 'Unlinking the experiences',
+    pub ? ['Creating the draft','Unlinking the experiences','Refreshing the list']
+        : ['Applying the change','Unlinking the experiences','Refreshing the list'],2900,
     {...base,ul:'done'},'xpDetail');
 }
 
@@ -7458,8 +7475,7 @@ const STEPS_UL = (pub)=>{   // UL_SEL (the three DRY_test experiences) is declar
     ['xpDetail', pub?{}:{pub:false}],
     ['xpDetail',{selected:[...UL_SEL], ...(pub?{}:{pub:false}), typed:true}],
     S('intent'),
-    // the draft path has no plan and nothing to stage: intent -> unlink
-    ...(pub ? [S('playback'), S('stagereview')] : []),
+    // both paths: intent -> done (the draft is created in the same step) -> published
     S('done'), S('published'),
   ];
 };
@@ -7527,12 +7543,12 @@ const STEPS_MX = ()=>{
 /* PUBLISHED: search intake, intent -> plan -> two tasks -> done -> published.
    DRAFT: specific intake (no xpSearch step), intent -> done -> published. */
 const STEPS_LK = (pub)=>{
-  const S=(lk)=>['xpDetail',{typed:true,...(pub?{}:{pub:false}),lk}];
+  /* from `done` on the canvas sits on the Linked experiences tab (see runLkWork) */
+  const S=(lk)=>['xpDetail',{typed:true,...(pub?{}:{pub:false}),lk,...(lk==='intent'?{}:{xpTab:'experiences'})}];
   return [ ['home',{}],
     ...(pub ? [['xpSearch',{}]] : []),
     ['xpDetail', pub?{}:{pub:false}],
     S('intent'),
-    ...(pub ? [S('plan'), ...LK_TASKS.map((_,i)=>S('t'+i))] : []),
     S('done'), S('published') ];
 };
 function FLOW_STEPS(){
@@ -7601,9 +7617,7 @@ function stepIndex(){
       const lpub = st.pub!==false;
       let r = {reading:'intent',planning:'plan',linking:'done',publishing:'published'}[st.lk] || st.lk || '';
       const m=/^w(\d+)$/.exec(r); if(m) r='t'+m[1];
-      const ORDER = lpub
-        ? ['intent','plan',...LK_TASKS.map((_,i)=>'t'+i),'done','published']
-        : ['intent','done','published'];
+      const ORDER = ['intent','done','published'];
       const base = lpub ? 2 : 1;               // the draft path has no xpSearch step
       const i=ORDER.indexOf(r);
       return i===-1 ? base : i+base+1;
@@ -7630,8 +7644,7 @@ function stepIndex(){
     const R={reading:'intent',planning:'playback',staging:'stagereview',working:'done',
              publishing:'published'};
     const r=R[st.ul]||st.ul;
-    const ORDER = st.pub===false ? ['intent','done','published']
-                                 : ['intent','playback','stagereview','done','published'];
+    const ORDER = ['intent','done','published'];
     const i=ORDER.indexOf(r);
     return i===-1 ? base+1 : i+base+2;
   }

@@ -4284,7 +4284,7 @@ const UL_DONE = (n, pub, active)=> agentMsg(
    unlinked experiences gone for good. */
 const UL_PUBLISHED = (n, pub=true)=> agentMsg(
   disclosure('Published the experiment',['Publishing the draft','Applying the change','Refreshing the list'])
-  + `<div class="chatBubble">${xpName(pub)} is published with ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}. The ${n===1?'experience is':`${n} experiences are`} no longer part of it.${
+  + `<div class="chatBubble">${xpName(pub)} is published with ${XP_ROWS.length-n} linked experience${XP_ROWS.length-n===1?'':'s'}. The ${n===1?'unlinked experience is':`${n} unlinked experiences are`} no longer part of it.${
       objectCard('megaphone', xpName(pub))}<div class="link-cm">View in Campaign Manager</div></div>`);
 
 /* The journey starts where the diagram starts: "Find experiment". The user
