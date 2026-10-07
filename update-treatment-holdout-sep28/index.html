@@ -742,6 +742,11 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
 .pager .box{border:1px solid #cccccc;border-radius:8px;padding:3px 11px;
   color:var(--text-strong);font-weight:600}
 .pager .nav{display:flex;align-items:center;gap:8px}
+/* the chevrons are real buttons now (user, 2026-10-07: the pager works); an
+   end-of-range chevron dims rather than disappearing */
+.pager__btn{all:unset;display:inline-flex;align-items:center;cursor:pointer;border-radius:4px}
+.pager__btn:hover{background:#e9e9ee}
+.pager__btn[disabled]{opacity:.35;cursor:default;background:none}
 /* The table card and its footer read as one object: the pager carries the
    card's own side borders so the two line up exactly. */
 .tbl-wrap:has(+ .pager){border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:0}
@@ -1061,6 +1066,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=55"></script>
+<script src="app.js?v=60"></script>
 </body>
 </html>
