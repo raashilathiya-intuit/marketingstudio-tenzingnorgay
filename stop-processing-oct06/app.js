@@ -466,7 +466,15 @@ function spComposer(opts={}){
      hang underneath as a sibling; inside, it reads as part of what you
      are about to send rather than a separate suggestion. */
   const chip = recall ? `<div class="recallRow"><button class="recallChip" data-sprecall title="Tab to enter">${icon('plus',14)}<span>${recall}</span></button></div>` : '';
-  const box = `<div class="promptBox promptBox--centered promptBox--expanded"><div class="promptBox__content">
+  /* CLEAR, top-right of the box (user, 2026-10-07: "give me an X at the top
+     right corner that allows me to clear a prompt instead of having to
+     select the entire text"). Only while there is a draft and the agent is
+     idle — an empty box has nothing to clear, and a running one is stop's.
+     Clearing drops the draft (and the attachment that came with it); the
+     recall chip returns on its own because `!state.draft` gates it. */
+  const clear = (draft && !running) ? `<button class="promptBox__clear" data-spclear title="Clear">${icon('close',12)}</button>` : '';
+  const box = `<div class="promptBox promptBox--centered promptBox--expanded${clear?' promptBox--clearable':''}"><div class="promptBox__content">
+    ${clear}
     ${chip}
     ${file}
     <div class="promptBox__input${filled}" id="spInput">${inner}</div>
@@ -1186,6 +1194,10 @@ function wire(name, state){
        the user may want to edit it first. ── */
   const recall = main.querySelector('[data-sprecall]');
   if(recall) recall.onclick=()=>render(name,{...state, draft:PROMPT(), detached:false});
+
+  /* the X in the corner empties the box; the chip offers the prompt again */
+  const clearBtn = main.querySelector('[data-spclear]');
+  if(clearBtn) clearBtn.onclick=(e)=>{ e.stopPropagation(); render(name,{...state, draft:'', detached:false}); };
 
   /* the attachment can be taken off again without losing the prompt */
   const filex = main.querySelector('[data-spfilex]');

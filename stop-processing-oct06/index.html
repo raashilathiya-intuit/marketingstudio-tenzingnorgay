@@ -937,6 +937,15 @@ select.fbsel--active{border-color:#7b61ff}
 .promptBox--expanded .promptBox__ctrl,.promptBox--expanded .promptBox__send{width:24px;height:24px;border:0;background:transparent;border-radius:0;padding:0;color:#6b6c72}
 .promptBox--expanded .promptBox__ctrl:hover,.promptBox--expanded .promptBox__send:hover{background:transparent;opacity:.7}
 .promptBox--expanded .promptBox__send img,.promptBox--expanded .promptBox__ctrl img{filter:none!important}
+/* CLEAR: a small X pinned to the box's top-right corner, shown only while
+   a draft is in the box (user, 2026-10-07). Sits inside the 20px padding so
+   it reads as part of the box, not a floating control; the input leaves room
+   on its right so long text never runs under it. */
+.promptBox--expanded{position:relative}
+.promptBox__clear{position:absolute;top:10px;right:10px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:9999px;background:transparent;color:var(--icon-secondary);cursor:pointer;padding:0;z-index:1}
+.promptBox__clear:hover{background:rgba(0,0,0,.06);color:var(--text-primary)}
+.promptBox__clear img{filter:none!important}
+.promptBox--clearable .promptBox__input{padding-right:24px}
 /* file chip inside the composer (workbook attachment) */
 .fileChip{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;padding:6px 10px;border:1px solid #dddee3;border-radius:8px;background:#fff;font-size:14px;color:var(--text-primary);margin-bottom:4px}
 .fileChip__ico{display:inline-flex;color:var(--icon-secondary)}
@@ -1191,6 +1200,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=54"></script>
+<script src="app.js?v=55"></script>
 </body>
 </html>
