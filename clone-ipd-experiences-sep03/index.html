@@ -894,6 +894,12 @@ select.fbsel--active{border-color:#7b61ff}
    after .simMenu__item — same specificity, so source order decides. */
 .simMenu__item--muted{color:#8a8b93}
 .simMenu__item--muted:hover{color:#5d47d5}
+/* cross-link to the sibling clone build (user, 2026-10-07): sits last in the
+   menu, divided from the scenarios above, muted until hovered */
+.simMenu__link{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;padding:10px 14px 6px;border-top:1px solid #ecedf0;font-size:13px;color:#6b6c72;text-decoration:none;border-radius:0 0 8px 8px}
+.simMenu__link:hover{color:#5d47d5}
+.simMenu__link .arr{font-size:14px;transition:transform .15s}
+.simMenu__link:hover .arr{transform:translateX(2px)}
 
 .hidden{display:none!important}
 </style>
@@ -905,6 +911,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=161"></script>
+<script src="app.js?v=162"></script>
 </body>
 </html>

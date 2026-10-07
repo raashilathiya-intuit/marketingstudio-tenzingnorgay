@@ -795,10 +795,10 @@ scenes.home = (state={})=>{
             <button class="simMenu__item" data-sim="cl3">Clone experiences, choose whether to change the access point</button>
             <button class="simMenu__item" data-sim="cl4">Mixed access points, group and retarget each one</button>
             <button class="simMenu__item" data-sim="cl5">Mixed access points, one access point at a time</button>
-            <!-- 1:n (user, 2026-10-01): the same two flows, but every selected
-                 experience is cloned several times in one run -->
-            <button class="simMenu__item" data-sim="cl3n">1:n clone, choose whether to change the access point</button>
-            <button class="simMenu__item" data-sim="cl4n">1:n clone, mixed access points, group and retarget each one</button>
+            <!-- 1:n clones moved to their own build (user, 2026-10-07):
+                 clone-ipd-1n-experiences-oct07. Cross-link only; the cl3n/cl4n
+                 code stays shared with cl3/cl4 and is unreachable from here. -->
+            <a class="simMenu__link" href="../clone-ipd-1n-experiences-oct07/index.html">1:n clone flows <span class="arr">&rarr;</span></a>
           </div>
         </div>
       </div>
