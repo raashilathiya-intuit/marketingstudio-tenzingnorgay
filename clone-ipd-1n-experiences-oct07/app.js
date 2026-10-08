@@ -3147,7 +3147,7 @@ const CLONE_WORD = 'Clone';
    Everything else is the parent scenario, so they share its states, runners,
    triggers and step lists: `sc()` is the parent key, `mult()` the multiplier.
    The one structural difference is the SET loop: see cl4Sets/cl3Sets. */
-const CLONE_MULT = {cl3n:2, cl4n:2};
+const CLONE_MULT = {cl3n:4, cl4n:2};
 const sc = ()=> scenario==='cl3n' ? 'cl3' : scenario==='cl4n' ? 'cl4' : scenario;
 const mult = ()=> CLONE_MULT[scenario] || 1;
 const isMulti = ()=> mult()>1;
