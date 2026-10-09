@@ -303,6 +303,20 @@ button{font-family:inherit}
    above it (the .ft variant had no header row and a heavier 12px radius). */
 /* missing-field readback: a two-column .ft table, index left / name right.
    .ft__row's 125px key column is sized for "From"/"To" labels, so narrow it. */
+/* the required-fields card's "Show all" toggle, ported from the clone build's
+   cl6 so the same card can be used here (user, 2026-09-25) */
+.ft-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
+.ftShowAll{display:inline-flex;align-items:center;gap:4px;border:0;background:transparent;
+  padding:0;cursor:pointer;font-family:inherit;font-size:13px;color:#0365ac}
+.ftShowAll__chev{display:inline-flex;transition:transform .15s ease}
+.ftShowAll__chev--open{transform:rotate(180deg)}
+.ftShowAll__chev svg path{stroke:#0365ac}
+/* scenario 6's creative: 24px between field rows (user, 2026-09-17) */
+/* the creatives table: cap the name column so the row's columns sit close
+   together instead of the name stretching and stranding Validation far right
+   (user, 2026-09-25). The name truncates with an ellipsis; the full name is in
+   the creative's own drill-down. */
+.tbl--cre td:first-child,.tbl--cre th:first-child{max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fldTbl{margin:0}
 .fldTbl .ft__row{grid-template-columns:56px 1fr}
 /* inside a summaryCard the flex gap (12px) provides the spacing, so the label
@@ -578,6 +592,20 @@ table.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:14px}
 .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px}
 .search{flex:0 0 277px;height:40px;display:flex;align-items:center;gap:8px;border:1px solid #e5e5ec;border-radius:10px;padding:8px 12px;color:#a7abbe;font-size:16px}
 .iconbtn{width:40px;height:40px;border:1px solid #e5e5ec;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--icon-secondary);background:#fff;cursor:pointer}
+/* the naming example: old name, arrow, new name stacked so the two can be
+   compared vertically (user, 2026-09-25). NO container — an earlier pass wrapped
+   this in a white card, which invented a component nobody asked for. It is just
+   text inside the message. */
+/* GROUPING: the label and the two names are ONE block, so they sit tight
+   together (4px), and the whole block is separated from the rule above and the
+   question below by a clear 20px. An earlier pass had 12/24/12 — the biggest
+   gap INSIDE the example and the smallest between it and the rule, which read
+   as three loose fragments (user, 2026-09-25). */
+.nameEx{margin:20px 0}
+.nameEx__k{font-size:14px;line-height:1.5;color:var(--text-secondary);margin-bottom:4px}
+.nameEx__v{font-size:14px;line-height:1.5;color:var(--text-primary);overflow-wrap:anywhere}
+.nameEx__arrow{font-size:16px;line-height:1.2;color:#787e94;margin:0}
+
 .groupby{display:flex;align-items:center;gap:8px;border:1px solid #e5e5ec;border-radius:10px;padding:8px 14px;font-size:14px;color:var(--text-strong);cursor:pointer}
 
 /* pagination — page box radius 8, muted text */
@@ -842,6 +870,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=62"></script>
+<script src="app.js?v=91"></script>
 </body>
 </html>

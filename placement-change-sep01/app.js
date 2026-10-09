@@ -303,7 +303,7 @@ function tableHTML(cols, rows, opts={}){
     const drill = opts.drillrow ? ` data-drillplace="${ri}" style="cursor:pointer"` : '';
     return `<tr ${opts.select?`data-selrowtr="${ri}"`:''}${rowEdited?' class="row-edited"':''}${drill}>${cbc}${tds}</tr>`;
   }).join('');
-  return `<div class="tbl-wrap"><table class="tbl">
+  return `<div class="tbl-wrap"><table class="tbl${opts.cls?' '+opts.cls:''}">
     <thead><tr>${cb}${head}</tr></thead>
     <tbody>${body}</tbody></table></div>`;
 }
@@ -755,6 +755,7 @@ scenes.home = (state={})=>{
         <div class="simWrap">
           <button class="simPill" id="simPill" type="button">${icon('plus',14)} Simulate a scenario ${I.chev}</button>
           <div class="simMenu hidden" id="simMenu">
+            <button class="simMenu__item" data-sim="mp">Change access point on multiple experiences</button>
             <button class="simMenu__item" data-sim="pc">Change access point, fill fields up front (earlier draft)</button>
             <button class="simMenu__item simMenu__item--muted" data-sim="pc2">Change access point and template on an experience</button>
           </div>
@@ -974,7 +975,8 @@ scenes.searchMultiple = (state={})=>{
       <h2 class="page-h">QBO IPD campaigns in the last 3 months</h2>
       <div class="toolbar">
         <div class="search">${I.search}<span>Search</span></div>
-        <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+        <span class="iconbtn">${I.sliders}</span>
+        <span class="groupby">Group by ${I.chev}</span>
       </div>
       ${table}
       ${pager}
@@ -1904,7 +1906,7 @@ scenes.crTree = (state={view:'tree',tab:'meta'})=>{
       .map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-exptab="${k}">${l}</span>`).join('');
     const content = `<div class="content">${topbar(CR_CRUMB)}<div class="scroll"><div class="pad">
       <div class="detail-sticky"><div class="detail-h"><span class="back" data-expback>${I.back}</span><span class="title">${expName}</span><span class="detail-vd"></span>${badge('Draft')}<span class="detail-vd"></span><span class="detail-sub" style="margin:0">ID:&nbsp; 4d738ef0-9505-11f1-86ec-a3e651c6bc02 ${COPY_ICON}</span><span class="verselect">v1 ${I.chev}</span></div>
-      <div class="tabs tabs--insticky tabs--exp">${expTabs}</div></div>
+      ${expTabs?`<div class="tabs tabs--insticky tabs--exp">${expTabs}</div>`:''}</div>
       ${tabBody}</div></div></div>`;
     return content + aiPanel({step:'6.  Create experiences',body,stepLoading:false});
   }
@@ -2260,6 +2262,16 @@ const trigger = {
   // the INTAKE sequence: boot loader → "created project" bubble → search + skeleton → results.
   home:()=>{ clearTimers(); const inp=$('#homeInput');
     if(inp) inp.textContent=FIND_EXP_PROMPT; runIntakePC(); },
+  // ── multi-select access point change ──
+  mpSend:()=>{ const sel=current.state.selected||[]; if(!sel.length) return; clearTimers(); runMpRead(); },
+  mpSendAnswer:()=>{ clearTimers(); runMpAnswer(); },
+  mpLooksGood:()=>{ recordPillThen(()=>runMpNaming()); },
+  mpNameProceed:()=>{ recordPillThen(()=>runMpFields()); },
+  mpFieldsProceed:()=>{ recordPillThen(()=>runMpPlan()); },
+  mpApprovePlan:()=>{ recordPillThen(()=>runMpTask1()); },
+  mpSendFix:()=>{ clearTimers(); runMpFix(); },
+  mpApproveTask1:()=>{ recordPillThen(()=>runMpTask2()); },
+  mpPublish:()=>{ recordPillThen(()=>runMpPublish()); },
   viewSelected:(state)=>{ clearTimers(); go('singleCampaign',{view:'table'}); },
   // ── PLACEMENT CHANGE triggers ──
   // composer SEND with a selection → AI reads it → intent + carry-over in one response
@@ -2510,14 +2522,28 @@ function wire(name, state){
   //    starts (state.pc set). Row click still drills into the experience. ──
   if(name==='pcSearch' && !state.loading && !state.phase){
     const sel=new Set(state.selected||[]);
-    // single select: picking a row replaces the selection, clicking it again clears it
-    const pick=(i)=>{ autopilot=false; render('pcSearch',{...state, selected: sel.has(i)?[]:[i]}); };
+    /* the MULTI-SELECT scenario toggles rows; every other scenario here is
+       single-select (picking a row replaces the selection) */
+    const multi = scenario==='mp';
+    const pick=(i)=>{ autopilot=false;
+      if(multi){ sel.has(i)?sel.delete(i):sel.add(i); render('pcSearch',{...state, selected:[...sel]}); }
+      else render('pcSearch',{...state, selected: sel.has(i)?[]:[i]});
+    };
+    /* frozen once the conversation starts. These are NATIVE checkboxes, so the
+       box has already toggled itself by the time this runs — put it back
+       rather than returning, or the row visibly unchecks. */
+    const frozen = state.pc!==undefined || state.pc2!==undefined || state.mp!==undefined;
     main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{
-      e.stopPropagation(); if(state.pc) return; pick(+cb.dataset.selrow);
+      e.stopPropagation();
+      if(frozen){ cb.checked = sel.has(+cb.dataset.selrow); return; }
+      pick(+cb.dataset.selrow);
     });
+    if(multi) wireSelAll(main, frozen?new Set():sel, frozen,
+      (sx)=>render('pcSearch',{...state,selected:[...sx]}));
     // row click → experience drill-down (checkbox still selects)
     main.querySelectorAll('[data-selrowtr]').forEach(tr=>tr.onclick=(e)=>{
       if(e.target.closest('[data-selrow]'))return;
+      if(state.mp!==undefined) return;   // the mp table is wired separately below
       autopilot=false;
       const i=+tr.dataset.selrowtr;
       go('pcSearch',{...state,expDrill:i,expDrillLoading:true});
@@ -2537,15 +2563,77 @@ function wire(name, state){
       main.querySelectorAll('[data-exptab]').forEach(tb=>tb.onclick=()=>{ autopilot=false; go('pcSearch',{...state,expDrillLoading:false,expTab:tb.dataset.exptab}); });
       wireCreativeToggle(main,'pcSearch',state);
     }
-    if(!state.pc && !state.pc2 && sel.size && !state.typed) scheduleAskType('pcSearch', CHANGE_TMPL_PROMPT);
+    /* the MULTI-SELECT flow's ask names no destination; its answer and its
+       body-copy fix type themselves at the points the AI asks for them */
+    if(scenario==='mp'){
+      /* CLEAR THE COMPOSER before a NEW ask types: scheduleAskType refuses to
+         type into a box that already has text, so the previous prompt would
+         otherwise sit there through the next turn. */
+      const clearComposer=()=>{ const inp=main.querySelector('#composerInput');
+        if(inp) inp.innerHTML=`<span class="promptBox__ph">Ask Marketing Agent</span>`; };
+      const retype=(text,flag)=>{ clearComposer(); scheduleAskType('pcSearch', text, flag); };
+      /* once a typed ask has been SENT, the composer goes back to empty —
+         otherwise the spent prompt sits there for the rest of the flow */
+      if(['answering','understood','namingWait','naming','planning','plan',
+          'w1','fixing','t1fixed','w2','done','publishing','published'].includes(state.mp))
+        clearComposer();
+      if(state.mp===undefined && sel.size && !state.typed) scheduleAskType('pcSearch', MP_PROMPT);
+      if(state.mp==='asking' && !state.mpTyped) retype(MP_ANSWER_PROMPT, 'mpTyped');
+      if(state.mp==='t1err' && !state.mpFixTyped) retype(mpFixPrompt(), 'mpFixTyped');
+    }
+    else if(!state.pc && !state.pc2 && sel.size && !state.typed) scheduleAskType('pcSearch', CHANGE_TMPL_PROMPT);
     const send=main.querySelector('#composerSend');
     if(send) send.onclick=(e)=>{
       e.stopPropagation(); autopilot=false;
+      /* the MULTI-SELECT flow sends three different things from the same
+         composer: the opening ask, the access-point answer, and the copy fix */
+      if(scenario==='mp'){
+        if(state.mp==='asking') trigger.mpSendAnswer();
+        else if(state.mp==='t1err') trigger.mpSendFix();
+        else if(state.mp===undefined) trigger.mpSend();
+        return;
+      }
       // while task 1 shows the over-limit error, Send carries the corrected copy
       if(state.pc==='placement') trigger.pcSendBodyFix();
       else if(state.pc2==='experience') trigger.pc2SendContent();
       else trigger.pcSend();
     };
+    /* ONCE THE EXPERIENCES EXIST a row drills into one (user, 2026-09-25:
+       "clicking on a row does not take me anywhere"). `drillrow` emits
+       data-drillplace, NOT data-selrowtr. During task 1 the rows are creatives
+       being validated — nothing to drill into yet. */
+    if(['done','published'].includes(state.mp)){
+      main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{
+        autopilot=false;
+        const srcIdx = MP_PICK()[+tr.dataset.drillplace];
+        if(srcIdx===undefined) return;
+        go('pcSearch',{...state,expDrill:srcIdx,expDrillLoading:true});
+        timers.push(setTimeout(()=>render('pcSearch',{...state,expDrill:srcIdx}),1100));
+      });
+    }
+    /* a CREATIVE row during task 1 opens that creative (index into the picked
+       set, not into PC_ROWS) */
+    if(['t1err','fixing','t1fixed'].includes(state.mp)){
+      main.querySelectorAll('[data-drillplace]').forEach(tr=>tr.onclick=()=>{
+        autopilot=false;
+        const k=+tr.dataset.drillplace;
+        go('pcSearch',{...state,creDrill:k,creDrillLoading:true});
+        timers.push(setTimeout(()=>render('pcSearch',{...state,creDrill:k}),1100));
+      });
+    }
+    /* back out of a creative drill-down */
+    if(state.creDrill!==undefined){
+      const bk=main.querySelector('[data-expback]');
+      if(bk) bk.onclick=()=>{ autopilot=false; const st={...state};
+        delete st.creDrill; delete st.creDrillLoading; delete st.expTab; delete st.creativeView;
+        go('pcSearch',st); };
+    }
+    [['#mpLooksGood','mpLooksGood'],['#mpNameProceed','mpNameProceed'],
+     ['#mpFieldsProceed','mpFieldsProceed'],
+     ['#mpApprovePlan','mpApprovePlan'],['#mpApproveTask1','mpApproveTask1'],
+     ['#mpPublish','mpPublish']]
+      .forEach(([q,fn])=>{ const b=main.querySelector(q);
+        if(b) b.onclick=()=>{autopilot=false;trigger[fn]();}; });
     const chipX=main.querySelector('[data-chipclear]');
     if(chipX) chipX.onclick=()=>{ if(state.pc||state.pc2) return; autopilot=false; render('pcSearch',{...state, selected:[]}); };
     // ── name card: arrives prefilled with the AI's proposal (no typing
@@ -2860,7 +2948,12 @@ function expDrillCanvas(crumb, r, state, opts={}){
   } else {
     tabBody = metaGrid2([['PRIORITY',r.prio],['CREATED BY',r.by],['START DATE','January 28, 2026'],['END DATE','April 22, 2026']]);
   }
-  const expTabs = [['creative','Creative'],['meta','Experience meta'],['audience','Audience'],['experiment','Experiment']]
+  /* A CREATIVE IS NOT AN EXPERIENCE, so it has no Experience meta / Audience /
+     Experiment tabs (user, 2026-09-25). `opts.creativeOnly` drops the tab strip
+     entirely — the same thing the clone flow does when it opens a staged
+     creative rather than a created experience. */
+  const expTabs = opts.creativeOnly ? '' :
+    [['creative','Creative'],['meta','Experience meta'],['audience','Audience'],['experiment','Experiment']]
     .map(([k,l])=>`<span class="tab ${t===k?'active':''}" data-exptab="${k}">${l}</span>`).join('');
   const back = noBack ? '' : `<span class="back" data-expback>${I.back}</span>`;
   const name = opts.name || r.exp.replace('…','-US');
@@ -2918,6 +3011,11 @@ const PC_COLS = [
   {label:'Created by',key:'by'},{label:'Last updated',key:'mod'},
 ];
 
+/* the results columns, with the two the multi-select flow CHANGES marked so
+   they show the yellow edited band */
+const MP_COLS = PC_COLS.map(c=>
+  c.key==='ap'   ? {...c, editedKey:'apEdited'} :
+  c.key==='tmpl' ? {...c, editedKey:'tmplEdited'} : c);
 const PC_PROJECT = 'QB Payroll IPD experiences - Banking hellobox';
 const PC_CRUMB = `<span>Home</span> <span class="sep">/</span> <span>${PC_PROJECT}</span>`;
 const PC_SEARCH_CONV = ()=>
@@ -2930,6 +3028,161 @@ const PC_REQ = ()=> userBubble(CHANGE_TMPL_PROMPT);
 // selection-thread context above a selection-scoped ask (divider + ↳ Selected n)
 const SELCTX_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 3v5.5A3.5 3.5 0 0 0 7.5 12H14" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round"/><path d="M10.8 8.4 14.4 12l-3.6 3.6" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} experience${n===1?'':'s'}</span></div>`;
+
+/* ============================================================
+   MULTI-SELECT ACCESS POINT CHANGE  (scenario `mp`, built 2026-09-25)
+   Pick several experiences, ask to change their access point WITHOUT
+   naming the destination — so the AI asks for it first, and the answer
+   is what the rest of the flow is built on. That question is the only
+   thing that differs from the clone flow, where the selection is acted
+   on immediately (user, 2026-09-25).
+
+   SHAPE FOLLOWS `cl6` IN THE CLONE BUILD — validation errors are fixed
+   BEFORE the experiences are created, not after (user, 2026-09-25).
+   States: asking -> answered -> understood -> naming -> planning -> plan
+           -> w1 -> t1err -> fixing -> t1fixed -> w2 -> done
+           -> publishing -> published
+   Task 1 stages the change and FAILS validation; the user supplies copy;
+   only once it passes does task 2 create the experiences. There is no
+   post-creation QA error, because nothing broken is ever created.
+   ============================================================ */
+const MP_PICK_DEFAULT = [0,1,2,3];
+const MP_PICK = ()=>{
+  const sel=(current&&current.state&&current.state.selected)||null;
+  return (sel&&sel.length?[...sel]:[...MP_PICK_DEFAULT]).sort((a,b)=>a-b);
+};
+const MP_N = ()=>MP_PICK().length;
+const MP_NAMES = ()=>MP_PICK().map(i=>(PC_ROWS[i]||{}).exp||'experience');
+/* the ask does NOT name the destination — that is what makes the AI ask back */
+const MP_PROMPT = 'I want to change the access point for these experiences.';
+/* the ANSWER, typed into the composer once the AI has asked (user's call:
+   the answer arrives as a prompt, not a card) */
+const MP_ANSWER_PROMPT = 'Change them to Batch save - hellobox and template to hellobox - text.';
+/* PROSE NAMES, not the system values. `NEW_TEMPLATE` is `helloboxText` and
+   `NEW_PLACEMENT` is `Batch save -hellobox` — right in a table cell, wrong in
+   a sentence, where they read as code. */
+const MP_AP_LABEL = 'Batch save - hellobox';
+const MP_TMPL_LABEL = 'hellobox - text';
+/* THE AI'S QUESTION — no card, because there is nothing to confirm yet */
+const MP_ASK = ()=> agentMsg(
+  disclosure('Read your request, checked the selection',['Reading your request','Checking the experiences','Checking the access points'])
+  + `<div class="chatBubble">The ${MP_N()} experiences you selected are all on Banking - hellobox.<div class="bubble-q">What access point should they move to? If it needs a different template, tell me that too.</div></div>`);
+/* From/To once the AI knows the destination — the single flow's card, but
+   reporting the COUNT instead of one experience */
+const MP_UNDERSTOOD = (active)=> agentMsg(
+  disclosure('Mapped the change',['Checking the new access point and template','Checking the selected experiences','Mapping the values to carry over'])
+  + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood will be changed for all ${MP_N()} experiences.</p>${PC_UNDERSTOOD_TABLE({})}<p class="summaryCard__intro" style="font-weight:400">By default I'll carry over the headline, body, and CTA values from the previous template.</p><div class="infoNote">${INFO_ICON}<span>Changing the access point creates new experiences. The ones you selected stay as they are.</span></div><p class="summaryCard__q">Does this look right? I'll continue once you confirm.</p>${active?replyBtn('Looks good','mpLooksGood'):recordedReply('Looks good')}</div>`);
+/* NAMING IS A RULE, NOT N FIELDS — the same decision the clone build made.
+   The access point in each existing name is swapped for the new one. */
+/* THE NAMING CARD IS A FROM/TO (user, 2026-09-25 — the first pass ran the two
+   near-identical names together in a sentence, both truncated with "…", so the
+   eye could not find the difference and the ends were not even visible).
+   Same From/To block the access-point card above it uses, so the two names
+   ALIGN and the changed segment sits in one column. Names are FULL: the point
+   of the card is to show what the name becomes. */
+const MP_NAME_FROM = 'ELM9684-IPD-QBPayroll-Banking-MedPS-US';
+const MP_NAME_TO   = 'ELM9684-IPD-QBPayroll-BatchSaveHellobox-MedPS-US';
+/* RULE FIRST, THEN ONE LABELLED EXAMPLE (user, 2026-09-25). A From/To of two
+   full names implies a mapping the user can check — fine for 4, meaningless
+   for 100. The RULE is what actually scales, and it fully specifies the
+   transformation; the example is an illustration and says so ("For example").
+   NOT a `-v1` suffix: this build already uses v1/v2/v3 for VERSION HISTORY on
+   the experience drill-down, so that would collide with an existing meaning. */
+const MP_NAME_RULE = (active)=> agentMsg(
+  `<div class="summaryCard"><p class="summaryCard__intro">Each new experience keeps its existing name with the access point swapped, so <span class="chatBubble__name">Banking</span> becomes <span class="chatBubble__name">BatchSaveHellobox</span>.</p><div class="nameEx"><div class="nameEx__k">For example:</div><div class="nameEx__v">${MP_NAME_FROM}</div><div class="nameEx__arrow">↓</div><div class="nameEx__v">${MP_NAME_TO}</div></div><p class="summaryCard__q">Want me to name all ${MP_N()} this way?</p>${active?replyBtn('Proceed','mpNameProceed'):recordedReply('Proceed')}</div>`);
+/* THE INTERIM VALIDATION CANVAS — creatives, not experiences (user,
+   2026-09-25). At task 1 nothing has been created, so there is no Experience
+   ID and no status: what exists is the staged creative content, and the one
+   thing wrong with it. Columns are the creative's own fields. */
+const MP_CRE_COLS = [
+  {label:'Creative',key:'cre',info:1},
+  /* VALIDATION SITS THIRD, where every other table in this build puts Status —
+     right after the identifier, not pushed to the far right (user,
+     2026-09-25). Compare PC_COLS: Experience, Experience ID, Status, … */
+  {label:'Validation',key:'val',badge:1},
+  {label:'Access point',key:'ap',editedKey:'apEdited'},
+  {label:'Template',key:'tmpl',editedKey:'tmplEdited'},
+  /* NO Body copy column: the creative names are long and the copy is 113
+     characters, which took the table to 1155px inside a 570px pane. The count
+     is already in the error message and the copy is one click away in the
+     creative's own drill-down. */
+];
+function mpCreativesCanvas(over){
+  const rows = MP_PICK().map(i=>{
+    const src = PC_ROWS[i] || {};
+    return {
+      /* named for the experience it will become, but it is a CREATIVE */
+      /* NO " creative" suffix — the column is already called Creative, and the
+         extra word pushed the auto-sized column to 427px, leaving a large void
+         between the name and Validation (user, 2026-09-25). */
+      cre: src.exp.replace('Banking','BatchSaveHellobox').replace('…',''),
+      ap: NEW_PLACEMENT, tmpl: NEW_TEMPLATE,
+      val: over ? 'Error' : 'Verified',
+      apEdited: true, tmplEdited: true,
+      /* the body cell carries the error inline, where the problem is */
+      bodyErr: over ? BODY_ERR : '',
+    };
+  });
+  /* NO heading here — the page heading above already says "Creatives for
+     <access point>", and the Validation column already carries the per-row
+     state. A second "Creatives / QA Error" line repeated both (user,
+     2026-09-25). */
+  return tableHTML(MP_CRE_COLS, rows, {drillrow:true, cls:'tbl--cre'});
+}
+/* ---- THE REQUIRED-FIELDS CARD (ported from the clone build's cl6,
+   user 2026-09-25: "if you're changing the template as well, then where is
+   that missing fields message with the option to download?").
+   Changing the template is the reason this card exists: the new template asks
+   for fields the old one never carried, so the AI lists them, offers the
+   summary to download, and says it will flag what is missing. ---- */
+/* THE LIST AND THE VALIDATION HAVE TO AGREE (user, 2026-09-25: "if my list of
+   missing fields is this large, then how can there only be such little
+   errors?"). A first pass listed SEVEN required fields and then flagged only
+   the body copy — the card promised a problem the validation never found.
+   Three fields, and the validation reports on exactly those three: body copy
+   over the limit, the other two empty. Short enough that no Show all toggle is
+   needed either. */
+const MP_FIELDS = ['Body copy','Subheader','Footnote'];
+const mpFieldRows = ()=> MP_FIELDS
+  .map((f,i)=>`<div class="ft__row"><div class="ft__k">${i+1}.</div><div class="ft__v">${f}</div></div>`).join('');
+const MP_FIELDS_CARD = (active)=> agentMsg(
+  `<div class="summaryCard"><p class="summaryCard__intro">${MP_TMPL_LABEL} asks for ${MP_FIELDS.length} fields the current template doesn't carry.</p><span class="ft-label" style="margin:0 0 8px;display:block">Required fields:</span><div class="ft fldTbl">${mpFieldRows()}</div><p class="summaryCard__intro" style="font-weight:400">I'll validate the creatives and flag what's missing. Once those fields are filled in, I'll create the experiences.</p>${dlLink2()}<p class="summaryCard__q">Shall I put together a plan?</p>${active?replyBtn('Proceed','mpFieldsProceed'):recordedReply('Proceed')}</div>`);
+const MP_TASKS = ['Update access point and template','Review the newly created experiences'];
+const mpPlanRows = (done=0, loading=-1)=> MP_TASKS.map((w,i)=>{
+  const marker = i<done
+    ? `<span class="planNum planNum--done"><span class="ico-invert">${I.check}</span></span>`
+    : i===loading
+      ? `<span class="planNum planNum--loading"><img class="spinnerII" src="figma/spinner-ii.gif" alt="" aria-hidden="true"></span>`
+      : `<span class="planNum">${i+1}</span>`;
+  return `<div class="planTable__row">${marker}<span>${w}</span></div>`;
+}).join('');
+const MP_PLAN = (done=0, loading=-1, active=false)=> agentMsg(
+  `<div class="summaryCard"><p class="summaryCard__intro">I will make the changes in the following order:</p><div class="planTable"><div class="planTable__head"><span>Task</span><span>What happens</span></div>${mpPlanRows(done,loading)}</div><p class="summaryCard__q">Does this look right? I'll get started once you confirm.</p>${active?replyBtn('Looks good','mpApprovePlan'):recordedReply('Looks good')}</div>`);
+/* TASK 1 STAGES THE CHANGE AND FAILS VALIDATION. No approve pill — the copy
+   has to be fixed before anything is created (the cl6 pattern). */
+/* ONE statement of the problem, not three (user, 2026-09-25: the first pass
+   said "found issues on all 4 creatives", then "over the limit on all 4
+   creatives", then "113 of 100 used" — the same fact three times). The headline
+   says WHAT happened, the error line says the ONE thing that is wrong, and the
+   object card is what to look at. */
+/* THE DESIGNED SHAPE (user, 2026-09-25): headline reports WHAT happened and
+   that issues were FOUND (the count in red, as `cl6` does), then the object,
+   then ONE summarised line naming the issue. The error line states the
+   PROBLEM only — an earlier pass added "so none of them can be created yet",
+   which speculates about a consequence the user has not asked about. */
+const MP_TASK1_ERR = ()=> agentMsg(
+  `<div class="chatBubble">Updated the access point and template, <span class="issueCount">found issues on all ${MP_N()} creatives.</span>${objectCard('image',`${MP_N()} creatives on ${MP_AP_LABEL}`)}<div class="msgErr">${ERR_ICON}<span>Body copy is over the limit and ${MP_FIELDS.length-1} fields are empty.</span></div><div class="bubble-q">Send me the content for those fields and I'll apply it to all ${MP_N()}.</div></div>`);
+/* the user's corrected copy, typed into the composer */
+const mpFixPrompt = ()=>`Use this for all ${MP_N()}:\n\u2022 Body copy: "${BODY_FIXED}"\n\u2022 Subheader: "${PC_FIELD_VALUES.subheader}"\n\u2022 Footnote: "${PC_FIELD_VALUES.footnote}"`;
+const MP_TASK1_FIXED = (active)=> agentMsg(
+  `<div class="chatBubble">All ${MP_N()} creatives pass validation now.${objectCard('image',`${MP_N()} creatives on ${MP_AP_LABEL}`)}<div class="bubble-q">Does this look ok? I'll create the experiences once you approve.</div>${active?replyBtn('Looks good','mpApproveTask1'):recordedReply('Looks good')}</div>`);
+/* TASK 2 creates from the corrected staging, so the experiences are clean */
+const MP_DONE = (active)=> agentMsg(
+  disclosure(`Created ${MP_N()} experiences`,['Applying the access point','Creating the experiences','Checking the creatives'])
+  + `<div class="chatBubble">I've created ${MP_N()} experiences on ${MP_AP_LABEL}. They are in Draft with no issues. The ones you selected are unchanged.${objectCard('note',`${MP_N()} experiences on ${MP_AP_LABEL}`)}<div class="bubble-q">I can publish them for you, or you can do it from Campaign Manager.</div>${active?replyBtn('Publish','mpPublish'):recordedReply('Publish')}<div class="link-cm">Go to Campaign Manager</div></div>`);
+const MP_PUBLISHED = ()=> agentMsg(
+  disclosure(`Published ${MP_N()} experiences`,['Validating the experiences','Publishing them','Refreshing the view'])
+  + `<div class="chatBubble">All ${MP_N()} experiences are published on ${MP_AP_LABEL}.${objectCard('megaphone',`${MP_N()} experiences on ${MP_AP_LABEL}`)}<div class="link-cm">View in Campaign Manager</div></div>`);
 
 /* ---- Step 1: intent understanding + carry-over, in ONE response ---- */
 const pcFtBlk=(label,from,to)=>`<div class="ft-label" style="margin:0">${label}</div><div class="ft" style="margin:0">
@@ -3100,7 +3353,115 @@ scenes.pcSearch = (state={})=>{
     table = skeletonTable(PC_COLS,true);
   } else {
     body = PC_SEARCH_CONV();
-    if(state.pc){
+    /* ── MULTI-SELECT ACCESS POINT CHANGE ── the ask asks nothing of the
+       canvas until task 1; the whole flow is transcript + plan. */
+    if(state.mp){
+      const m = state.mp;
+      const ASK  = ()=> MP_ASK();
+      const ANSW = ()=> userBubble(MP_ANSWER_PROMPT);
+      const UNDm = ()=> MP_UNDERSTOOD(false);
+      const NAMEm= ()=> MP_NAME_RULE(false);
+      const FIXm = ()=> userBubble(mpFixPrompt());
+      /* everything up to and including the plan, replayed as history */
+      const FIELDSm = ()=> MP_FIELDS_CARD(false);
+      const head = ()=> ASK() + `<div class="convoTurn">${ANSW()}${UNDm()}</div>`
+        + `<div class="convoTurn">${NAMEm()}</div>`
+        + `<div class="convoTurn">${FIELDSm()}</div>`;
+      let tail = selThread(state.asked||n||1) + userBubble(MP_PROMPT);
+      if(m==='reading')          tail += agentLoader('Reading your request', state.tasks||[]);
+      else if(m==='asking')      tail += ASK();
+      else if(m==='answering')   tail += ASK()
+        + `<div class="convoTurn">${ANSW()}${agentLoader('Checking the new access point', state.tasks||[])}</div>`;
+      else if(m==='understood')  tail += ASK()
+        + `<div class="convoTurn">${ANSW()}${MP_UNDERSTOOD(true)}</div>`;
+      else if(m==='namingWait')  tail += ASK() + `<div class="convoTurn">${ANSW()}${UNDm()}</div>`
+        + `<div class="convoTurn">${agentLoader('Working out the names', state.tasks||[])}</div>`;
+      else if(m==='naming')      tail += ASK() + `<div class="convoTurn">${ANSW()}${UNDm()}</div>`
+        + `<div class="convoTurn">${MP_NAME_RULE(true)}</div>`;
+      else if(m==='fieldsWait')  tail += ASK() + `<div class="convoTurn">${ANSW()}${UNDm()}</div>`
+        + `<div class="convoTurn">${NAMEm()}</div>`
+        + `<div class="convoTurn">${agentLoader('Checking the template', state.tasks||[])}</div>`;
+      else if(m==='fields')      tail += ASK() + `<div class="convoTurn">${ANSW()}${UNDm()}</div>`
+        + `<div class="convoTurn">${NAMEm()}</div>`
+        + `<div class="convoTurn">${MP_FIELDS_CARD(true)}</div>`;
+      else if(m==='planning')    tail += head()
+        + `<div class="convoTurn">${agentLoader('Preparing the tasks', state.tasks||[])}</div>`;
+      else if(m==='plan')        tail += head()
+        + `<div class="convoTurn">${MP_PLAN(0,-1,true)}</div>`;
+      else if(m==='w1')          tail += head() + `<div class="convoTurn">${MP_PLAN(0,0)}</div>`
+        + `<div class="convoTurn">${agentLoader(MP_TASKS[0], state.tasks||[])}</div>`;
+      else if(m==='t1err')       tail += head() + `<div class="convoTurn">${MP_PLAN(0,-1)}</div>`
+        + `<div class="convoTurn">${MP_TASK1_ERR()}</div>`;
+      else if(m==='fixing')      tail += head() + `<div class="convoTurn">${MP_PLAN(0,-1)}</div>`
+        + `<div class="convoTurn">${MP_TASK1_ERR()}</div>`
+        + `<div class="convoTurn">${FIXm()}${agentLoader('Applying the copy', state.tasks||[])}</div>`;
+      else if(m==='t1fixed')     tail += head() + `<div class="convoTurn">${MP_PLAN(0,-1)}</div>`
+        + `<div class="convoTurn">${MP_TASK1_ERR()}</div>`
+        + `<div class="convoTurn">${FIXm()}${MP_TASK1_FIXED(true)}</div>`;
+      else if(m==='w2')          tail += head() + `<div class="convoTurn">${MP_PLAN(1,1)}</div>`
+        + `<div class="convoTurn">${MP_TASK1_ERR()}</div>`
+        + `<div class="convoTurn">${FIXm()}${MP_TASK1_FIXED(false)}</div>`
+        + `<div class="convoTurn">${agentLoader(`Creating ${MP_N()} experiences`, state.tasks||[])}</div>`;
+      else if(m==='done')        tail += head() + `<div class="convoTurn">${MP_PLAN(2,-1)}</div>`
+        + `<div class="convoTurn">${MP_TASK1_ERR()}</div>`
+        + `<div class="convoTurn">${FIXm()}${MP_TASK1_FIXED(false)}</div>`
+        + `<div class="convoTurn">${MP_DONE(true)}</div>`;
+      else if(m==='publishing')  tail += head() + `<div class="convoTurn">${MP_PLAN(2,-1)}</div>`
+        + `<div class="convoTurn">${MP_TASK1_ERR()}</div>`
+        + `<div class="convoTurn">${FIXm()}${MP_TASK1_FIXED(false)}</div>`
+        + `<div class="convoTurn">${MP_DONE(false)}</div>`
+        + `<div class="convoTurn">${agentLoader('Publishing the experiences', state.tasks||[])}</div>`;
+      else if(m==='published')   tail += head() + `<div class="convoTurn">${MP_PLAN(2,-1)}</div>`
+        + `<div class="convoTurn">${MP_TASK1_ERR()}</div>`
+        + `<div class="convoTurn">${FIXm()}${MP_TASK1_FIXED(false)}</div>`
+        + `<div class="convoTurn">${MP_DONE(false)}</div>`
+        + `<div class="convoTurn">${MP_PUBLISHED()}</div>`;
+      body += `<div class="convoTurn">${tail}</div>`;
+      /* ── THE CANVAS FOLLOWS THE WORK (user, 2026-09-25: "why is nothing in
+         my canvas changing? where do I see my four new experiences? where did
+         I see the validation happen on my creatives?").
+         Up to the plan the table is still the SEARCH RESULTS the user picked
+         from. From task 1 it becomes the NEW experiences — flagged Error while
+         the copy is over the limit, clean Draft once it is fixed, Published at
+         the end — so every message has something to look at. ── */
+      /* TASK 1 IS STAGING, AND NOTHING IS AN EXPERIENCE YET (user, 2026-09-25:
+         "these are not experiences as of yet, these are just creatives ...
+         they would not have experience ID at this point"). So task 1 shows the
+         CREATIVES being validated — no Experience ID, no status chip — the
+         same interim state the clone flow's cl6 shows. Only from task 2, once
+         they are actually created, does the canvas become experiences. */
+      const onCreatives = ['w1','t1err','fixing','t1fixed'].includes(m);
+      const onExps      = ['w2','done','publishing','published'].includes(m);
+      if(onCreatives){
+        const over = m==='w1' || m==='t1err' || m==='fixing';   // copy still too long
+        table = (m==='w1')
+          ? skeletonTable(MP_CRE_COLS, true)
+          : mpCreativesCanvas(over);
+        /* a creative row opens that creative — wired in wire() below */
+      } else if(onExps){
+        const live = m==='published';
+        const newRows = MP_PICK().map(i=>{
+          const src = PC_ROWS[i] || {};
+          return {...src,
+            /* the naming rule the card promised: the access point inside the
+               name is swapped for the new one */
+            exp: src.exp.replace('Banking', 'BatchSaveHellobox'),
+            ap: NEW_PLACEMENT,
+            tmpl: NEW_TEMPLATE,
+            status: live ? 'Published' : 'Draft',
+            mod: '09/25 20:33PST',
+            /* highlight what THIS flow changed */
+            apEdited: true, tmplEdited: true};
+        });
+        table = (m==='w2' || m==='publishing')
+          ? skeletonTable(PC_COLS, true)
+          : tableHTML(MP_COLS, newRows, {checkbox:true, select:false, drillrow:true});
+      } else {
+        /* the search results, frozen — the user's picks stay visible */
+        table = tableHTML(PC_COLS, rows, {checkbox:true, select:true, selected:sel});
+      }
+    }
+    else if(state.pc){
       const p = state.pc;
       const f = state.fields||{};
       const nm = state.expName;
@@ -3165,7 +3526,9 @@ scenes.pcSearch = (state={})=>{
                                       + `<div class="convoTurn">${CONTENTREQ2()}${PC2_VERIFIED()}</div>`;
       body += `<div class="convoTurn">${tail}</div>`;
     }
-    table = tableHTML(PC_COLS,rows,{checkbox:true,select:true,selected:sel});
+    /* the mp branch sets its OWN table (the staged/new experiences), so this
+       default must not clobber it */
+    if(!state.mp) table = tableHTML(PC_COLS,rows,{checkbox:true,select:true,selected:sel});
   }
   // the chip belongs to the search selection; once the plan starts running the
   // canvas is a access point / new experience, so the selection context is spent
@@ -3173,9 +3536,20 @@ scenes.pcSearch = (state={})=>{
   const PC2_RUNNING = ['building','experience','fixing','verified','done'];
   const chip = (n && !PLAN_RUNNING.includes(state.pc) && !PC2_RUNNING.includes(state.pc2))
     ? n+' experience'+(n===1?'':'s')+' selected' : '';
-  const draft = (state.typed && !state.pc && !state.pc2) ? CHANGE_TMPL_PROMPT
-              : (state.pc==='placement' && state.fixTyped) ? USE_BODY_PROMPT
-              : (state.pc2==='experience' && state.fixTyped) ? pc2ContentPrompt() : '';
+  /* THE COMPOSER'S PERSISTED DRAFT. It has to be scenario-aware: the first
+     condition tested only `!state.pc && !state.pc2`, which is TRUE throughout
+     the multi-select flow, so that flow painted the SINGLE-select scenario's
+     prompt into the composer on every render — visible as the next prompt
+     appearing before the AI had even asked (user, 2026-09-25).
+     The mp flow's own prompts are typed by scheduleAskType and must NOT be
+     re-rendered here, or they reappear the instant a state advances. */
+  const draft = (scenario==='mp')
+      ? ((state.mp===undefined && state.typed) ? MP_PROMPT
+       : (state.mp==='asking' && state.mpTyped) ? MP_ANSWER_PROMPT
+       : (state.mp==='t1err'  && state.mpFixTyped) ? mpFixPrompt() : '')
+      : (state.typed && !state.pc && !state.pc2) ? CHANGE_TMPL_PROMPT
+      : (state.pc==='placement' && state.fixTyped) ? USE_BODY_PROMPT
+      : (state.pc2==='experience' && state.fixTyped) ? pc2ContentPrompt() : '';
   // Task tracker at the top of the panel. It appears only once the plan is
   // running (the two reviews), matching the other flows: 'N.  Task name', with
   // the spinner while that task executes and a check once it settles.
@@ -3188,7 +3562,23 @@ scenes.pcSearch = (state={})=>{
     experience: ['2.  Review the newly created experience', false],
     done:       ['2.  Review the newly created experience', false],
   };
-  const stepPair = STEP_BY_PC[state.pc];
+  /* THE STICKY TASK TRACKER while a plan runs. `STEP_BY_PC` only knows the
+     single-select flow, so the MULTI-SELECT flow needs its own map or the
+     tracker silently never appears (user, 2026-09-25 — the `ms-prototype-intake`
+     skill names this exact trap and I still missed it). Spinner while a task
+     executes, check when it rests. NOT on the plan card itself: no task has
+     started there. */
+  const STEP_BY_MP = {
+    w1:         [`1.  ${MP_TASKS[0]}`, true],
+    t1err:      [`1.  ${MP_TASKS[0]}`, false],
+    fixing:     [`1.  ${MP_TASKS[0]}`, true],
+    t1fixed:    [`1.  ${MP_TASKS[0]}`, false],
+    w2:         [`2.  ${MP_TASKS[1]}`, true],
+    done:       [`2.  ${MP_TASKS[1]}`, false],
+    publishing: [`2.  ${MP_TASKS[1]}`, true],
+    published:  [`2.  ${MP_TASKS[1]}`, false],
+  };
+  const stepPair = STEP_BY_MP[state.mp] || STEP_BY_PC[state.pc];
   const panel = (extra={})=> aiPanel({
     body, chip, draft,
     ...(stepPair ? {step:stepPair[0], stepLoading:stepPair[1]} : {}),
@@ -3246,6 +3636,27 @@ scenes.pcSearch = (state={})=>{
   // button — it's the object under review here, not a place you navigated into.
   /* ── workflow 2's canvas: the new experience, flagged. There is no separate
      access-point review step, so this is the only task canvas. ── */
+  /* ── CLICKING A CREATIVE OPENS IT (user, 2026-09-25: "clicking on a row of
+     the creatives does not show me the creative"). Task 1's rows are staged
+     creatives, so the drill-down shows the creative's own content with the
+     body-copy error on it — the same canvas the single-select flow uses for
+     its task-1 review. ── */
+  const mpCre = ['t1err','fixing','t1fixed'].includes(state.mp);
+  if(!loading && !phase && mpCre && state.creDrill!==undefined && state.creDrill!==null){
+    const over = state.mp!=='t1fixed';
+    const srcIdx = MP_PICK()[state.creDrill];
+    const src = PC_ROWS[srcIdx] || PC_ROWS[0];
+    return expDrillCanvas(PC_CRUMB, src,
+      {...state, expDrillLoading:!!state.creDrillLoading, expTab:state.expTab||'creative'}, {
+        creativeOnly:true, newFields:true, pending:over, bodyFixed:!over,
+        hlTmpl:state.hl!==false, tmpl:NEW_TEMPLATE, ap:NEW_PLACEMENT,
+        name:(src.exp||'').replace('Banking','BatchSaveHellobox').replace('…',''),
+        status: over ? 'Error' : 'Verified', ver:'v1',
+        /* once fixed the creative carries the supplied subheader/footnote, so
+           the drill-down shows the same three fields the message reported */
+        fields: over ? {} : PC_FIELD_VALUES, hl:state.hl!==false, hlBar:true,
+      }) + panel();
+  }
   const q2 = state.pc2;
   if(!loading && !phase && (q2==='building' || q2==='experience' || q2==='fixing' || q2==='verified' || q2==='done')){
     const busy2 = (q2==='building' || q2==='fixing');
@@ -3276,9 +3687,28 @@ scenes.pcSearch = (state={})=>{
 
   // experience drill-down replaces the canvas (row click); the panel keeps the conversation
   if(!loading && !phase && state.expDrill!==undefined && state.expDrill!==null){
-    return expDrillCanvas(PC_CRUMB, rows[state.expDrill], state) + panel();
+    /* THE MULTI-SELECT FLOW DRILLS INTO A *NEW* EXPERIENCE, not the source row
+       it was made from (user, 2026-09-25: "all the newly created experiences,
+       if they're in draft status, how is it that when I open them their status
+       changes to published?"). `rows` is PC_ROWS — the originals, still
+       Published under their old names — so it has to be transformed the same
+       way the results table is. */
+    const drillRow = (state.mp!==undefined && ['done','published'].includes(state.mp))
+      ? {...rows[state.expDrill],
+         exp: (rows[state.expDrill].exp||'').replace('Banking','BatchSaveHellobox'),
+         ap: NEW_PLACEMENT, tmpl: NEW_TEMPLATE,
+         status: state.mp==='published' ? 'Published' : 'Draft',
+         ver: 'v1'}
+      : rows[state.expDrill];
+    return expDrillCanvas(PC_CRUMB, drillRow, state) + panel();
   }
-  const total = rows.length;
+  /* once the multi-select flow stages its new experiences the canvas is a
+     DIFFERENT list — the pager, the heading and the selection bar have to
+     follow it, or they keep describing the search results underneath
+     (user, 2026-09-25). */
+  const mpStaged = state.mp!==undefined
+    && ['w1','t1err','fixing','t1fixed','w2','done','publishing','published'].includes(state.mp);
+  const total = mpStaged ? MP_N() : rows.length;
   const act = (ic,label)=>`<span class="act ${n?'act--on':'act--off'}">${ic} ${label} (${n})</span>`;
   const pager = loading ? '' : `<div class="pager">
         <span>1-${total} of ${total} items</span>
@@ -3287,21 +3717,27 @@ scenes.pcSearch = (state={})=>{
   const content = `<div class="content${state.opening?' content--opening':''}">
     ${topbar(PC_CRUMB)}
     <div class="scroll"><div class="pad">
-      <h2 class="page-h">QB Payroll IPD experiences using Banking - hellobox access point</h2>
+      <h2 class="page-h">${
+        !mpStaged ? 'QB Payroll IPD experiences using Banking - hellobox access point'
+        /* task 1 is validating CREATIVES; only from task 2 do experiences exist */
+        : ['w1','t1err','fixing','t1fixed'].includes(state.mp)
+          ? `Creatives for ${MP_AP_LABEL}`
+          : `New experiences on ${MP_AP_LABEL}`}</h2>
       <div class="toolbar">
         <div class="search">${I.search}<span>Search</span></div>
-        <span class="iconbtn">${I.sliders}</span><span class="iconbtn">${I.sortLines}</span>
+        <span class="iconbtn">${I.sliders}</span>
+        <span class="groupby">Group by ${I.chev}</span>
       </div>
       ${table}
       ${pager}
     </div></div>
-    <div class="selbar selbar--footer">${n} of ${total} selected
+    ${mpStaged ? '' : `<div class="selbar selbar--footer">${n} of ${total} selected
       <div class="acts">
         ${act(I.keep,'Keep')}
         ${act(I.minus,'Remove')}
         <span class="act act--view ${n?'act--on':'act--off'}">${I.eye} View (${n})</span>
       </div>
-    </div>
+    </div>`}
   </div>`;
   return content + panel({opening:state.opening});
 };
@@ -3341,6 +3777,78 @@ function runPCStep(base, label, subs, dur, nextState){
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1),Math.round(slot*(i+1)))));
   timers.push(setTimeout(()=>go('pcSearch',nextState),dur));
 }
+/* ---- MULTI-SELECT ACCESS POINT CHANGE runners ---- */
+function mpBase(){
+  const st=current.state||{};
+  const b={typed:true};
+  if(st.selected) b.selected=st.selected;
+  if(st.asked) b.asked=st.asked;
+  if(st.mpTyped) b.mpTyped=true;
+  if(st.mpFixTyped) b.mpFixTyped=true;
+  if(st.mpFieldsOpen) b.mpFieldsOpen=true;
+  if(st.hl!==undefined) b.hl=st.hl;
+  return b;
+}
+/* the ask names no destination, so the AI asks for one */
+function runMpRead(){
+  const st=current.state, sel=[...(st.selected||[])];
+  const base={...mpBase(), selected:sel, asked:sel.length||1, mp:'reading'};
+  runPCStep(base,'Reading your request',
+    ['Reading your request','Checking the experiences','Checking the access points'],2600,
+    {...base,mp:'asking'});
+}
+/* the user answers with the destination → the AI maps the change */
+function runMpAnswer(){
+  const base={...mpBase(),mp:'answering',mpTyped:true};
+  runPCStep(base,'Checking the new access point',
+    ['Checking the new access point and template','Checking the selected experiences','Mapping the values to carry over'],2600,
+    {...base,mp:'understood'});
+}
+function runMpNaming(){
+  const base={...mpBase(),mp:'namingWait'};
+  runPCStep(base,'Working out the names',
+    ['Reading the existing names','Swapping the access point','Checking for clashes'],2200,
+    {...base,mp:'naming'});
+}
+function runMpFields(){
+  const base={...mpBase(),mp:'fieldsWait'};
+  runPCStep(base,'Checking the template',
+    ['Reading the new template','Listing its required fields','Comparing with the carried values'],2400,
+    {...base,mp:'fields'});
+}
+function runMpPlan(){
+  const base={...mpBase(),mp:'planning'};
+  runPCStep(base,'Preparing the tasks',
+    ['Checking the change','Checking the creatives','Ordering the tasks'],2600,
+    {...base,mp:'plan'});
+}
+/* TASK 1 stages the change and FAILS validation (the cl6 pattern) */
+function runMpTask1(){
+  const base={...mpBase(),mp:'w1'};
+  runPCStep(base,MP_TASKS[0],
+    ['Staging the new experiences','Applying the access point and template','Carrying over the field values','Validating the content'],3400,
+    {...base,mp:'t1err'});
+}
+function runMpFix(){
+  const base={...mpBase(),mp:'fixing',mpFixTyped:true};
+  runPCStep(base,'Applying the copy',
+    ['Reading your copy','Applying it to each creative','Re-validating the content'],2600,
+    {...base,mp:'t1fixed'});
+}
+/* TASK 2 creates from the CORRECTED staging, so nothing broken is created */
+function runMpTask2(){
+  const base={...mpBase(),mp:'w2'};
+  runPCStep(base,MP_TASKS[1],
+    ['Applying the access point','Creating the experiences','Checking the creatives'],3000,
+    {...base,mp:'done'});
+}
+function runMpPublish(){
+  const base={...mpBase(),mp:'publishing'};
+  runPCStep(base,'Publishing the experiences',
+    ['Validating the experiences','Publishing them','Refreshing the view'],2800,
+    {...base,mp:'published'});
+}
+
 /* the ask → AI reads it and comes back with intent + carry-over in one response */
 function runPCUnderstand(){
   const st=current.state, sel=[...(st.selected||[])];
@@ -3475,7 +3983,22 @@ const STEPS_PC2 = [
   PC2_S('experience'),
   PC2_S('verified'),
 ];
-function FLOW_STEPS(){ return scenario==='pc2' ? STEPS_PC2 : STEPS_PC; }
+/* the MULTI-SELECT flow's own step list — without this the arrow keys walk
+   the single-select `pc` flow instead (the copied-build trap) */
+const MP_SEL = [0,1,2,3];
+const mpS = (mp, extra={})=>['pcSearch',{selected:MP_SEL,asked:MP_SEL.length,typed:true,mpTyped:true,mpFixTyped:true,...extra,mp}];
+const STEPS_MP = [
+  ['home',{}],
+  ['pcSearch',{}],
+  ['pcSearch',{selected:MP_SEL,typed:true}],
+  mpS('asking'), mpS('understood'), mpS('naming'), mpS('fields'), mpS('plan'),
+  mpS('t1err'), mpS('t1fixed'), mpS('done'), mpS('published'),
+];
+const MP_ORDER = ['asking','understood','naming','fields','plan','t1err','t1fixed','done','published'];
+function FLOW_STEPS(){
+  if(scenario==='mp')  return STEPS_MP;
+  return scenario==='pc2' ? STEPS_PC2 : STEPS_PC;
+}
 const PC_ORDER = ['understood','naming','fields','plan','placement','bodyfixed','experience','done'];
 const PC2_ORDER = ['understood','naming','fields','experience','verified'];
 // map the CURRENT scene+state onto a step index so arrows resume from anywhere
@@ -3483,6 +4006,14 @@ function stepIndex(){
   const st=current.state||{};
   if(current.name==='home') return 0;
   if(current.name!=='pcSearch') return -1;
+  if(st.mp){
+    /* executing states resolve onto the resting step they head for */
+    const r = {reading:'asking', answering:'understood', namingWait:'naming',
+               fieldsWait:'fields', planning:'plan', w1:'t1err', fixing:'t1fixed',
+               w2:'done', publishing:'published'}[st.mp] || st.mp;
+    const i = MP_ORDER.indexOf(r);
+    return i===-1 ? 2 : i+3;
+  }
   if(st.pc2){
     const r = {reading:'understood',namingWait:'naming',fieldsWait:'fields',
                building:'experience',fixing:'verified',done:'verified'}[st.pc2] || st.pc2;
