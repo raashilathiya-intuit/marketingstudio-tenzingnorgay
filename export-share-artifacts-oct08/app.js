@@ -812,7 +812,7 @@ scenes.home = (state={})=>{
             <!-- the same four screens WITHOUT the browser frame (user, 2026-10-08):
                  copy the link here, paste it into your OWN browser, and see the
                  receiving end for real. The link opens this page with ?open=<key>. -->
-            <div class="simMenu__label">Copy the link, open it in your own browser</div>
+            <div class="simMenu__label">Try it yourself: copy link and open in your browser</div>
             <button class="simMenu__item" data-sim="xr-campaign">Campaign, Experiences tab</button>
             <button class="simMenu__item" data-sim="xr-search">Search results</button>
             <button class="simMenu__item" data-sim="xr-clones">Cloned experiences, the final output</button>
@@ -4228,7 +4228,7 @@ scenes.pcSearch = (state={})=>{
     /* a flagged clone's STATUS is Error; once its copy is supplied the clone has
        been EDITED, so it moves to v2 rather than staying at the created v1 */
     status: needsCopy(k) ? 'Error' : state.pub==='published' ? 'Published' : (cl3Edited ? 'Edited' : r.status),
-    ver: (!needsCopy(k) && cl3Edited) ? 'v2' : r.ver,
+    ver: 'v1',   // an edit does not change the version (user, 2026-10-09)
     // flags the highlighted columns; only set when this flow changed them
     apChanged: isCl3b||cl4Changed||state.cl6!==undefined,
     tmplChanged: isCl3b||cl4Changed||state.cl6!==undefined }));
@@ -4779,9 +4779,9 @@ scenes.pcSearch = (state={})=>{
         exp: SRC_L[i].exp.replace('…','') + cloneSuffix(st.c),
         eid: cloneEid(off+j),
         status: state.pub==='published' ? 'Published' : flagged ? 'Error' : loopKey==='cl3' ? 'Edited' : 'Draft',
-        ver: (loopKey==='cl3' && !flagged) ? 'v2' : 'v1',
-        ap: cl4Dest(s), mod: CLONE_STAMP, apChanged: true,
-        ...(loopKey==='cl3' ? {tmpl: CL3_NEW_TEMPLATE, tmplChanged: true} : {}),
+        ver: 'v1',   // an edit does not change the version (user, 2026-10-09)
+        ap: cl4Dest(s), mod: CLONE_STAMP, apChanged: state.hl!==false,
+        ...(loopKey==='cl3' ? {tmpl: CL3_NEW_TEMPLATE, tmplChanged: state.hl!==false} : {}),
       }));
     };
     const title = (s)=>`Cloned experiences - ${cl4Dest(s)}`;
@@ -4808,11 +4808,22 @@ scenes.pcSearch = (state={})=>{
         : tableHTML(cl4Display.cols, cl4Display.rows,
             {checkbox:true, select:true, selected:new Set(),
              ...(cl4Display.groups?{groups:cl4Display.groups}:{})});
+      /* the pinned action bar every table screen has; the edited clones also
+         carry the "Highlight changes" toggle, since their changed cells are
+         yellow (user, 2026-10-09) */
+      const nRows = cl4Display.rows.length;
+      const hlCtl = loopKey==='cl3' ? `<span class="selbar__vd"></span><label class="hlToggle"><input type="checkbox" data-hlchanges${state.hl!==false?' checked':''}> Highlight changes</label>` : '';
+      const bar = `<div class="selbar selbar--footer">0 of ${nRows} selected${hlCtl}
+        <div class="acts">
+          <span class="act act--off">${I.keep} Keep (0)</span>
+          <span class="act act--off">${I.minus} Remove (0)</span>
+          <span class="act act--view act--off">${I.eye} View (0)</span>
+        </div></div>`;
       return `<div class="content">${topbar(loopKey==='cl4' ? CL4_CRUMB : CLONE_CRUMB)}<div class="scroll"><div class="pad">
         <h2 class="page-h">${cl4Display.title}</h2>
         ${rxToolbarCl4(cl4Display.groups?'Access points':'')}
         ${table}
-      </div></div></div>` + panel();
+      </div></div>${cl4Display.busy?'':bar}</div>` + panel();
     }
   }
 
@@ -5709,7 +5720,7 @@ document.addEventListener('click',(e)=>{
    "What would you like to do next?". No flow transcript is replayed. */
 const SHARE_BASE = 'https://marketingstudio.intuit.com/';
 const SHARE_ARTS = {
-  campaign:{ slug:'campaign/diwm-qb-live/experiences', title:'DIWM QB Live campaign', project:'QBO IPD campaigns',
+  campaign:{ slug:'campaign/diwm-qb-live/experiences', title:'Experiences - DIWM QB Live campaign', project:'QBO IPD campaigns',
              crumb:'<span>Home</span> <span class="sep">/</span> <span>QBO IPD campaigns</span>', icon:'megaphone',
              open:()=>go('singleCampaign',{view:'table',tab:'experiences',typed:true,shared:'campaign'}) },
   search:  { slug:'search/qb-payroll-ipd-experiences-banking-hellobox', title:PC_PROJECT, project:PC_PROJECT,
@@ -5977,12 +5988,14 @@ function liveExpProfile(r, crumb){
    the run made, the body copy the new template needs (v2). Nothing else. ---- */
 function cloneProfile(name, ap, eid, crumb){
   const source = name.replace(/-Clone-\d+$/,'');
+  /* ONE version: the clone was created as v1 and the creative fix is an edit
+     under it, not a new version (user, 2026-10-09: "version doesn't change on
+     just edit"). The flyout reads Edited because it has been. */
   const versions = [
-    {v:'v2', status:'Draft', date:'10/8/2026', by:'Raashi Lathiya'},
-    {v:'v1', status:'Draft', date:'10/8/2026', by:'Raashi Lathiya'},
+    {v:'v1', status:'Edited', date:'10/8/2026', by:'Raashi Lathiya'},
   ];
   const entries = [
-    {date:'10/08/2026 20:34 PST', by:'Raashi Lathiya', type:'Update', ver:'v2', area:'Creative', desc:'Added the body copy the hellobox - text template requires.',
+    {date:'10/08/2026 20:34 PST', by:'Raashi Lathiya', type:'Update', ver:'v1', area:'Creative', desc:'Added the body copy the hellobox - text template requires.',
      fields:[['Body',LOG_NONE,BODY_FIXED]]},
     {date:'10/08/2026 20:33 PST', by:'Raashi Lathiya', type:'Create', ver:'v1', area:'Experience', initial:true, desc:`Cloned from ${source} onto ${ap} with the hellobox - text template.`,
      fields:[['Experience',LOG_NONE,name],['Cloned from',LOG_NONE,source],['Access point',LOG_NONE,ap],['Template',LOG_NONE,NEW_TEMPLATE],['Priority',LOG_NONE,'13.0']]},
@@ -5990,7 +6003,7 @@ function cloneProfile(name, ap, eid, crumb){
   const current = cmpBase({cta:'Try now', ctaUrl:CMP_CTA_URL_OLD, status:'Draft', prio:'13.0', by:'Raashi Lathiya', ap, tmpl:NEW_TEMPLATE, end:'December 31, 2026', cap:'3', treatment:'Treatment2-ELM9071_Med_90pct'});
   current.creative = [['Headline',CMP_HEAD],['Body',BODY_FIXED],['CTA text','Try now'],['CTA URL',CMP_CTA_URL_OLD],['Secondary CTA','Learn more'],['Image','multitasking.svg'],['Terms',CMP_TERMS]];
   current.meta.splice(3,0,['Cloned from',source]);
-  return {title:name, status:'Edited', eid, crumb, versions, cur:'v2', curStatus:'Draft', entries, tabs:CMP_TABS, current,
+  return {title:name, status:'Edited', eid, crumb, versions, cur:'v1', curStatus:'Draft', entries, tabs:CMP_TABS, current,
           aud:{root:[AUD_ROOT_BASE[0], AUD_GROUP_BASE[1], AUD_ROOT_BASE[1]], group:AUD_GROUP_BASE}};
 }
 
@@ -6151,6 +6164,25 @@ const dropKeys = (st, keys)=>{ const s={...st}; keys.forEach(k=>delete s[k]); re
 /* the campaign Experiences tab drills into the experience (export block) */
 const _singleCampaignBase = scenes.singleCampaign;
 scenes.singleCampaign = (state={})=>{
+  /* shared Experiences tab: the artifact IS the table, so no campaign header,
+     no other tabs (user, 2026-10-09: "I should only see experiences") */
+  if(state.expDrill===undefined && state.shared==='campaign'){
+    // the panel's own action bar is the in-page one (it sits under the tabs in
+    // the campaign layout); here the table is the whole page, so it gets the
+    // pinned FOOTER bar every other table screen has
+    const body = experiencesPanel({status:'Published',drillrow:true}).split('<div class="selbar">')[0];
+    return `<div class="content">${topbar('<span>Home</span> <span class="sep">/</span> <span>QBO IPD campaigns</span>')}<div class="scroll"><div class="pad">
+      <h2 class="page-h">${SHARE_ARTS.campaign.title}</h2>
+      ${body}
+    </div></div>
+    <div class="selbar selbar--footer">0 of 64 selected
+      <div class="acts">
+        <span class="act act--off">${I.keep} Keep (0)</span>
+        <span class="act act--off">${I.minus} Remove (0)</span>
+        <span class="act act--view act--off">${I.eye} View (0)</span>
+      </div>
+    </div></div>` + aiPanel({body:SEARCH_CONV(), draft:state.draft||''});
+  }
   if(state.expDrill===undefined) return _singleCampaignBase(state);
   return expDrillCanvas('<span>Home</span> <span class="sep">/</span> <span>QBO IPD campaigns</span>', CAMP_EXP_ROW, state, {name:CAMP_EXP_ROW.name, ver:'v3'})
     + aiPanel({body:SEARCH_CONV(), draft:state.draft||''});
