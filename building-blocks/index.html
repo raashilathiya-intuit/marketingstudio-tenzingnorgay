@@ -967,6 +967,10 @@ select.fbsel--active{border-color:#7b61ff}
    other right-side control) already claims it when both are present. */
 .cd-head .verselect{margin-left:auto;position:relative}
 .cd-head .refJsonToggle + .verselect{margin-left:12px}
+/* the note beside the ghost picker (user, 2026-10-09): same muted/ghost
+   register as the picker so the pair reads as one non-product control */
+.cd-head .refNote{margin-left:auto;font-size:12px;font-style:italic;color:#8a8fa3;white-space:nowrap}
+.cd-head .refNote + .verselect{margin-left:8px}
 /* THE LAYOUT PICKER IS A DEV/REFERENCE CONTROL, NOT PART OF THE PRODUCT
    (user, 2026-09-29: "give this as greyed outline so that it doesnt look
    as a part of the product") — it reused the plain `.verselect` look,
@@ -977,7 +981,7 @@ select.fbsel--active{border-color:#7b61ff}
    family, distinct from anything a real screen would show. Scoped to this
    modifier rather than restyling `.verselect` itself, which stays exactly
    as it is for its real usages. */
-.verselect--ghost{border:1px dashed #c7cad4;color:#8a8fa3;background:transparent}
+.verselect--ghost{border:1px dashed #c7cad4;color:#8a8fa3;background:transparent;white-space:nowrap}
 .verselect--ghost:hover{color:#656a81;border-color:#a7abb8}
 .audLayoutMenu{display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:5;
   background:#fff;border:1px solid var(--divider);border-radius:var(--r-input);
@@ -1167,6 +1171,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region — a single reference screen, no AI panel -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=78"></script>
+<script src="app.js?v=79"></script>
 </body>
 </html>

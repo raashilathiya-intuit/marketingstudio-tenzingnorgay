@@ -916,13 +916,10 @@ function cmpScreen(state={}){
   const tab = cmpTab(t);
   const view = state.view==='preview' ? 'preview' : 'detail';
   const hl = state.hl!==false;
-  /* the Audience tab ships in this push, but the diff is still being
-     confirmed (user, 2026-09-29: "push all in building blocks just for
-     audience give it a WIP tag somewhere") — a small badge on its own tab
-     label, reusing this build's `.badge--beta` swatch (the closest
-     existing semantic fit for "not finished yet"), rather than a new
-     color or hiding the tab. */
-  const tabs = CMP_TABS.map(x=>`<span class="tab ${t===x.key?'active':''}" data-cmptab="${x.key}">${x.label}${x.key==='audience'?' <span class="badge badge--beta" style="font-size:11px;margin-left:4px">WIP</span>':''}</span>`).join('');
+  /* the Audience tab's WIP badge (2026-09-29) is GONE (user, 2026-10-09):
+     the nested table is the final design, the other layouts stay in the
+     ghost picker as reference only. */
+  const tabs = CMP_TABS.map(x=>`<span class="tab ${t===x.key?'active':''}" data-cmptab="${x.key}">${x.label}</span>`).join('');
   /* the Detail/Preview toggle only means something where a preview
      exists; a table-only tab would show a dead control */
   const toggle = tab.preview ? `<div class="cvtoggle" data-cvtoggle>
@@ -939,11 +936,15 @@ function cmpScreen(state={}){
      gets this menu: the other tabs have one shape each. */
   /* ORDER AND DEFAULT (user, 2026-10-01): the nested example (ELM 7172) is the
      default and sits first, then the simple table, its JSON, then the two
-     expression-builder layouts */
+     expression-builder layouts.
+     THE NESTED TABLE IS THE FINAL DESIGN (user, 2026-10-09: "keep table
+     nested as final but keep the dropdown to refer to other options") — it
+     is labelled as such in the menu, and the ghost picker carries a note
+     saying the dropdown itself is a reference control, not to be built. */
   const audLayout = tab.key==='audience' ? (state.audLayout || 'nested') : 'table';
-  const AUD_LAYOUTS = [['nested','Table - Nested'],['table','Table view'],['json','Table - Json'],['sbs','Side by side'],['toggle','Version toggle']]
+  const AUD_LAYOUTS = [['nested','Table - Nested (final)'],['table','Table view'],['json','Table - Json'],['sbs','Side by side'],['toggle','Version toggle']]
     .filter(([k])=> k!=='json' || tab.refJson);
-  const layoutPicker = tab.key==='audience' ? `<span class="verselect verselect--ghost" data-audlayout-toggle>
+  const layoutPicker = tab.key==='audience' ? `<span class="refNote">Reference only, this dropdown is not to be implemented</span><span class="verselect verselect--ghost" data-audlayout-toggle>
       ${AUD_LAYOUTS.find(l=>l[0]===audLayout)[1]} ${I.chev}
       <div class="audLayoutMenu" data-audlayout-menu>
         ${AUD_LAYOUTS.map(([k,label])=>`<div class="audLayoutMenu__item${k===audLayout?' active':''}" data-audlayout="${k}">${label}</div>`).join('')}
