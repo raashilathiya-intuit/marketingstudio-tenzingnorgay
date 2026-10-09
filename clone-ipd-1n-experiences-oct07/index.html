@@ -343,6 +343,9 @@ button{font-family:inherit}
 /* tint the (blue) eye asset to the Figma purple #7b61ff */
 .objectCard__eye img{filter:brightness(0) saturate(100%) invert(38%) sepia(83%) saturate(2600%) hue-rotate(238deg) brightness(96%) contrast(96%)}
 
+/* a download link that closes a chat bubble: sits under the question with the same 12px beat the question has above it */
+.bubble-dl{margin-top:12px;display:flex}
+.bubble-dl .link-dl{margin-top:0}
 .link-dl{display:inline-flex;align-items:center;gap:6px;color:#0365ac;font-size:14px;font-weight:500;cursor:pointer;align-self:flex-start;margin-top:4px}
 .link-cm{display:flex;align-items:center;gap:6px;color:#0365ac;font-size:14px;font-weight:500;cursor:pointer;margin-top:12px}
 
@@ -911,6 +914,6 @@ select.fbsel--active{border-color:#7b61ff}
   <!-- main region injected per-scene -->
   <div class="main" id="main"></div>
 </div>
-<script src="app.js?v=163"></script>
+<script src="app.js?v=165"></script>
 </body>
 </html>

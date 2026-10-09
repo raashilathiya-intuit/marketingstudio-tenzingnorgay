@@ -793,6 +793,11 @@ scenes.home = (state={})=>{
             <div class="simMenu__label">Post-clone validation</div>
             <button class="simMenu__item" data-sim="cl3n">1:n clone, choose whether to change the access point</button>
             <button class="simMenu__item" data-sim="cl4n">1:n clone, mixed access points, group and retarget each one</button>
+            <!-- deprecated (2026-10-09): the summary used to be offered before the
+                 clones existed, though it lists their new experience IDs. Kept
+                 muted but clickable so the two can be compared. -->
+            <div class="simMenu__label">Deprecated</div>
+            <button class="simMenu__item simMenu__item--muted" data-sim="cl3nd">1:n clone, summary offered before the clones are created</button>
             <a class="simMenu__link" href="../clone-ipd-experiences-sep03/index.html">September release clone flows <span class="arr">&rarr;</span></a>
           </div>
         </div>
@@ -3147,8 +3152,15 @@ const CLONE_WORD = 'Clone';
    Everything else is the parent scenario, so they share its states, runners,
    triggers and step lists: `sc()` is the parent key, `mult()` the multiplier.
    The one structural difference is the SET loop: see cl4Sets/cl3Sets. */
-const CLONE_MULT = {cl3n:4, cl4n:2};
-const sc = ()=> scenario==='cl3n' ? 'cl3' : scenario==='cl4n' ? 'cl4' : scenario;
+const CLONE_MULT = {cl3n:4, cl3nd:4, cl4n:2};
+/* cl3nd = cl3n as it was before 2026-10-09, kept in the sim menu as DEPRECATED:
+   it offers "Download summary" on the set's intent card, BEFORE the clones exist.
+   The summary carries the new experience IDs, which cannot be in a file produced
+   before they are generated (user, 2026-10-09), so the live cl3n offers it on the
+   created-set message instead. `DL_BEFORE()` is the only thing that differs. */
+const isCl3n = ()=> scenario==='cl3n' || scenario==='cl3nd';
+const DL_BEFORE = ()=> scenario==='cl3nd';
+const sc = ()=> isCl3n() ? 'cl3' : scenario==='cl4n' ? 'cl4' : scenario;
 const mult = ()=> CLONE_MULT[scenario] || 1;
 const isMulti = ()=> mult()>1;
 // suffix for copy `c` (0-based) of one source: numbered only in 1:n
@@ -3788,11 +3800,11 @@ const CL3N_SET_INTENT = (s, S, active)=>{
     disclosure('Mapped the change',['Reading your request','Checking the new access point','Checking the new template'])
     + `<div class="summaryCard"><p class="summaryCard__intro">Here's what I understood changes for this set.</p>${
         pcFtBlk('Access point:', OLD_PLACEMENT, cl3nDest(s))
-      + pcFtBlk('Template:', OLD_TEMPLATE, CL3_NEW_TEMPLATE)}<p class="summaryCard__intro" style="font-weight:400">The new template adds one field.</p><div class="ft-label">Missing fields:</div><div class="ft fldTbl"><div class="ft__row"><div class="ft__k">1.</div><div class="ft__v">${CL3_ERR_FIELD}</div></div></div><p class="summaryCard__intro" style="font-weight:400">I'll create the ${k===1?'clone':`${k} clones`} and flag this field, so you can fill it in as soon as you have the copy.</p>${dlSummary()}<p class="summaryCard__q">Does this look right? I'll create the ${k===1?'clone':'clones'} once you approve.</p>${active?replyBtn('Approve','cl3nApproveSetIntent'):recordedReply('Approve')}</div>`);
+      + pcFtBlk('Template:', OLD_TEMPLATE, CL3_NEW_TEMPLATE)}<p class="summaryCard__intro" style="font-weight:400">The new template adds one field.</p><div class="ft-label">Missing fields:</div><div class="ft fldTbl"><div class="ft__row"><div class="ft__k">1.</div><div class="ft__v">${CL3_ERR_FIELD}</div></div></div><p class="summaryCard__intro" style="font-weight:400">I'll create the ${k===1?'clone':`${k} clones`} and flag this field, so you can fill it in as soon as you have the copy.</p>${DL_BEFORE()?dlSummary():''}<p class="summaryCard__q">Does this look right? I'll create the ${k===1?'clone':'clones'} once you approve.</p>${active?replyBtn('Approve','cl3nApproveSetIntent'):recordedReply('Approve')}</div>`);
 };
 const CL3N_SET_ERR = (s, S)=>{
   const k = S[s].idx.length;
-  return agentMsg(`<div class="chatBubble">Created ${k} clone${k===1?'':'s'} on ${cl3nDest(s)}, <span class="issueCount">found ${k} issue${k===1?'':'s'}.</span>${objectCard('search',cl3nViewName(s))}<div class="msgErr">${ERR_ICON}<span>${CL3_ERR_FIELD} is missing on ${k===1?'the clone':`all ${k}`}. The new template needs it.</span></div><div class="bubble-q">Send me the copy for each one and I'll update them.</div></div>`);
+  return agentMsg(`<div class="chatBubble">Created ${k} clone${k===1?'':'s'} on ${cl3nDest(s)}, <span class="issueCount">found ${k} issue${k===1?'':'s'}.</span>${objectCard('search',cl3nViewName(s))}<div class="msgErr">${ERR_ICON}<span>${CL3_ERR_FIELD} is missing on ${k===1?'the clone':`all ${k}`}. The new template needs it.</span></div><div class="bubble-q">Send me the copy for each one and I'll update them.</div>${DL_BEFORE()?'':`<div class="bubble-dl">${dlSummary()}</div>`}</div>`);
 };
 const CL3N_SET_VERIFIED = (s, S, active)=>{
   const k = S[s].idx.length, last = s===S.length-1;
@@ -5528,7 +5540,7 @@ const STEPS_CL5 = [
 function FLOW_STEPS(){
   if(scenario==='cl5') return STEPS_CL5;
   if(sc()==='cl4') return stepsCl4();
-  if(scenario==='cl3n') return stepsCl3n();
+  if(isCl3n()) return stepsCl3n();
   if(sc()==='cl3') return STEPS_CL3;
   if(scenario==='cl6') return STEPS_CL6;
   return STEPS_CL3;
@@ -5585,7 +5597,7 @@ function stepIndex(){
     const i=cl4Order().indexOf(r);
     return i===-1 ? 3 : i+3;
   }
-  if(scenario==='cl3n' && st.cl3!==undefined && st.path==='change'){
+  if(isCl3n() && st.cl3!==undefined && st.path==='change'){
     const R={reading2:'confirm',confirming:'confirm',wnaming:'naming',planning:'plan',wallrev:'allrev'};
     let r=R[st.cl3]||st.cl3;
     const m=/^s(\d+)(load|ask|map|int|wcl|err|fix|done)$/.exec(r);
