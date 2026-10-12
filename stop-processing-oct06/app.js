@@ -287,7 +287,16 @@ function agentLoader(label, tasks, bare=false, paused=false){
 const PLAY_ICON = `<svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8.25" stroke="#6b6c72" stroke-width="1.5"/><path d="M8.2 6.9v6.2l5-3.1-5-3.1Z" fill="#6b6c72"/></svg>`;
 
 /* status badge — only the positive variant is used here (QA "Verified") */
-const badge = (t)=>`<span class="badge badge--pos">${t}</span>`;
+/* STATUS COLOURS FOLLOW THE SIBLING BUILDS (user, 2026-10-12: "you're not using
+   the right status colours"): Published/Verified green, Draft blue, Error red,
+   anything else neutral. One helper, so no table can invent its own. */
+const badge = (t)=>{
+  if(t==='Published'||t==='Verified'||t==='Match') return `<span class="badge badge--pos">${t}</span>`;
+  if(t==='Draft') return `<span class="badge badge--draft">${t}</span>`;
+  if(t==='Error'||t==='Mismatch') return `<span class="badge badge--err">${t}</span>`;
+  if(t==='Edited') return `<span class="badge badge--edited">${t}</span>`;
+  return `<span class="badge badge--neutral">${t}</span>`;
+};
 
 const ATTENTION_ICON = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="8" fill="#d94e00"/><rect x="7.25" y="3.6" width="1.5" height="5.2" rx="0.75" fill="#fff"/><circle cx="8" cy="11.4" r="0.95" fill="#fff"/></svg>`;
 
@@ -328,7 +337,7 @@ scenes.home = (state={})=>{
         <div class="sub">What would you like to do today?</div>
         <div class="promptBox" id="homePrompt">
           <div class="promptBox__content">
-            ${state.fileChip?`<div class="fileChip"><span class="fileChip__ico">${icon('note',14)}</span><span class="fileChip__name">name of file.doc</span><span class="fileChip__x">${icon('close',12)}</span></div>`:''}
+            ${state.fileChip?`<div class="fileChip"><span class="fileChip__ico">${icon('note',14)}</span><span class="fileChip__name">${FILE_NAME()}</span><span class="fileChip__x">${icon('close',12)}</span></div>`:''}
             <div class="promptBox__input" id="homeInput"><span class="promptBox__ph">Ask Marketing Agent</span></div>
             <div class="promptBox__actions">
               <button class="promptBox__ctrl">${icon('plus',18)}</button>
@@ -343,6 +352,7 @@ scenes.home = (state={})=>{
             <button class="simMenu__item" data-sim="s1">Stopped at thinking &mdash; C1</button>
             <button class="simMenu__item" data-sim="s2">Stopped at thinking &mdash; C2</button>
             <button class="simMenu__item" data-sim="s3">Stopped at doing</button>
+            <button class="simMenu__item" data-sim="s4">Stopped at doing &mdash; applying changes</button>
           </div>
         </div>
       </div>
@@ -396,8 +406,14 @@ const SP_PROMPT  = 'I want to create a campaign from this creative brief sheet';
 const S2_PROMPT  = 'I want to execute a change order for the ELM9071 campaign';
 /* s2 AND s3 are both change orders (typed, no attachment); only s1 opens
    from the creative brief */
-const isChangeOrder = ()=> scenario==='s2' || scenario==='s3';
-const PROMPT = ()=> isChangeOrder() ? S2_PROMPT : SP_PROMPT;
+const S4_PROMPT  = 'Find IPD experiences that use "Flexible solutions for growth" as their headline';
+const isChangeOrder = ()=> scenario==='s2' || scenario==='s3' || scenario==='s4';
+const PROMPT = ()=> scenario==='s4' ? S4_PROMPT : isChangeOrder() ? S2_PROMPT : SP_PROMPT;
+/* THE ATTACHMENT PER PROMPT: only s1 (the brief sheet) has one. The change-order
+   prompt was briefly given "Change order - ELM9071 campaign" and then reverted
+   (user, 2026-10-12: "remove attachment, kept rest as is"); s4 is a search. */
+const HAS_FILE  = ()=> scenario==='s1';
+const FILE_NAME = ()=> 'name of file.doc';
 const SP_PROJECT = 'ELM9071 campaign';
 const SP_CRUMB   = `<span>Home</span> <span class="sep">/</span> <span>${SP_PROJECT}</span>`;
 /* the substeps the "Doing some tasks" loader ticks through (from the still) */
@@ -409,16 +425,16 @@ const PLAN_SUBS  = ['Reading your request','Mapping the work','Ordering the task
 const S2_SUBS    = ['cm.offerSchema','ixp.splitConfig','ixp.splitConfig'];
 
 /* the user's opening turn — the brief sheet comes in as a file chip */
-const SP_USER = ()=> isChangeOrder()
-  ? userBubble(S2_PROMPT)
-  : userBubble(`<span class="bubbleFile"><span class="bubbleFile__ico">${icon('note',14)}</span>name of file.doc</span><br>${SP_PROMPT}`);
+const SP_USER = ()=> !HAS_FILE()
+  ? userBubble(PROMPT())
+  : userBubble(`<span class="bubbleFile"><span class="bubbleFile__ico">${icon('note',14)}</span>${FILE_NAME()}</span><br>${PROMPT()}`);
 /* "created a project", under its own settled disclosure */
 /* the disclosure describes what the agent actually did: s1/s3 read an
    attached brief, s2 read a typed request */
 const SP_CREATED = ()=> isChangeOrder()
-  ? agentMsg(disclosure('Read your request, created a summary',['Read your request','Looking up the campaign','Compiling a summary'])
+  ? agentMsg(disclosure('Read your request, created a project',['Read your request','Looking up the campaign','Setting up the project'])
       + `<div class="chatBubble">I have created "<span class="chatBubble__name">${SP_PROJECT}</span>" project for you.</div>`)
-  : agentMsg(disclosure('Read your brief, created a summary',['Read your brief','Reading the brief sheet','Compiling a summary'])
+  : agentMsg(disclosure('Read your brief, created a project',['Read your brief','Reading the brief sheet','Setting up the project'])
       + `<div class="chatBubble">I have created "<span class="chatBubble__name">${SP_PROJECT}</span>" project for you.</div>`);
 
 /* THE STOPPED MESSAGE. A bare bubble carrying the error row — the same
@@ -449,7 +465,7 @@ function spComposer(opts={}){
      Same `.fileChip` the home composer uses, above the input. */
   /* only a prompt that HAD an attachment gets one back (s2's change
      order was typed, no file) */
-  const file = (draft && opts.file!==false && !isChangeOrder()) ? `<div class="fileChip"><span class="fileChip__ico">${icon('note',14)}</span><span class="fileChip__name">name of file.doc</span><span class="fileChip__x" data-spfilex>${icon('close',12)}</span></div>` : '';
+  const file = (draft && opts.file!==false && HAS_FILE()) ? `<div class="fileChip"><span class="fileChip__ico">${icon('note',14)}</span><span class="fileChip__name">${FILE_NAME()}</span><span class="fileChip__x" data-spfilex>${icon('close',12)}</span></div>` : '';
   /* SEND AND STOP ARE THE SAME SLOT, NOT TWO BUTTONS (user, 2026-10-07:
      "today we're showing send and stop both. make it either or depending
      on the state"). While the agent runs, stopping is the only thing the
@@ -465,20 +481,22 @@ function spComposer(opts={}){
      "also have the chip inside the prompt box at the top"). It used to
      hang underneath as a sibling; inside, it reads as part of what you
      are about to send rather than a separate suggestion. */
-  const chip = recall ? `<div class="recallRow"><button class="recallChip" data-sprecall title="Tab to enter">${icon('plus',14)}<span>${recall}</span></button></div>` : '';
+  /* THE CHIP SITS IN THE ACTIONS ROW, BOTTOM-LEFT, grouped with attach and send
+     (user, 2026-10-12: "keep it in the bottom left of the row when we have the
+     send and attach action"). It used to be a row above the input. */
+  const chip = recall ? `<button class="recallChip" data-sprecall title="Tab to enter">${icon('plus',14)}<span>${recall}</span></button>` : '';
   /* CLEAR, top-right of the box (user, 2026-10-07: "give me an X at the top
      right corner that allows me to clear a prompt instead of having to
      select the entire text"). Only while there is a draft and the agent is
      idle — an empty box has nothing to clear, and a running one is stop's.
      Clearing drops the draft (and the attachment that came with it); the
-     recall chip returns on its own because `!state.draft` gates it. */
+     recall chip does NOT come back: the handler passes recall:false. */
   const clear = (draft && !running) ? `<button class="promptBox__clear" data-spclear title="Clear">${icon('close',12)}</button>` : '';
   const box = `<div class="promptBox promptBox--centered promptBox--expanded${clear?' promptBox--clearable':''}"><div class="promptBox__content">
     ${clear}
-    ${chip}
     ${file}
     <div class="promptBox__input${filled}" id="spInput">${inner}</div>
-    <div class="promptBox__actions"><button class="promptBox__ctrl">${icon('attach',18)}</button>${action}</div>
+    <div class="promptBox__actions">${chip}<span class="promptBox__grow"></span><button class="promptBox__ctrl">${icon('attach',18)}</button>${action}</div>
   </div></div>`;
   /* THE PROMPT PROMPTER: the stopped prompt, kept as a one-click chip
      under the box. Tab enters it too — the hint says so on hover.
@@ -517,19 +535,19 @@ scenes.s1 = (state={})=>{
   let b = SP_USER();
   if(phase!=='msg-user') b += SP_CREATED();
   /* RUNNING — the "Doing some tasks" loader with its ticking substeps */
-  if(phase==='working') return spC1(b + agentLoader('Doing some tasks', state.tasks||[]), spComposer({running:true}));
+  if(phase==='working') return spC1(b + agentLoader('Thinking', state.tasks||[]), spComposer({running:true}));
   /* PAUSING — the first beat of the stop: the loader settles in place,
      still on screen, before the note arrives */
   if(phase==='pausing') return spC1(b + agentLoader('Stopping', state.tasks||[], false, true), spComposer({}));
   /* STOPPED — the note has arrived and the settled loader has collapsed
      away. It is NOT kept as history: the note already says what happened,
      and on resume the same substeps would appear twice. */
-  if(phase==='stopped') return spC1(b + SP_STOPPED('creating your campaign', state.recall===false), spComposer({recall:(state.recall!==false && !state.draft)?PROMPT():'', draft:state.draft||'', file:!state.detached}));
+  if(phase==='stopped') return spC1(b + SP_STOPPED('creating your campaign', state.recall===false), spComposer({recall:(state.recall!==false && !state.draft && !state.dismissed)?PROMPT():'', draft:state.draft||'', file:!state.detached}));
   /* RESUMED — the stopped turn stays in history, the prompt is re-sent,
      and the agent picks the tasks back up */
   if(phase==='resumed'){
     const conv = b + SP_STOPPED('creating your campaign') + SP_RESENT();
-    return spC1(conv + agentLoader('Doing some tasks', state.tasks||[]), spComposer({running:true}));
+    return spC1(conv + agentLoader('Thinking', state.tasks||[]), spComposer({running:true}));
   }
   return spC1(b, spComposer({}));
 };
@@ -593,14 +611,14 @@ const S2_PLAN = (done=0,running=-1,stopped=-1,recorded=false,tasks,intro)=> agen
 /* THE TWO COMPLETED TASKS, as recorded turns. Each is the same shape:
    what changed, the object it produced, and the approval that moved the
    flow on — exactly as the Figma panel shows them. */
-const S2_TASK1 = ()=> agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit',`Change IDs: Billing offers - ${S2_PROJECT}`)}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${recordedReply('Approved')}</div>`);
-const S2_TASK2 = ()=> agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit',`Change IPD content and images: Placement - ${S2_PROJECT}`)}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${recordedReply('Proceed')}</div>`);
+const S2_TASK1 = (live=false)=> agentMsg(`<div class="chatBubble">Changed the billing offers IDs${objectCard('edit',`Change IDs: Billing offers - ${S2_PROJECT}`)}<div class="bubble-q">Does this look ok? I'll then proceed to task 2.</div>${live?replyBtn('Approve','s2T1Ok'):recordedReply('Approved')}</div>`);
+const S2_TASK2 = (live=false)=> agentMsg(`<div class="chatBubble">Changed IPD content and images to reflect new pricing${objectCard('edit',`Change IPD content and images: Placement - ${S2_PROJECT}`)}<div class="bubble-q">Does this look ok? I'll then proceed to task 3.</div>${live?replyBtn('Proceed','s2T2Ok'):recordedReply('Proceed')}</div>`);
 
 /* THE C2 CANVAS IS A REAL PROGRESS SCREEN, not a skeleton: title,
    subtext, a determinate bar, and the substeps as radio rows. It mirrors
    the panel's loader, so what the canvas shows and what the conversation
    says are the same thing seen twice. */
-function settingUpCanvas(tasks=[], paused=false){
+function settingUpCanvas(tasks=[], paused=false, label='Doing some tasks'){
   const doneCount = tasks.filter(t=>t.state==='done').length;
   const activeIdx = tasks.findIndex(t=>t.state==='active');
   /* the bar fills by completed substeps, with the running one counting
@@ -616,10 +634,96 @@ function settingUpCanvas(tasks=[], paused=false){
     <div class="suCanvas__t">${paused?'Stopping':'Setting things up'}</div>
     <div class="suCanvas__sub">${paused?'Finishing what\'s in progress':'Subtext if required'}</div>
     <div class="suBar${paused?' suBar--paused':''}"><span class="suBar__fill" style="width:${pct}%"></span></div>
-    <div class="suHead"><span class="suHead__dot"></span><span class="suHead__label">${paused?'Stopping':'Doing some tasks'}</span></div>
+    <div class="suHead"><span class="suHead__dot"></span><span class="suHead__label">${paused?'Stopping':label}</span></div>
     <ul class="suList">${rows}</ul>
   </div>`;
 }
+
+
+/* TASKS 1 AND 2 ARE REAL STEPS, NOT HISTORY (user, 2026-10-12: "we approve
+   plan and directly skip 2 proceeds. add those steps"; applies to stopped at
+   thinking AND stopped at doing). After "Looks good" each task runs its loader,
+   shows what it changed with the object card, and waits for the user's
+   "Approved" / "Proceed" before the next one starts. Task 3 is the one that
+   gets stopped. Phases: t1 | t1ok | t2 | t2ok. */
+const TASK_SUBS = ['cm.offerSchema','ixp.splitConfig','ixp.splitConfig'];
+const TASK_CRUMB = { s2:()=>S2_CRUMB_C2, s3:()=>S3_CRUMB_C2 };
+function taskBillingTable(hl=true){
+  const cols = ['Billing code','QA status','Title','No. of offers','Start date','End date','SKU'];
+  const head = cols.map(c=>`<th><span class="th-inner">${c} ${icon('info',13)}</span><span class="sort">${I.sortsm}</span></th>`).join('');
+  const rows = [['20059622','70% (Email)','19',1],['20059628','90% (Email)','19',1],['No billing code','Controls / free trial offers','27',0]]
+    .map(([code,title,off,changed])=>`<tr${changed&&hl?' class="rowdone"':''}><td>${code}</td><td>${badge('Verified')}</td><td>${title}</td><td>${off}</td><td>01/28/2026</td><td>04/22/2026</td><td>QB Live Assisted</td></tr>`).join('');
+  return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+/* WHAT AN EARLIER STOP IN A TASK BEAT LEFT BEHIND (note + resent prompt),
+   in the slot it belongs to. Reset per run. */
+let taskLog = {thinking:'', t1:'', t2:''};
+/* "Looks good" → Thinking in C1. Stoppable like every other loader. */
+function planThinkPhase(scene, state, b){
+  const ph = state.phase;
+  if(ph!=='thinking' && ph!=='pausing-think' && ph!=='stopped-think') return null;
+  const plan = S2_PLAN(0,-1,-1,true) + taskLog.thinking;
+  if(ph==='thinking')      return spC1(b + plan + agentLoader('Thinking', state.tasks||[]), spComposer({running:true}));
+  if(ph==='pausing-think') return spC1(b + plan + agentLoader('Stopping', state.tasks||[], false, true), spComposer({}));
+  /* NO RECALL AFFORDANCE HERE: the prompt was sent long ago and a lot has
+     happened since (user, 2026-10-12). The note alone, and the composer. */
+  return spC1(b + plan + SP_STOPPED('before starting the changes', state.recall===false),
+    spComposer({draft:state.draft||''}));
+}
+const TASK_WHAT = {1:'changing the billing offer IDs', 2:'changing the IPD content and images'};
+function taskPhase(scene, state, b){
+  /* IF A LOADER IS RUNNING, THE COMPOSER SLOT IS STOP (user, 2026-10-12: "why
+     does the prompt box show disabled send when it should be the stop
+     button? This is a repetitive issue"). Every running beat here (t1, t2,
+     t2think) is stoppable; stopping pauses it in place, writes the note and
+     offers the prompt back; sending resumes the same beat. */
+  const m = /^(pausing-|stopped-)?t([12])(ok|think)?$/.exec(state.phase||''); if(!m) return null;
+  const halt = m[1]==='pausing-' ? 'pausing' : m[1]==='stopped-' ? 'stopped' : '';
+  const n = +m[2], ok = m[3]==='ok', think = m[3]==='think';
+  const done = n-1;
+  const plan = S2_PLAN(ok?n:done, -1, -1, true) + taskLog.thinking + taskLog.t1;
+  const prior = n===2 ? S2_TASK1() + taskLog.t2 : '';
+  const tasks = ok ? TASK_SUBS.map(l=>({label:l,state:'done'})) : (state.tasks||[]);
+  /* THINK FIRST, THEN THE SKELETON, THEN THE OUTPUT (user, 2026-10-12). While
+     it thinks the canvas keeps the PREVIOUS task's artifact; the skeleton only
+     appears once the work starts. */
+  const hl = state.hl!==false;
+  const canvasBody = think ? `<div class="pad">${veiledBlock(`<h2 class="page-h">Billing offers - ${SP_PROJECT}</h2>${taskBillingTable(hl)}`)}</div>`
+    : !ok ? `<div class="pad">${skeletonCanvas()}</div>`
+    : `<div class="pad"><h2 class="page-h">${n===1?'Billing offers':'Placement'} - ${SP_PROJECT}</h2>${n===1?taskBillingTable(hl):s3PlacementTable(hl)}</div>`;
+  /* EVERY ARTIFACT CANVAS CARRIES THE FOOTER ACTION BAR (user, 2026-10-12: "where
+     is the action bar?"); the skeleton does not, as in the sibling builds. Under
+     the film while thinking. */
+  const foot = (ok || think) ? hlFoot(hl,think) : '';
+  const canvas = `<div class="content s4Content">${topbar(TASK_CRUMB[scene]())}<div class="scroll">${canvasBody}</div>${foot}</div>`;
+  const result = ok ? (n===1 ? S2_TASK1(true) : S2_TASK2(true))
+    : halt==='pausing' ? agentLoader('Stopping', tasks, false, true)
+    : halt==='stopped' ? SP_STOPPED(TASK_WHAT[n], state.recall===false)
+    : agentLoader(think?'Thinking':'Doing some tasks', tasks);
+  const composer = ok || halt==='pausing' ? spComposer({})
+    : halt==='stopped' ? spComposer({draft:state.draft||''})   // late stop: no recall affordance
+    : spComposer({running:true});
+  return canvas + aiPanel({
+    step:`${n}.  ${S2_TASKS[n-1]}`, stepLoading:!ok && !halt, stepStopped:!!halt,
+    body: b + plan + prior + result,
+    composerHTML: composer,
+  });
+}
+
+/* THE INTERRUPTED TASK STARTS ON THE ARTIFACT THE PREVIOUS ONE PRODUCED (user, 2026-10-12): the
+   canvas does not drop to a "Setting things up" screen between tasks; it
+   keeps showing the previous result while the conversation thinks. */
+/* UNDER THE FILM: the previous artifact stays, veiled, while the agent works on
+   the next output (user, 2026-10-12: "give that white translucent cover so we
+   see that something was happening there"). */
+/* THE WHOLE ARTIFACT GOES UNDER THE FILM, HEADING INCLUDED (user, 2026-10-12:
+   "why is this title completely visible?") */
+const veiledBlock = (inner)=> `<div class="s4Body s4Body--veiled">${inner}<div class="s4Veil"></div></div>`;
+/* A TABLE WITHOUT A CHECKBOX COLUMN GETS THE HIGHLIGHT-ONLY BAR: no "0 of n
+   selected", no Keep/Remove/View (user, 2026-10-12: "there is no checkbox in this
+   table, so do not give zero of four selected"). Same bar the sibling builds use. */
+const hlFoot = (hlOn=true, veiled=false)=> `<div class="selbar selbar--footer${veiled?' selbar--veiled':''}"><label class="hlToggle"><input type="checkbox" data-hlchanges${hlOn?' checked':''}> Highlight changes</label>${veiled?'<div class="s4Veil"></div>':''}</div>`;
+const s2PrevArtifact = (hl=true)=> `<div class="pad">${veiledBlock(`<h2 class="page-h">Billing offers - ${SP_PROJECT}</h2>${taskBillingTable(hl)}`)}</div>`;
 
 scenes.s2 = (state={})=>{
   const phase = state.phase;
@@ -639,19 +743,28 @@ scenes.s2 = (state={})=>{
   if(phase==='msg-user' || phase==='msg-created') return spC1(b, spComposer({running:true}));
   if(phase==='planning') return spC1(b + agentLoader('Creating a plan', state.tasks||[]), spComposer({running:true}));
   if(phase==='plan')     return spC1(b + S2_PLAN(0,-1,-1,false), spComposer({}));
+  /* "Looks good" does NOT jump to C2 (user, 2026-10-12): the agent first
+     thinks for a couple of seconds in the same centred loader as the intake,
+     then the canvas opens with the skeleton. */
+  { const t = planThinkPhase('s2', state, b); if(t) return t; }
 
-  /* tasks 1 and 2 are done and recorded; task 3 is the one that runs */
-  const RUNNING = 2;   // task 3 of 5 — tasks 1 and 2 are done and recorded
-  const history = b + S2_PLAN(2,-1,-1,true) + S2_TASK1() + S2_TASK2();
+  { const t = taskPhase('s2', state, b); if(t) return t; }
+  /* THE STOP COMES RIGHT AFTER APPROVING THE FIRST OBJECT (user, 2026-10-12:
+     "what we're illustrating post proceed on the 2nd object, we do now on
+     triggering approve on the 1st"). Task 1 is done and recorded; task 2 is
+     the one that gets interrupted. Task 2's own run only exists in s3. */
+  const RUNNING = 1;   // task 2 of 5
+  const history = b + S2_PLAN(1,-1,-1,true) + S2_TASK1();
 
   /* ---- C2: the change order is OPEN, canvas on the left ---- */
   if(phase==='working' || phase==='pausing'){
     const paused = phase==='pausing';
-    const canvas = `<div class="content">${topbar(S2_CRUMB_C2)}
-      <div class="scroll scroll--center">${settingUpCanvas(state.tasks||[], paused)}</div></div>`;
+    const hl = state.hl!==false;
+    const canvas = `<div class="content s4Content">${topbar(S2_CRUMB_C2)}
+      <div class="scroll">${s2PrevArtifact(hl)}</div>${hlFoot(hl,true)}</div>`;
     return canvas + aiPanel({
       step:`${RUNNING+1}.  ${S2_TASKS[RUNNING]}`, stepLoading:!paused, stepStopped:paused,
-      body: history + agentLoader(paused?'Stopping':'Doing some tasks', state.tasks||[], false, paused),
+      body: history + agentLoader(paused?'Stopping':'Thinking', state.tasks||[], false, paused),
       composerHTML: spComposer({running:!paused}),
     });
   }
@@ -660,8 +773,9 @@ scenes.s2 = (state={})=>{
      One frame of the C2 layout with both panes animating out, so the
      canvas and conversation LEAVE rather than being cut. */
   if(phase==='closing'){
-    const canvas = `<div class="content content--closing">${topbar(S2_CRUMB_C2)}
-      <div class="scroll scroll--center">${settingUpCanvas(state.tasks||[], true)}</div></div>`;
+    const hl = state.hl!==false;
+    const canvas = `<div class="content content--closing s4Content">${topbar(S2_CRUMB_C2)}
+      <div class="scroll">${s2PrevArtifact(hl)}</div>${hlFoot(hl,true)}</div>`;
     return canvas + aiPanel({
       step:`${RUNNING+1}.  ${S2_TASKS[RUNNING]}`, stepStopped:true,
       body: history + agentLoader('Stopping', state.tasks||[], false, true),
@@ -675,13 +789,14 @@ scenes.s2 = (state={})=>{
      whole history. The crumb drops "Change order - " with it: there is
      no change order open any more. */
   if(phase==='stopped'){
-    return spC1(history + SP_STOPPED('updating your placements', state.recall===false),
-      spComposer({recall:(state.recall!==false && !state.draft)?PROMPT():'', draft:state.draft||'', file:!state.detached}),
+    /* late stop: no recall affordance (user, 2026-10-12) */
+    return spC1(history + SP_STOPPED('changing the IPD content', state.recall===false),
+      spComposer({draft:state.draft||''}),
       S2_CRUMB_C1, state.arriving);
   }
   if(phase==='resumed'){
-    return spC1(history + SP_STOPPED('updating your placements') + SP_RESENT()
-      + agentLoader('Doing some tasks', state.tasks||[]),
+    return spC1(history + SP_STOPPED('changing the IPD content') + SP_RESENT()
+      + agentLoader('Thinking', state.tasks||[]),
       spComposer({running:true}), S2_CRUMB_C1);
   }
   return spC1(history, spComposer({}), S2_CRUMB_C1);
@@ -728,10 +843,10 @@ const S3_ARTIFACT = `Placement (partial) - ${SP_PROJECT}`;
 
 /* the canvas after the stop: only the completed placements, highlighted
    so it is clear these are the rows the interrupted run produced */
-function s3PlacementTable(){
+function s3PlacementTable(hl=true){
   const cols = ['Placement name','QA status','Template','Impression cap','No. of offers','Last updated'];
   const head = cols.map(c=>`<th><span class="th-inner">${c} ${icon('info',13)}</span><span class="sort">${I.sortsm}</span></th>`).join('');
-  const rows = S3_PLACEMENTS.map(([name,tmpl,cap,off])=>`<tr class="rowdone">
+  const rows = S3_PLACEMENTS.map(([name,tmpl,cap,off])=>`<tr${hl?' class="rowdone"':''}>
       <td>${name}</td><td>${badge('Verified')}</td><td>${tmpl}</td>
       <td>${cap}</td><td>${off}</td><td>06/30 18:30PST</td></tr>`).join('');
   return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -747,19 +862,24 @@ function s3PlacementTable(){
    what separates "what happened" from "what now" without splitting the
    turn. */
 const S3_STOPPED = ()=> `<div class="infoNote">${ATTENTION_ICON}<span>I've stopped partway through updating your placements</span></div>`;
-const S3_SUMMARY = (live=true, arriving=false)=> agentMsg(`<div class="chatBubble${arriving?' chatBubble--settling':''}">${S3_STOPPED()}
-    <div class="bubble-q">Here's where your placement updates stand:</div>
+/* THE PARTIAL-STOP BUBBLE (user, 2026-10-12): note, then the object ("n are
+   ready for your review"), THEN the standing table, then three options: keep
+   what was done, roll it back, or CONTINUE WITH THE REMAINING ones (label chosen by the user, 2026-10-12). The recorded
+   form keeps whichever option was taken. */
+const partialStop = ({arriving, note, done, pending, noun, artifact, live})=> agentMsg(`<div class="chatBubble${arriving?' chatBubble--settling':''}">${note}
+    <div class="bubble-q">${done} ${noun} are ready for your review.</div>
+    ${objectCard('edit',artifact)}
+    <div class="bubble-q">Here's where your ${noun.slice(0,-1)} updates stand:</div>
     <div class="standTbl">
-      <div class="standTbl__row"><span>Completed</span><span>${S3_DONE}</span></div>
-      <div class="standTbl__row"><span>Pending</span><span>${S3_PENDING}</span></div>
+      <div class="standTbl__row"><span>Completed</span><span>${done}</span></div>
+      <div class="standTbl__row"><span>Pending</span><span>${pending}</span></div>
     </div>
-    <div class="bubble-q">${S3_DONE} placements are ready for your review.</div>
-    ${objectCard('edit',S3_ARTIFACT)}
     <div class="bubble-q">What would you like to do next?</div>
     <div class="replyStack">
-      ${live ? replyBtn(`Keep ${S3_DONE} updated placements`,'s3Keep') : recordedReply(`Keep ${S3_DONE} updated placements`)}
-      ${live ? replyBtn(`Rollback ${S3_DONE} updated placements`,'s3Rollback') : ''}
+      ${live ? replyBtn(`Keep ${done} updated ${noun}`,'s3Keep') + replyBtn(`Rollback ${done} updated ${noun}`,'s3Rollback') + replyBtn(`Continue with the remaining ${pending} ${noun}`,'s3Complete')
+             : recordedReply(resumeText || `Keep ${done} updated ${noun}`)}
     </div></div>`);
+const S3_SUMMARY = (live=true, arriving=false)=> partialStop({arriving, note:S3_STOPPED(), done:S3_DONE, pending:S3_PENDING, noun:'placements', artifact:S3_ARTIFACT, live});
 
 scenes.s3 = (state={})=>{
   const phase = state.phase;
@@ -772,11 +892,16 @@ scenes.s3 = (state={})=>{
   if(phase==='msg-user' || phase==='msg-created') return spC1(b, spComposer({running:true}));
   if(phase==='planning') return spC1(b + agentLoader('Creating a plan', state.tasks||[]), spComposer({running:true}));
   if(phase==='plan')     return spC1(b + S2_PLAN(0,-1,-1,false), spComposer({}));
+  { const t = planThinkPhase('s3', state, b); if(t) return t; }
 
-  /* s3 runs the SAME change order as s2, but gets two tasks further: the
-     stop lands in task 3, while the placements are being built */
-  const RUNNING = 2;
-  const history = b + S2_PLAN(2,-1,-1,true) + S2_TASK1() + S2_TASK2();
+  { const t = taskPhase('s3', state, b); if(t) return t; }
+  /* s3 MATCHES s2 UP TO THE APPROVAL OF THE FIRST OBJECT (user, 2026-10-12):
+     task 1 is done and recorded, task 2 is the one interrupted. Unlike s2 the
+     stop lands at the SKELETON (doing), after the Thinking beat over task 1's
+     artifact. There is no "Setting things up" screen any more: the canvas
+     already shows the previous artifact while the agent thinks. */
+  const RUNNING = 1;
+  const history = b + S2_PLAN(1,-1,-1,true) + S2_TASK1();
 
   /* ---- C2 ----
      THE CANVAS PLAYS TWO BEATS BEFORE THE STOP (user, 2026-10-07:
@@ -810,8 +935,9 @@ scenes.s3 = (state={})=>{
   /* `--arriving` plays the table's entrance once, on the render that
      introduces it — not on the later beats that re-render the panel */
   const arriving = phase==='resolving' ? ' pad--arriving' : '';
-  const canvas = `<div class="content">${topbar(S3_CRUMB_C2)}<div class="scroll"><div class="pad${arriving}">
-    <h2 class="page-h">${S3_ARTIFACT}</h2>${s3PlacementTable()}</div></div></div>`;
+  const hl = state.hl!==false;
+  const canvas = `<div class="content s4Content">${topbar(S3_CRUMB_C2)}<div class="scroll"><div class="pad${arriving}">
+    <h2 class="page-h">${S3_ARTIFACT}</h2>${s3PlacementTable(hl)}</div></div>${hlFoot(hl,false)}</div>`;
 
   /* ---- SETTLING ----
      A BEAT OF LOADING BETWEEN THE STOP AND THE RESULT (user, 2026-10-07:
@@ -851,7 +977,7 @@ scenes.s3 = (state={})=>{
     return canvas + aiPanel({
       step:'&lt;interruption notification&gt;', stepStopped:true,
       body: history + S3_SUMMARY(true, state.recall===false),
-      composerHTML: spComposer({recall:(state.recall!==false && !state.draft)?PROMPT():'', draft:state.draft||'', file:!state.detached}),
+      composerHTML: spComposer({draft:state.draft||''}),   // late stop: no recall affordance
     });
   }
   if(phase==='resumed'){
@@ -859,13 +985,238 @@ scenes.s3 = (state={})=>{
       step:'&lt;interruption notification&gt;', stepStopped:true,
       /* the recorded form keeps the choice that was taken and drops the
          one that was not */
-      body: history + S3_SUMMARY(false) + SP_RESENT() + agentLoader('Doing some tasks', state.tasks||[]),
+      body: history + S3_SUMMARY(false) + RESENT_IF_TYPED() + agentLoader('Doing some tasks', state.tasks||[]),
       composerHTML: spComposer({running:true}),
     });
   }
   return canvas + aiPanel({body:history, composerHTML:spComposer({})});
 };
 
+
+/* ============================================================
+   SCENARIO 4 — APPLYING CHANGES (user, 2026-10-12, with the reference frame
+   and the long voice note). A FULL flow, not a single stop point: find
+   experiences by headline → (thinking, C1) → C2 loader → results table →
+   the user selects rows and asks for a content change → plan → applying,
+   row by row. EVERY running beat is stoppable: stop at thinking in C1,
+   stop at thinking in C2 (the C2 loader or the planning loader), and stop
+   at doing (applying, 3 of 7 done). The plan has ONE content task, not one
+   per field (user: "there should not be two separate steps… both of these
+   things are to happen together"); the audience add is listed as the task
+   after it and is never reached.
+   ============================================================ */
+const S4_PROJECT = 'QB Payroll experiences';
+const S4_CRUMB_C1 = `<span>Home</span> <span class="sep">/</span> <span>${S4_PROJECT}</span>`;
+const S4_CRUMB_C2 = `<span>Home</span> <span class="sep">/</span> <span>Change order - ${S4_PROJECT}</span>`;
+const S4_CHANGE = 'Change the headline to "Adaptable Solutions for Success" and the body copy to "Save time with smart reminders" for these experiences, and add the Medium Price Sensitivity audience';
+const S4_TASKS = ['Change headline and body copy', 'Add audience "Medium Price Sensitivity"'];
+const S4_TOTAL = 7, S4_DONE = 3;
+/* the autopilot picks SOME, not all (user, 2026-10-12: "don't select all. select
+   some"); applying, the artifact and the summary follow the selection */
+const S4_PICK = [0,1,2,3,4];
+const S4_OLD = {head:'Flexible solutions for growth', body:'Save time with reminders, and less manual work.'};
+const S4_NEW = {head:'Adaptable Solutions for Success', body:'Save time with smart reminders'};
+/* OUR table structure, not the reference's two-line cell (user: "we will
+   use our structure where we have experience ID, experience name, status,
+   and then maybe we show headline") */
+const S4_COLS = ['Experience','Experience ID','Status','Headline','Body copy','Last updated'];
+const S4_ROWS = [
+  ['ELM9684-IPD-QBOPayroll','1113460','Published'],['ELM9533-IPD-QBOPayroll','1113472','Draft'],
+  ['ELM4217-IPD-QBOPayroll','1113488','Published'],['ELM7856-IPD-QBOPayroll','1113491','Draft'],
+  ['ELM3041-IPD-QBOPayroll','1113507','Published'],['ELM6198-IPD-QBOPayroll','1113515','Published'],
+  ['ELM8724-IPD-QBOPayroll','1113529','Draft'],
+];
+const S4_ARTIFACT = `Changed headline and body copy - ${S4_PROJECT}`;
+const S4_ARTIFACT_PARTIAL = `Changed headline and body copy (partial) - ${S4_PROJECT}`;
+const SELCTX_ICON = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 3v5.5A3.5 3.5 0 0 0 7.5 12H14" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round"/><path d="M10.8 8.4 14.4 12l-3.6 3.6" stroke="#6b6c72" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const selThread = (n)=>`<div class="selCtx">${SELCTX_ICON}<span>Selected ${n} experience${n===1?'':'s'}</span></div>`;
+
+/* THE APP'S OWN TABLE (.tbl-wrap/.tbl, .cbcol/.cb, td.edited, .skel rows).
+   mode: 'skeleton' (all rows loading) | 'pick' (live checkboxes) |
+   'applying' (first `applied` rows changed, the rest skeleton) |
+   'result' (first `applied` rows changed, the rest as they were). */
+/* `frozen`: a pick list that is no longer being picked (the ask has been
+   sent) keeps its ticks but takes no clicks. A RESULT TABLE HAS NO SELECTION
+   (user, 2026-10-12: "why are these checkboxes selected?"): the artifact is
+   something to review, not a selection the user made. */
+/* `revealed`: THE RESULTS ARRIVE ONE ROW AT A TIME (user, 2026-10-12: "show
+   the search results also appear one after the other, a very mature loading
+   state"). Rows past `revealed` are still skeleton; the newest real row plays
+   a short entrance (`landing`). */
+function s4Table({mode, applied=0, selected=new Set(), frozen=false, revealed=S4_ROWS.length, landing=false, rowsIdx=null, hl=true}){
+  /* applying / result tables list ONLY the selected experiences; `hl` is the
+     footer's "Highlight changes" toggle */
+  const idx = rowsIdx || S4_ROWS.map((_,i)=>i);
+  const pick = mode==='pick';
+  const allOn = pick && selected.size===S4_ROWS.length;
+  /* NO `disabled` ANYWHERE (user, 2026-10-12: "show normal selection, not
+     disabled or whatever this new weird state is"): a frozen or result table
+     draws ordinary checkboxes and is made inert in wire() instead, so the
+     boxes never go faded. */
+  const head = `<th class="cbcol"><input type="checkbox" class="cb"${pick&&!frozen?` data-selall${allOn?' checked':''}`:`${pick&&allOn?' checked':''}`}></th>` + S4_COLS.map(c=>`<th><span class="th-inner">${c}<span class="sort">${I.sortsm}</span></span></th>`).join('');
+  const skelRow = (i)=>`<tr><td class="cbcol"><span class="skel skel--check"></span></td>${S4_COLS.map((c,j)=>`<td><span class="skel" style="width:${50+((i*7+j*11)%40)}%"></span></td>`).join('')}</tr>`;
+  const body = idx.map((i,k)=>{
+    const [name,id,status] = S4_ROWS[i];
+    if(mode==='skeleton' || (mode==='applying' && k>=applied) || (pick && i>=revealed)) return skelRow(i);
+    const done = (mode==='applying'||mode==='result') && k<applied;
+    const cb = pick ? `<input type="checkbox" class="cb"${frozen?'':` data-selrow="${i}"`}${selected.has(i)?' checked':''}>` : `<input type="checkbox" class="cb">`;
+    const rowIn = landing && i===revealed-1 ? ' class="rowIn"' : '';
+    return `<tr${rowIn}${pick?` data-selrowtr="${i}"`:''}><td class="cbcol">${cb}</td><td>${name}</td><td>${id}</td><td>${badge(status)}</td>
+      <td${done&&hl?' class="edited"':''}>${done?S4_NEW.head:S4_OLD.head}</td><td${done&&hl?' class="edited"':''}>${done?S4_NEW.body:S4_OLD.body}</td><td>06/30 18:30PST</td></tr>`;
+  }).join('');
+  return `<div class="tbl-wrap"><table class="tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+/* "Highlight changes" is a WORKING toggle, never disabled (user, 2026-10-12:
+   "highlight changes checkbox needs to work, right?") */
+/* `veiled`: while changes apply the footer sits under the same film as the
+   table, toggle included (user, 2026-10-12: "highlight changes should also be
+   under that, no?"). The film lifts with the stop. */
+const s4Foot = (n, hl, total=S4_TOTAL, hlOn=true, veiled=false)=> `<div class="selbar selbar--footer${veiled?' selbar--veiled':''}">${n} of ${total} selected${hl?`<span class="selbar__vd"></span><label class="hlToggle"><input type="checkbox" data-hlchanges${hlOn?' checked':''}> Highlight changes</label>`:''}
+  <div class="acts"><span class="act ${n?'act--on':'act--off'}">${I.keep} Keep (${n})</span><span class="act ${n?'act--on':'act--off'}">${I.minus} Remove (${n})</span><span class="act act--view ${n?'act--on':'act--off'}">${I.eye} View (${n})</span></div>${veiled?'<div class="s4Veil"></div>':''}</div>`;
+/* the stop control is ICON ONLY (user, 2026-10-12: "remove label. use only icon") */
+const s4StopBtn = ()=> `<button class="s4Btn s4Btn--icon" data-spstop title="Stop" aria-label="Stop">${I.stop}</button>`;
+const s4Pill = (n,paused,total)=> `<div class="s4Pill">${paused?`<span class="agentTasks__paused">${I.stop}</span><b>Stopping</b>`:`<img class="spinnerII" src="figma/spinner-ii.gif" alt="" width="16" height="16"><b>Applying changes ${n}/${total}</b><span class="s4Pill__sub">You can continue with other tasks</span>${s4StopBtn()}`}</div>`;
+/* `veil`: WHILE CHANGES APPLY THE TABLE IS UNDER A TRANSLUCENT LAYER AND NOT
+   INTERACTIVE (user, 2026-10-12, from the reference: "these experiences when
+   loading have a translucent layer making it non interactive"). The rows
+   stay readable, so you can watch them fill, but nothing in them takes a click. */
+const s4Pager = ()=> `<div class="pager"><span>1-${S4_TOTAL} of ${S4_TOTAL} items</span><span class="nav"><span class="is-off">${I.chevL}</span><span>Page</span><span class="box">1</span><span>of 1</span><span class="is-off">${I.chevR}</span></span></div>`;
+const s4Canvas = ({crumb=S4_CRUMB_C1, title='', table, pill='', foot='', veil=false, pager=false})=> `<div class="content s4Content">${topbar(crumb)}
+  <div class="scroll"><div class="pad">
+    <div class="s4Body${veil?' s4Body--veiled':''}">${title?`<h2 class="page-h">${title}</h2>`:''}
+      <div class="toolbar"><div class="search">${I.search}<span>Search</span></div><span class="iconbtn">${I.sliders}</span></div>
+      ${table}${pager?s4Pager():''}${veil?'<div class="s4Veil"></div>':''}
+    </div></div></div>${pill}${foot}</div>`;
+/* THE STOP PLAYS OUT INSIDE THE PROGRESS CARD (user, 2026-10-12: "we were at this
+   stage, so rich; accommodate stopping also"). It used to vanish on stop and be
+   replaced by a plain loader. mode: running → pausing ("Stopping") → settling
+   ("Checking what completed") → stopped ("Stopped at n/total", kept as the record). */
+const s4Card = (n,mode,total)=>{
+  const spin = `<img class="spinnerII" src="figma/spinner-ii.gif" alt="" width="18" height="18">`;
+  const inner = mode==='pausing'  ? `<span class="agentTasks__paused">${I.stop}</span><span>Stopping</span>`
+              : mode==='settling' ? `${spin}<span>Checking what completed</span>`
+              : mode==='stopped'  ? `<span class="s4Apply__dot">${ATTENTION_ICON}</span><span>Stopped at ${n}/${total}</span>`
+              : `${spin}<span>Applying changes ${n}/${total}</span>${s4StopBtn()}`;
+  return agentMsg(`<div class="chatBubble">Changing headline and body copy…<div class="s4Apply s4Apply--${mode}">${inner}</div></div>`);
+};
+
+/* conversation pieces */
+const S4_CREATED = ()=> agentMsg(disclosure('Read your request, created a project',['Read your request','Looking up IPD experiences','Setting up the project'])
+  + `<div class="chatBubble">I have created "<span class="chatBubble__name">${S4_PROJECT}</span>" project for you.</div>`);
+const S4_RESULTS = `IPD experiences - "${S4_OLD.head}"`;
+/* THE RESULTS ARE AN OBJECT IN THE CONVERSATION (user, 2026-10-12: "when
+   search results is created where is the object?"): same shape as every
+   other search in the prototypes, a settled disclosure and a results card. */
+const S4_FOUND = ()=> agentMsg(disclosure('Searched IPD experiences, compiled the results',['Looking up IPD experiences','Matching the headline','Compiling the results'])
+  + `<div class="chatBubble">I found ${S4_TOTAL} IPD experiences with that headline.${objectCard('search',S4_RESULTS)}<div class="bubble-q">Select the ones you want to work with.</div></div>`);
+/* THE SELECTION THREAD IS ITS OWN TURN (`.convoTurn`, as in the sibling builds):
+   60px of its own padding above the stroke, so the context line never sits on
+   the previous message's timestamp (user, 2026-10-12: "fix this spacing!!!"). */
+/* `.selTurn` = the 60px top padding only. `.convoTurn` also FILLS the viewport
+   (min-height 100%+40px), which left an empty tail before the plan card and
+   pushed the context line out of the fold (user, 2026-10-12: "why is
+   conversation empty?" / "why do I not see select n experiences"). */
+const S4_ASK = (n)=> `<div class="selTurn">${selThread(n)}${userBubble(S4_CHANGE)}</div>`;
+const S4_STOPPED = ()=> `<div class="infoNote">${ATTENTION_ICON}<span>I've stopped partway through applying your changes</span></div>`;
+const S4_SUMMARY = (live=true, arriving=false, total=S4_TOTAL)=> partialStop({arriving, note:S4_STOPPED(), done:S4_DONE, pending:total-S4_DONE, noun:'experiences', artifact:S4_ARTIFACT_PARTIAL, live});
+
+/* WHAT AN EARLIER STOP LEFT IN THE TRANSCRIPT. A stop at thinking writes a
+   note and, on resume, the resent prompt; later phases must carry both. One
+   slot per place a stop can land before the applying step. Reset per run. */
+let s4Log = {search:'', open:'', plan:''};
+const S4_THINK_SUBS = ['Looking up IPD experiences','Matching the headline','Collecting the results'];
+const S4_PLAN_SUBS  = PLAN_SUBS;
+
+scenes.s4 = (state={})=>{
+  const phase = state.phase;
+  const sel = new Set(state.selected||[]);
+  const n = sel.size;
+  if(phase==='bootfull'){
+    return `<div class="content">${topbar(`<span>Home</span> <span class="sep">/</span> <span class="cfskel cfskel--bar" style="width:220px;height:14px;display:inline-block"></span>`)}
+      <div class="scroll scroll--center">${bootCanvas()}</div></div>`;
+  }
+  let b = SP_USER();
+  if(phase!=='msg-user') b += S4_CREATED();
+  if(phase==='msg-user' || phase==='msg-created') return spC1(b, spComposer({running:true}), S4_CRUMB_C1);
+
+  /* ---- C1: thinking about the search — stop here = stopped at thinking, C1 ---- */
+  b += s4Log.search;
+  if(phase==='searching')  return spC1(b + agentLoader('Thinking', state.tasks||[]), spComposer({running:true}), S4_CRUMB_C1);
+  if(phase==='pausing-c1') return spC1(b + agentLoader('Stopping', state.tasks||[], false, true), spComposer({}), S4_CRUMB_C1);
+  if(phase==='stopped-c1'){
+    return spC1(b + SP_STOPPED('looking up your experiences', state.recall===false),
+      spComposer({recall:(state.recall!==false && !state.draft && !state.dismissed)?PROMPT():'', draft:state.draft||''}), S4_CRUMB_C1);
+  }
+
+  /* ---- C2 opens: the loader first, then the results ---- */
+  const resultsCanvas = (mode, extra={})=> s4Canvas({crumb:S4_CRUMB_C1, title:mode==='skeleton'?'':`IPD experiences with the headline "${S4_OLD.head}"`, table:s4Table({mode, selected:sel}), foot:mode==='skeleton'?'':s4Foot(n,false), pager:mode!=='skeleton', ...extra});
+  b += s4Log.open;
+  if(phase==='opening' || phase==='landing' || phase==='pausing-c2' && state.from==='opening' || phase==='stopped-c2' && state.from==='opening'){
+    const paused = phase!=='opening' && phase!=='landing';
+    /* rows already on screen stay through a pause or a stop */
+    const revealed = state.revealed||0;
+    const landingCanvas = revealed ? s4Canvas({crumb:S4_CRUMB_C1, title:`IPD experiences with the headline "${S4_OLD.head}"`, table:s4Table({mode:'pick', frozen:true, revealed, landing:phase==='landing'}), foot:s4Foot(0,false)}) : resultsCanvas('skeleton');
+    const body = phase==='stopped-c2' ? SP_STOPPED('loading your experiences', state.recall===false)
+               : agentLoader(paused?'Stopping':'Thinking', state.tasks||[], false, paused);
+    const composer = phase==='stopped-c2'
+      ? spComposer({recall:(state.recall!==false && !state.draft && !state.dismissed)?PROMPT():'', draft:state.draft||''})
+      : spComposer({running:!paused});
+    return landingCanvas + aiPanel({body:b + body, composerHTML:composer});
+  }
+  b += S4_FOUND();
+  if(phase==='results'){
+    return resultsCanvas('pick') + aiPanel({body:b, composerHTML:spComposer({draft:state.draft||''})});
+  }
+
+  /* ---- the ask, then the plan ---- */
+  b += S4_ASK(n) + s4Log.plan;
+  /* veiled while planning / thinking; clear once stopped or resting on the plan */
+  const pickedCanvas = (veiled)=> s4Canvas({crumb:S4_CRUMB_C2, title:`IPD experiences with the headline "${S4_OLD.head}"`, table:s4Table({mode:'pick', selected:sel, frozen:true}), foot:s4Foot(n,false,S4_TOTAL,true,veiled), pager:true, veil:veiled});
+  if(phase==='planning' || phase==='pausing-c2' || phase==='stopped-c2'){
+    const paused = phase!=='planning';
+    /* a stop during the post-plan Thinking keeps the recorded plan on screen */
+    const fromThink = state.from==='thinking';
+    const body = (fromThink ? S2_PLAN(0,-1,-1,true,S4_TASKS) : '')
+               + (phase==='stopped-c2' ? SP_STOPPED(fromThink?'before applying your changes':'planning your changes', state.recall===false)
+               : agentLoader(paused?'Stopping':'Creating a plan', state.tasks||[], false, paused));
+    const composer = phase==='stopped-c2'
+      ? spComposer({recall:(state.recall!==false && !state.draft && !state.dismissed)?S4_CHANGE:'', draft:state.draft||''})
+      : spComposer({running:!paused});
+    return pickedCanvas(phase!=='stopped-c2') + aiPanel({body:b + body, composerHTML:composer});
+  }
+  if(phase==='plan')     return pickedCanvas(false) + aiPanel({body:b + S2_PLAN(0,-1,-1,false,S4_TASKS), composerHTML:spComposer({})});
+  if(phase==='thinking') return pickedCanvas(true) + aiPanel({body:b + S2_PLAN(0,-1,-1,true,S4_TASKS) + agentLoader('Thinking', state.tasks||[]), composerHTML:spComposer({running:true})});
+
+  /* ---- applying: task 1 runs row by row; the stop lands at 3/7 ---- */
+  const applied = state.applied===undefined ? S4_DONE : state.applied;
+  const history = b + S2_PLAN(0,0,-1,true,S4_TASKS);
+  const tracker = `1.  ${S4_TASKS[0]}`;
+  const picked = [...sel].sort((a,b)=>a-b);
+  const hl = state.hl!==false;
+  if(phase==='applying' || phase==='pausing'){
+    const paused = phase==='pausing';
+    return s4Canvas({crumb:S4_CRUMB_C2, title:S4_ARTIFACT, table:s4Table({mode:'applying', applied, rowsIdx:picked, hl}), pill:s4Pill(applied,paused,n), foot:s4Foot(0,true,n,hl,true), veil:true})
+      + aiPanel({step:tracker, stepLoading:!paused, stepStopped:paused, body:history + s4Card(applied,paused?'pausing':'running',n), composerHTML:spComposer({running:!paused})});
+  }
+  const stoppedCanvas = (arriving, appliedN=S4_DONE)=> s4Canvas({crumb:S4_CRUMB_C2, title:appliedN>=n?S4_ARTIFACT:S4_ARTIFACT_PARTIAL, table:s4Table({mode:'result', applied:appliedN, rowsIdx:picked, hl}), foot:s4Foot(0,true,n,hl)})
+    .replace('<div class="pad">', `<div class="pad${arriving?' pad--arriving':''}">`);
+  const interrupted = {step:'&lt;interruption notification&gt;', stepStopped:true};
+  if(phase==='settling'){
+    return s4Canvas({crumb:S4_CRUMB_C2, title:S4_ARTIFACT, table:s4Table({mode:'applying', applied:S4_DONE, rowsIdx:picked, hl}), foot:s4Foot(0,true,n,hl,true), veil:true})
+      + aiPanel({...interrupted, body:history + s4Card(S4_DONE,'settling',n), composerHTML:spComposer({})});
+  }
+  if(phase==='resolving'){
+    return stoppedCanvas(true) + aiPanel({...interrupted, body:history + s4Card(S4_DONE,'settling',n), composerHTML:spComposer({})});
+  }
+  if(phase==='stopped'){
+    return stoppedCanvas(false) + aiPanel({...interrupted, body:history + s4Card(S4_DONE,'stopped',n) + S4_SUMMARY(true, state.recall===false, n),
+      composerHTML:spComposer({draft:state.draft||''})});   // late stop: the three options are the affordance
+  }
+  if(phase==='resumed'){
+    return stoppedCanvas(false, state.applied!==undefined?state.applied:S4_DONE) + aiPanel({...interrupted, body:history + s4Card(S4_DONE,'stopped',n) + S4_SUMMARY(false,false,n) + RESENT_IF_TYPED() + agentLoader('Doing some tasks', state.tasks||[]), composerHTML:spComposer({running:true})});
+  }
+  return stoppedCanvas(false) + aiPanel({body:history, composerHTML:spComposer({})});
+};
 
 /* the canvas skeleton that sits behind every C2 state here — the block is
    about the conversation, so the canvas stays a loading shell throughout */
@@ -909,14 +1260,28 @@ let scenario = 's1';
 let resumeText = '';
 let resumeFile = true;               // was the brief still attached when resent?
 /* the resent turn, with the attachment if it went back with the prompt */
-const SP_RESENT = ()=> userBubble(resumeFile
-  ? `<span class="bubbleFile"><span class="bubbleFile__ico">${icon('note',14)}</span>name of file.doc</span><br>${resumeText||PROMPT()}`
+/* A CHIP REPLY INSIDE AN AI CARD IS RECORDED IN THE CARD, NEVER ALSO AS A USER
+   PROMPT BUBBLE (user, 2026-10-12: "when do we give that as a new user prompt?
+   anything given in AI chip as a response?"). Only a composer send produces the
+   resent bubble; `resumeVia` says which it was. */
+let resumeVia = 'composer';
+const RESENT_IF_TYPED = ()=> resumeVia==='composer' ? SP_RESENT() : '';
+/* a resend carries the prompt's own attachment (see HAS_FILE / FILE_NAME); s4 has none */
+const SP_RESENT = ()=> userBubble((resumeFile && HAS_FILE())
+  ? `<span class="bubbleFile"><span class="bubbleFile__ico">${icon('note',14)}</span>${FILE_NAME()}</span><br>${resumeText||PROMPT()}`
   : (resumeText||PROMPT()));
 let current  = {name:'home', state:{}};
 const TYPE_MS = 18;
 
 function render(scene, state){
   current = {name:scene, state};
+  /* ANY RENDER NOT DRIVEN BY AN ARROW DROPS THE CACHED ARROW INDEX (2026-10-12).
+     A button click (Looks good, Approved, Proceed, send) or a runner's tick
+     changes what is on screen without going through stepTo, and a stale index
+     made the next arrow count from where the user HAD been rather than from
+     what they can see. Re-deriving from the screen every time is what
+     keyIdxFromCurrent and PHASE_ALIAS exist for. */
+  if(!stepping) keyIdx = -1;
   const main = $('#main');
   main.innerHTML = scenes[scene](state);
   wire(scene, state);
@@ -939,8 +1304,10 @@ function typeInto(input, text, done){
 }
 
 /* tick a loader's substeps across `dur`, then call done() */
-function runSubs(scene, phase, label, subs, dur, done){
-  const tick=(a)=>render(scene,{phase,tasks:subs.map((l,j)=>({label:l,state:j<a?'done':j===a?'active':'idle'}))});
+/* `extra` rides along on every tick (e.g. s4's `selected`), so a loader never
+   drops state the scene needs (user, 2026-10-12: "0 of 7 selected" during planning) */
+function runSubs(scene, phase, label, subs, dur, done, extra={}){
+  const tick=(a)=>render(scene,{...extra, phase,tasks:subs.map((l,j)=>({label:l,state:j<a?'done':j===a?'active':'idle'}))});
   tick(0);
   const slot=(dur-600)/subs.length;
   subs.forEach((_,i)=>timers.push(setTimeout(()=>tick(i+1), Math.round(slot*(i+1)))));
@@ -961,6 +1328,7 @@ function runSubs(scene, phase, label, subs, dur, done){
    USER stops it, which is the whole point of the block. */
 function runIntake(scene, after){
   resumeText = ''; resumeFile = true;  // a fresh run carries nothing over
+  taskLog = {thinking:'', t1:'', t2:''};
   render(scene,{phase:'bootfull'});
   const a=2400, b=a+600, ldr=b+900;
   timers.push(setTimeout(()=>render(scene,{phase:'msg-user'}),a));
@@ -993,6 +1361,18 @@ function runS2(){ runIntake('s2', runS2Planning); }
 /* task 3 running on the canvas — it HOLDS on the last substep so there
    is always something to stop, like s1's working loop */
 const S2_HOLD = ()=> S2_SUBS.map((l,j)=>({label:l,state:j<2?'done':'active'}));
+/* tasks 1 and 2: loader, then the result waiting for the user's approval */
+const THINK_SUBS = ['Reading the plan','Preparing the changes','Getting started'];
+/* "Looks good" → a couple of seconds of Thinking in C1 → task 1 (s2 AND s3) */
+function runPlanThinking(scene){
+  runSubs(scene,'thinking','Thinking',THINK_SUBS,2800, ()=>runTask(scene,1));
+}
+const runS2Thinking = ()=> runPlanThinking('s2');
+function runTask(scene, n){
+  const work = ()=> runSubs(scene,'t'+n,'Doing some tasks',TASK_SUBS,2600, ()=>render(scene,{phase:'t'+n+'ok'}));
+  /* task 2 thinks over task 1's artifact before the skeleton appears */
+  if(n===2) runSubs(scene,'t2think','Thinking',THINK_SUBS,2400, work); else work();
+}
 function runS2Task(){
   runSubs('s2','working','Doing some tasks',S2_SUBS,5200,
     ()=>render('s2',{phase:'working',tasks:S2_HOLD()}));
@@ -1015,23 +1395,130 @@ const S3_SUBS = S2_SUBS;
    interrupted. The substep list runs across both so the panel's loader
    never restarts. */
 const S3_HOLD = ()=> S3_SUBS.map((l,j)=>({label:l,state:j<2?'done':'active'}));
+/* Approve on object 1 → Thinking over the billing artifact (t2think) → the
+   skeleton, ticking and holding so there is always something to stop. The
+   old "Setting things up" beat is gone (user, 2026-10-12): the previous
+   artifact is on the canvas while the agent thinks, which does that job. */
+function runS3Working(){
+  runSubs('s3','working','Doing some tasks',S3_SUBS,4200,
+    ()=>render('s3',{phase:'working',tasks:S3_HOLD()}));
+}
 function runS3Task(){
-  runSubs('s3','setup','Doing some tasks',S3_SUBS,2600, ()=>{
-    /* hand over to the skeleton and keep ticking there, holding on the
-       last substep so there is always something to stop */
-    runSubs('s3','working','Doing some tasks',S3_SUBS,4200,
-      ()=>render('s3',{phase:'working',tasks:S3_HOLD()}));
-  });
+  runSubs('s3','t2think','Thinking',THINK_SUBS,2400, runS3Working);
 }
 function runS3Resume(){
   runSubs('s3','resumed','Building the experiences',S3_SUBS,4200,
     ()=>render('s3',{phase:'resumed',tasks:S3_SUBS.map(l=>({label:l,state:'done'}))}));
 }
 
+
+/* s4 runners. Each running beat is its own function so the arrow keys and
+   a resume can re-enter it (same rule as s1's working loop). */
+function runS4(){ s4Log = {search:'', open:'', plan:''}; runIntake('s4', runS4Search); }
+/* C1 thinking. It used to HOLD until the user stopped it, so that stopping
+   at thinking in C1 was always available; held, it just read as stuck (user,
+   2026-10-12: "it is not moving forward from here?"). Now it runs its three
+   steps (~4s, the window in which a stop lands in C1) and moves on to C2 by
+   itself. */
+function runS4Search(){
+  runSubs('s4','searching','Thinking',S4_THINK_SUBS,4200, runS4Open);
+}
+/* after a resume from the C1 stop: a couple of seconds of the same thinking,
+   then C2 opens (user: "in a couple of seconds, we move to C2 where you show
+   the loader, and then the table") */
+function runS4SearchResume(){
+  runSubs('s4','searching','Thinking',S4_THINK_SUBS,2600, runS4Open);
+}
+function runS4Open(){
+  runSubs('s4','opening','Thinking',S4_THINK_SUBS,3000, runS4Landing);
+}
+/* the rows stream in under a still-running "Thinking"; the found card lands
+   only once the last row has */
+const S4_ROW_MS = 260;
+function runS4Landing(){
+  const done = S4_THINK_SUBS.map(l=>({label:l,state:'done'}));
+  const step=(k)=>render('s4',{phase:'landing',revealed:k,tasks:done});
+  step(1);
+  for(let k=2;k<=S4_ROWS.length;k++) timers.push(setTimeout(()=>step(k), S4_ROW_MS*(k-1)));
+  timers.push(setTimeout(runS4Results, S4_ROW_MS*(S4_ROWS.length-1)+700));
+}
+/* THE RESULTS PICK THEMSELVES (autopilot, like the sibling flows): the table
+   lands, all seven get selected and the change ask types itself. A click on
+   any checkbox takes over from the autopilot; send is always the user's. */
+function runS4Results(){
+  render('s4',{phase:'results',selected:[]});
+  timers.push(setTimeout(()=>render('s4',{phase:'results',selected:S4_PICK}),1500));
+  /* THE ASK TYPES ITSELF BUT THE USER SENDS IT (user, 2026-10-12: "allow me
+     to trigger send"). The typed text is handed back as a real draft so the
+     send control goes live and the X can clear it; nothing advances until
+     send is clicked. */
+  timers.push(setTimeout(()=>{
+    const inp=$('#spInput'); if(!inp) return;
+    typeInto(inp, S4_CHANGE, ()=>render('s4',{phase:'results',selected:S4_PICK,draft:S4_CHANGE}));
+  },2600));
+}
+function runS4Planning(){
+  const selected = (current.state&&current.state.selected&&current.state.selected.length) ? current.state.selected : S4_PICK;
+  runSubs('s4','planning','Creating a plan',S4_PLAN_SUBS,3600, ()=>go('s4',{phase:'plan',selected}), {selected});
+}
+function runS4Thinking(){
+  const selected = current.state.selected || S4_PICK;
+  runSubs('s4','thinking','Thinking',THINK_SUBS,2800, ()=>runS4Apply(selected), {selected});
+}
+function runS4Apply(selected){
+  const step=(k)=>render('s4',{phase:'applying',applied:k,selected});
+  step(0);
+  for(let k=1;k<=S4_DONE;k++) timers.push(setTimeout(()=>step(k), 1500*k));
+}
+function runS4ApplyResume(){
+  const selected = current.state.selected || S4_PICK;
+  /* "Continue with the remaining n" finishes the table; the other two leave it as it was */
+  const applied = /^Continue/.test(resumeText||'') ? selected.length : S4_DONE;
+  runSubs('s4','resumed','Doing some tasks',S2_SUBS,4200,
+    ()=>render('s4',{phase:'resumed',selected,applied,tasks:S2_SUBS.map(l=>({label:l,state:'done'}))}), {selected});
+}
+/* RESUME DEPENDS ON WHERE THE STOP WAS. The note that was shown and the
+   prompt that was just resent both stay in the transcript for the rest of
+   the run, in the slot that stop belongs to. */
+function runS4Resume(){
+  const st = current.state||{};
+  if(st.phase==='stopped-c1'){ s4Log.search += SP_STOPPED('looking up your experiences') + SP_RESENT(); runS4SearchResume(); return; }
+  if(st.phase==='stopped-c2' && st.from==='opening'){ s4Log.open += SP_STOPPED('loading your experiences') + SP_RESENT(); runS4Open(); return; }
+  if(st.phase==='stopped-c2' && st.from==='thinking'){ s4Log.plan += SP_STOPPED('before applying your changes') + SP_RESENT(); runS4Thinking(); return; }
+  if(st.phase==='stopped-c2'){ s4Log.plan += SP_STOPPED('planning your changes') + SP_RESENT(); runS4Planning(); return; }
+  runS4ApplyResume();
+}
+/* the s4 stop: which beats follow depends on what was running */
+function s4Stop(state){
+  clearTimers();
+  const t=(fn,ms)=>timers.push(setTimeout(fn,ms));
+  const ph = state.phase;
+  if(ph==='searching'){
+    render('s4',{...state, phase:'pausing-c1'});
+    t(()=>render('s4',{phase:'stopped-c1',recall:false}),1100);
+    t(()=>render('s4',{phase:'stopped-c1',recall:true}),2000);
+    return;
+  }
+  if(ph==='opening' || ph==='landing' || ph==='planning' || ph==='thinking'){
+    const from = ph==='landing' ? 'opening' : ph;
+    render('s4',{...state, phase:'pausing-c2', from});
+    t(()=>render('s4',{phase:'stopped-c2',from,selected:state.selected,revealed:state.revealed,recall:false}),1100);
+    t(()=>render('s4',{phase:'stopped-c2',from,selected:state.selected,revealed:state.revealed,recall:true}),2000);
+    return;
+  }
+  /* applying — same beats as s3: pause, take stock, canvas first, then the summary */
+  render('s4',{...state, phase:'pausing'});
+  const settleAt=1200, settleDur=4000, resolveLead=420, noteAt=settleAt+settleDur;
+  t(()=>render('s4',{...state, phase:'settling'}), settleAt);
+  t(()=>render('s4',{...state, phase:'resolving'}), noteAt-resolveLead);
+  t(()=>render('s4',{...state, phase:'stopped', recall:false}), noteAt);
+  t(()=>render('s4',{...state, phase:'stopped', recall:true}), noteAt+900);
+}
+
 /* ---- what a stop does, per scenario ---- */
-const STOP_TO   = {s1:'stopped', s2:'stopped', s3:'stopped'};
-const RESUME_RUN = {s1:runS1Resume, s2:runS2Resume, s3:runS3Resume};
-const START_RUN  = {s1:runS1, s2:runS2, s3:runS3};
+const STOP_TO   = {s1:'stopped', s2:'stopped', s3:'stopped', s4:'stopped'};
+const RESUME_RUN = {s1:runS1Resume, s2:runS2Resume, s3:runS3Resume, s4:runS4Resume};
+const START_RUN  = {s1:runS1, s2:runS2, s3:runS3, s4:runS4};
 
 function wire(name, state){
   const main = $('#main');
@@ -1050,7 +1537,7 @@ function wire(name, state){
       pill.onclick=(e)=>{ e.stopPropagation(); menu.classList.toggle('hidden'); };
       menu.querySelectorAll('[data-sim]').forEach(b=>b.onclick=(e)=>{
         e.stopPropagation(); scenario=b.dataset.sim;
-        go('home',{autotype:PROMPT(), fileChip:!isChangeOrder()});
+        go('home',{autotype:PROMPT(), fileChip:HAS_FILE()});
       });
       document.addEventListener('click',()=>menu.classList.add('hidden'),{once:true});
     }
@@ -1063,18 +1550,44 @@ function wire(name, state){
   /* the two choices s3 offers after a stop. Both resume the flow with the
      user's decision as their turn, so the transcript records WHICH was
      taken rather than silently continuing. */
-  const keepBtn = main.querySelector('#s3Keep'), rbBtn = main.querySelector('#s3Rollback');
-  if(keepBtn) keepBtn.onclick=()=>{ clearTimers(); resumeText = `Keep ${S3_DONE} updated placements`; runS3Resume(); };
-  if(rbBtn)   rbBtn.onclick=()=>{ clearTimers(); resumeText = `Rollback ${S3_DONE} updated placements`; runS3Resume(); };
+  /* Keep / Rollback / Complete the remaining: each records its own label as the
+     user's turn, then resumes */
+  ['#s3Keep','#s3Rollback','#s3Complete'].forEach(sel=>{ const b=main.querySelector(sel); if(b) b.onclick=()=>{ clearTimers(); resumeText = b.textContent.trim(); resumeFile = false; resumeVia = 'chip'; RESUME_RUN[name](); }; });
 
   const approve = main.querySelector('#s2ApprovePlan');
-  if(approve) approve.onclick=()=>{ clearTimers(); (name==='s2'?runS2Task:runS3Task)(); };
+  if(approve) approve.onclick=()=>{ clearTimers(); if(name==='s4') runS4Thinking(); else runPlanThinking(name); };
+  const t1ok = main.querySelector('#s2T1Ok'), t2ok = main.querySelector('#s2T2Ok');
+  /* s2: approving the first object starts the task that gets stopped */
+  if(t1ok) t1ok.onclick=()=>{ clearTimers(); (name==='s2' ? runS2Task : runS3Task)(); };
+  if(t2ok) t2ok.onclick=()=>{ clearTimers(); (name==='s2'?runS2Task:runS3Task)(); };
 
   /* ── THE STOP CONTROL. Stopping is immediate: every pending timer is
        dropped, so nothing the agent had queued lands after the user has
        said stop. ── */
-  const stop = main.querySelector('[data-spstop]');
-  if(stop) stop.onclick=()=>{
+  /* "Highlight changes" works on every artifact canvas */
+  const hlc = main.querySelector('[data-hlchanges]'); if(hlc) hlc.onchange=()=>render(name,{...state, hl:hlc.checked});
+  /* s4 picks its own stop beats by phase */
+  if(name==='s4'){
+    main.querySelectorAll('[data-spstop]').forEach(b=>b.onclick=()=>s4Stop(state));
+    /* the results picker: any click takes over from the autopilot */
+    /* every table that is not the live picker keeps its boxes as drawn */
+    if(state.phase!=='results') main.querySelectorAll('.tbl .cb').forEach(cb=>cb.onclick=(e)=>e.preventDefault());
+    if(state.phase==='results'){
+      const pick=(next)=>{ clearTimers(); render('s4',{...state, selected:[...next]}); };
+      main.querySelectorAll('[data-selrow]').forEach(cb=>cb.onclick=(e)=>{ e.stopPropagation(); const sx=new Set(state.selected||[]); const i=+cb.dataset.selrow; sx.has(i)?sx.delete(i):sx.add(i); pick(sx); });
+      const all=main.querySelector('[data-selall]'); if(all) all.onclick=(e)=>{ e.stopPropagation(); pick(all.checked ? S4_ROWS.map((_,i)=>i) : []); };
+    }
+  }
+  /* s2/s3 task beats: stop pauses THAT beat in place */
+  const taskBeat = (name==='s2'||name==='s3') && /^(thinking|t[12](think)?)$/.test(state.phase||'');
+  if(taskBeat) main.querySelectorAll('[data-spstop]').forEach(b=>b.onclick=()=>{
+    clearTimers();
+    const key = state.phase==='thinking' ? 'think' : state.phase;
+    render(name,{...state, phase:'pausing-'+key});
+    timers.push(setTimeout(()=>render(name,{phase:'stopped-'+key, recall:false}),1100));
+    timers.push(setTimeout(()=>render(name,{phase:'stopped-'+key, recall:true}),2000));
+  });
+  if(name!=='s4' && !taskBeat) main.querySelectorAll('[data-spstop]').forEach(stop=>{ stop.onclick=()=>{
     /* THE STOP IS A SEQUENCE OF BEATS, so nothing arrives at the same time
        as something else (user, 2026-10-06: the note and the prompt chip
        "are both appearing together right now and one is likely to get
@@ -1171,7 +1684,7 @@ function wire(name, state){
        a loading beat ("Checking what completed") and only then the
        artifact and the summary. s1/s2 have nothing to compute, so they go
        straight from the pause to the note. */
-    const settles = name==='s3';
+    const settles = name==='s3' || name==='s4';
     /* 4s of "Checking what completed" (user, 2026-10-07) — it is the beat
        that does the apparent work, so it carries the wait */
     const settleAt = 1200, settleDur = 4000;
@@ -1186,7 +1699,7 @@ function wire(name, state){
     if(settles) timers.push(setTimeout(()=>render(name,{...state, phase:'resolving', draft:''}), noteAt - resolveLead));
     timers.push(setTimeout(()=>render(name,{...state, phase:STOP_TO[name], draft:'', recall:false, arriving:closes}), noteAt));
     timers.push(setTimeout(()=>render(name,{...state, phase:STOP_TO[name], draft:'', recall:true}), noteAt+900));
-  };
+  }; });
 
 
   /* ── THE PROMPT PROMPTER. Clicking it puts the stopped prompt back in
@@ -1195,9 +1708,14 @@ function wire(name, state){
   const recall = main.querySelector('[data-sprecall]');
   if(recall) recall.onclick=()=>render(name,{...state, draft:PROMPT(), detached:false});
 
-  /* the X in the corner empties the box; the chip offers the prompt again */
+  /* THE X DISMISSES THE PROMPT FOR GOOD (user, 2026-10-12: "once I trigger
+     close, I should not see my prompt affordance"). It used to empty the box
+     and let the recall chip come back, so the prompt the user had just
+     rejected was offered to them again. Closing is a decision: the draft
+     goes, and the chip stays gone. `dismissed` rather than `recall:false`, because
+     the latter doubles as the note's arriving flag and would replay its entrance. */
   const clearBtn = main.querySelector('[data-spclear]');
-  if(clearBtn) clearBtn.onclick=(e)=>{ e.stopPropagation(); render(name,{...state, draft:'', detached:false}); };
+  if(clearBtn) clearBtn.onclick=(e)=>{ e.stopPropagation(); render(name,{...state, draft:'', detached:false, dismissed:true}); };
 
   /* the attachment can be taken off again without losing the prompt */
   const filex = main.querySelector('[data-spfilex]');
@@ -1211,8 +1729,20 @@ function wire(name, state){
     const txt=(inp && !inp.querySelector('.promptBox__ph')) ? inp.textContent.trim() : '';
     if(!txt) return;
     clearTimers();
+    resumeVia = 'composer';
+    if(name==='s4' && state.phase==='results'){ if(!(state.selected||[]).length) return; runS4Planning(); return; }
+    /* resuming a stopped task beat re-runs that beat, carrying the note and the resent prompt */
+    if((name==='s2'||name==='s3') && /^stopped-/.test(state.phase||'')){
+      resumeText = txt; resumeFile = false;
+      const key = state.phase.slice(8);
+      if(key==='think'){ taskLog.thinking += SP_STOPPED('before starting the changes') + SP_RESENT(); runPlanThinking(name); return; }
+      const n = +key[1];
+      taskLog['t'+n] += SP_STOPPED(TASK_WHAT[n]) + SP_RESENT();
+      if(key==='t2think') runS3Task(); else runTask(name,n);
+      return;
+    }
     resumeText = txt;
-    resumeFile = !isChangeOrder() && !state.detached && !!main.querySelector('.fileChip');
+    resumeFile = HAS_FILE() && !state.detached && !!main.querySelector('.fileChip');
     RESUME_RUN[name]();
   };
 }
@@ -1263,6 +1793,7 @@ const KEY_STATES = {
     ()=>render('s2',{phase:'msg-user'}),
     ()=>render('s2',{phase:'msg-created'}),
     ()=>runS2Planning(),
+    ()=>render('s2',{phase:'t1ok'}),
     ()=>runS2Task(),
     ()=>render('s2',{phase:'stopped'}),
     ()=>render('s2',{phase:'stopped',draft:S2_PROMPT}),
@@ -1273,12 +1804,25 @@ const KEY_STATES = {
     ()=>render('s3',{phase:'msg-user'}),
     ()=>render('s3',{phase:'msg-created'}),
     ()=>runS3Planning(),
+    ()=>render('s3',{phase:'t1ok'}),
     ()=>runS3Task(),
     ()=>render('s3',{phase:'stopped'}),
     ()=>render('s3',{phase:'stopped',draft:S2_PROMPT}),
     ()=>runS3Resume(),
   ],
 };
+KEY_STATES.s4 = [
+  ()=>render('s4',{phase:'bootfull'}),
+  ()=>render('s4',{phase:'msg-user'}),
+  ()=>render('s4',{phase:'msg-created'}),
+  ()=>runS4Search(),
+  ()=>runS4Results(),
+  ()=>go('s4',{phase:'plan',selected:S4_PICK}),
+  ()=>runS4Apply(S4_PICK),
+  ()=>render('s4',{phase:'stopped',selected:S4_PICK}),
+  ()=>render('s4',{phase:'stopped',selected:S4_PICK,draft:S4_CHANGE}),
+  ()=>runS4ApplyResume(),
+];
 let keyIdx = -1;                 // -1 = not stepping; the timed run is driving
 
 /* Step to a key state. Any pending timer is dropped first: stepping is a
@@ -1293,7 +1837,24 @@ function stepTo(i){
   stepping = true;
   try { list[idx](); } finally { stepping = false; }
   keyIdx = idx;
+  /* A RUNNING STATE REACHED BY ARROW MUST NOT HOLD FOREVER (user, 2026-10-12:
+     "it should bring me to those states but not have me stuck there forever").
+     The holding states (working / searching / applying) wait for the USER's
+     stop when the flow is driven from the prompt, which is the block's point.
+     Arrowed into, nobody is going to press stop, so the state plays for a
+     few seconds and then triggers its own stop, and the flow moves on to the
+     stopped state exactly as it would have. Only the holding states: the
+     others advance on their own already. `keyIdx` is dropped first, so the
+     next arrow continues from what is then on screen. */
+  const HOLDS = new Set(['working','applying']);
+  timers.push(setTimeout(()=>{
+    const st = current.state||{};
+    if(!HOLDS.has(st.phase)) return;
+    const stop = $('[data-spstop]'); if(!stop) return;
+    keyIdx = -1; stop.click();
+  }, ARROW_HOLD_MS));
 }
+const ARROW_HOLD_MS = 6000;
 /* STEPPING ONTO A STATE WHOSE RUNNER ADVANCES PAST IT DESYNCS `keyIdx`
    FROM THE SCREEN, AND THAT IS WHAT FEELS STUCK (user, 2026-10-07: "left
    right key usage gets me stuck"). `runS2Planning` ends in
@@ -1323,12 +1884,16 @@ function clearKeyIdx(){ keyIdx = -1; }
    animation, so nothing is lost visually. */
 const KEY_PHASES = {
   s1:['bootfull','msg-user','msg-created','working','stopped','stopped-draft','resumed'],
-  s2:['bootfull','msg-user','msg-created','plan','working','stopped','stopped-draft','resumed'],
-  s3:['bootfull','msg-user','msg-created','plan','working','stopped','stopped-draft','resumed'],
+  s2:['bootfull','msg-user','msg-created','plan','t1ok','working','stopped','stopped-draft','resumed'],
+  s3:['bootfull','msg-user','msg-created','plan','t1ok','working','stopped','stopped-draft','resumed'],
+  s4:['bootfull','msg-user','msg-created','searching','results','plan','applying','stopped','stopped-draft','resumed'],
 };
 /* the planning loader maps to the state it is arriving at, so arrowing
    while it runs continues from there rather than returning -1 */
-const PHASE_ALIAS = {planning:'plan', pausing:'stopped', closing:'stopped', settling:'stopped', resolving:'stopped'};
+/* TASKS 1-2 ARE KEY STATES TOO (2026-10-12): their running beats map to the
+   result they arrive at, the same rule as planning→plan. Without this an arrow
+   pressed mid-task found no index and snapped to the start. */
+const PHASE_ALIAS = {planning:'plan', thinking:'plan', t1:'t1ok', t2:'t2ok', t2think:'working', 'pausing-think':'plan', 'stopped-think':'plan', 'pausing-t1':'t1ok', 'stopped-t1':'t1ok', 'pausing-t2':'t2ok', 'stopped-t2':'t2ok', 'pausing-t2think':'working', 'stopped-t2think':'working', setup:'working', opening:'results', landing:'results', 'pausing-c1':'searching', 'stopped-c1':'searching', 'pausing-c2':'results', 'stopped-c2':'results', pausing:'stopped', closing:'stopped', settling:'stopped', resolving:'stopped'};
 function keyIdxFromCurrent(){
   if(keyIdx>=0) return keyIdx;
   const order = KEY_PHASES[scenario]||[];

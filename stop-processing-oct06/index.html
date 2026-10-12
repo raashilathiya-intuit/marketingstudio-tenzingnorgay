@@ -541,7 +541,8 @@ button{font-family:inherit}
 .badge--info{background:#ddd6fe;color:#6f5ade}       /* Info */
 .badge--beta{background:#d9f6f5;color:#008481}       /* Beta */
 .badge--new{background:#fbddf0;color:#9c005e}        /* New */
-.badge--neutral{background:#eeeeef;color:#515154}    /* Neutral */
+.badge--neutral{background:#eeeeef;color:#515154}
+.badge--err{background:#fad7d6;color:#d52b1e}        /* Error (Ui/Negative) */    /* Neutral */
 
 /* warning note — IDS Page Message / Warning, tertiary (Figma 6902:128913) */
 .warnNote{display:flex;align-items:flex-start;gap:8px;background:#ffffff;border:1px solid #c9500f;border-radius:8px;padding:16px;margin-top:12px;font-size:14px;font-weight:400;line-height:1.5;color:#6b6c72}
@@ -1138,6 +1139,10 @@ select.fbsel--active{border-color:#7b61ff}
 /* inside the box now, above the input — no top margin, it is the
    first row of the composer's own stack */
 .recallRow{display:flex}
+/* the chip in the actions row: left, grouped with attach/send; truncates rather than wraps */
+.promptBox__grow{flex:1 1 auto;min-width:12px}
+.promptBox__actions .recallChip{flex:0 1 auto;min-width:0;max-width:62%}
+.promptBox__actions .recallChip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* the chip is the LAST of the three stop beats, so it has its own entrance —
    it must read as arriving after the note, not alongside it */
 .recallChip{animation:recallIn .32s cubic-bezier(.22,.61,.36,1) both}
@@ -1191,6 +1196,39 @@ select.fbsel--active{border-color:#7b61ff}
 .skelRow+.skelRow{border-top:1px solid #f0f0f2}
 /* rows are quieter than the header, so the table reads as structure first */
 .skelRow .cfskel{opacity:.55}
+
+/* s4 — applying changes */
+.selTurn{padding-top:60px}
+/* the thread wrapper breaks `.chatMsgGroup + .chatMsgGroup`, so the group after it
+   gets the same 60px explicitly (user, 2026-10-12: "spacing between 2 bubbles?? why
+   this delta?") */
+.selTurn + .chatMsgGroup{margin-top:60px}
+.s4Btn--icon{padding:6px;width:32px;height:32px;justify-content:center}
+/* the glyph keeps the composer's 20px, whatever the surrounding bubble sets
+   (user, 2026-10-12: "what has happened to icon size?") */
+.s4Btn svg,.s4Btn--icon svg{width:20px;height:20px;display:block;flex:none}
+.tbl tr.rowIn td{animation:rowIn .32s cubic-bezier(.22,.61,.36,1) both}
+@keyframes rowIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tbl tr.rowIn td{animation:none}}
+.s4Body{position:relative}
+.s4Veil{position:absolute;inset:0;background:rgba(255,255,255,.6);border-radius:12px;cursor:default;z-index:2}
+.s4Body--veiled .toolbar,.s4Body--veiled .tbl-wrap{pointer-events:none}
+.selbar--veiled{position:relative}
+.selbar--veiled .s4Veil{border-radius:0 0 var(--r-large) var(--r-large)}
+.selbar--veiled .hlToggle,.selbar--veiled .acts{pointer-events:none}
+.tbl .cellSub{font-size:12px;color:var(--text-secondary,#6b6c72)}
+.s4Content{position:relative;display:flex;flex-direction:column}
+.s4Content>.scroll{flex:1;min-height:0}
+.s4Pill{position:absolute;left:50%;bottom:84px;transform:translateX(-50%);z-index:6;display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e5e5ec;border-radius:12px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.1);font-size:14px;color:var(--text-strong);white-space:nowrap}
+.s4Pill b{font-weight:600}.s4Pill__sub{color:#6b6c72}
+.s4Btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;background:#eeeef2;color:#21262a;font:inherit;font-size:14px;font-weight:500;padding:6px 12px;cursor:pointer}
+.s4Apply{display:flex;align-items:center;gap:10px;margin-top:10px;padding:12px 16px;border:1px solid #7b61ff;border-radius:12px;background:#fff;font-size:14px;color:var(--text-strong)}
+.s4Apply .s4Btn{margin-left:auto}
+.s4Apply--pausing,.s4Apply--settling,.s4Apply--stopped{border-color:#e5e5ec}
+.s4Apply--pausing{color:#6b6c72}
+.s4Apply--stopped{color:var(--text-strong)}
+.s4Apply__dot{display:inline-flex;width:18px;height:18px;align-items:center;justify-content:center;flex:none}
+.s4Apply__dot svg{width:18px;height:18px;display:block}
 </style>
 </head>
 <body>
