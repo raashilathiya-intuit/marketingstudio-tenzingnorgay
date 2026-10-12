@@ -1265,6 +1265,12 @@ let resumeFile = true;               // was the brief still attached when resent
    anything given in AI chip as a response?"). Only a composer send produces the
    resent bubble; `resumeVia` says which it was. */
 let resumeVia = 'composer';
+/* LOCAL vs THE GITHUB PROTOTYPE (user, 2026-10-12): on the published build the three
+   partial-stop options (Keep / Rollback / Continue) are shown but take no action, so
+   reviewers are not led further; locally they stay fully interactive. One codebase:
+   the host decides. `?remote=1` previews the published behaviour on localhost. */
+const IS_LOCAL = (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) || location.protocol==='file:')
+  && !new URLSearchParams(location.search).has('remote');
 const RESENT_IF_TYPED = ()=> resumeVia==='composer' ? SP_RESENT() : '';
 /* a resend carries the prompt's own attachment (see HAS_FILE / FILE_NAME); s4 has none */
 const SP_RESENT = ()=> userBubble((resumeFile && HAS_FILE())
@@ -1552,7 +1558,9 @@ function wire(name, state){
      taken rather than silently continuing. */
   /* Keep / Rollback / Complete the remaining: each records its own label as the
      user's turn, then resumes */
-  ['#s3Keep','#s3Rollback','#s3Complete'].forEach(sel=>{ const b=main.querySelector(sel); if(b) b.onclick=()=>{ clearTimers(); resumeText = b.textContent.trim(); resumeFile = false; resumeVia = 'chip'; RESUME_RUN[name](); }; });
+  ['#s3Keep','#s3Rollback','#s3Complete'].forEach(sel=>{ const b=main.querySelector(sel); if(!b) return;
+    if(!IS_LOCAL){ b.onclick=(e)=>e.preventDefault(); b.classList.add('cardReplyBtn--inert'); return; }   // published build: no further interaction
+    b.onclick=()=>{ clearTimers(); resumeText = b.textContent.trim(); resumeFile = false; resumeVia = 'chip'; RESUME_RUN[name](); }; });
 
   const approve = main.querySelector('#s2ApprovePlan');
   if(approve) approve.onclick=()=>{ clearTimers(); if(name==='s4') runS4Thinking(); else runPlanThinking(name); };
